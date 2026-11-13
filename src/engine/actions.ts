@@ -44,10 +44,9 @@ export function confirmDispatch(
       : p,
   );
   const rt = s.runtime[h.id];
-  const runtime = {
-    ...s.runtime,
-    [h.id]: { ...rt, used: { ...rt.used, [sug.color]: rt.used[sug.color] + sug.patientIds.length } },
-  };
+  const used = { ...rt.used };
+  for (const p of s.patients) if (ids.has(p.id) && p.color !== 'K') used[p.color as 'R' | 'Y' | 'G'] += 1;
+  const runtime = { ...s.runtime, [h.id]: { ...rt, used } };
   const vehicles = s.vehicles.map((v) =>
     v.id === vehicle.id
       ? {
@@ -119,4 +118,48 @@ export function hazmatNotifyList(patients: Patient[], runtime: Record<string, Ho
     (byHospital[p.hospitalId] ??= []).push(p.label);
   }
   return Object.entries(byHospital).map(([hospitalId, labels]) => ({ hospitalId, labels }));
+}
+
+/** 綠傷由勤務車載走（不佔救護車）；hospitalId 為空表示載離現場未定醫院 */
+export function dutyTransport(s: DomainState, patientId: string, hospitalId: string | undefined, goMin: number, now: number): DomainState {
+  const p = s.patients.find((x) => x.id === patientId);
+  if (!p || p.status !== 'waiting') return s;
+  const h = hospitalId ? HOSPITAL_BY_ID[hospitalId] : undefined;
+  const patients = s.patients.map((x) =>
+    x.id === patientId
+      ? {
+          ...x,
+          status: 'sent' as const,
+          byDuty: true,
+          hospitalId: h?.id,
+          sentAt: now,
+          arriveAt: h ? now + goMin * 60000 : undefined,
+          history: [...x.history, { at: now, action: `勤務車載走${h ? ` ➔ ${h.short}` : ''}` }],
+        }
+      : x,
+  );
+  let runtime = s.runtime;
+  if (h && p.color !== 'K') {
+    const rt = s.runtime[h.id];
+    const c = p.color as 'R' | 'Y' | 'G';
+    runtime = { ...s.runtime, [h.id]: { ...rt, used: { ...rt.used, [c]: rt.used[c] + 1 } } };
+  }
+  return { ...s, patients, runtime, log: [...s.log, { at: now, text: `${p.label} 勤務車載走${h ? ` ➔ ${h.short}` : ''}` }] };
+}
+
+/** 傷患自行離開／恢復待送 */
+export function setLeft(s: DomainState, patientId: string, left: boolean, now: number): DomainState {
+  const p = s.patients.find((x) => x.id === patientId);
+  if (!p) return s;
+  if (left ? p.status !== 'waiting' : p.status !== 'left') return s;
+  const text = left ? '自行離開' : '恢復待送';
+  return {
+    ...s,
+    patients: s.patients.map((x) =>
+      x.id === patientId
+        ? { ...x, status: left ? ('left' as const) : ('waiting' as const), history: [...x.history, { at: now, action: text }] }
+        : x,
+    ),
+    log: [...s.log, { at: now, text: `${p.label} ${text}` }],
+  };
 }

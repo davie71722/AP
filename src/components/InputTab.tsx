@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { HOSPITAL_BY_ID } from '../data/hospitals';
+import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { capacityOf, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
 import { etaFromUnit } from '../travel';
@@ -13,7 +14,7 @@ export function InputTab() {
   const [showSent, setShowSent] = useState(false);
 
   const waiting = patients.filter((p) => p.status === 'waiting');
-  const sent = patients.filter((p) => p.status === 'sent');
+  const sent = patients.filter((p) => p.status !== 'waiting');
 
   return (
     <>
@@ -32,7 +33,7 @@ export function InputTab() {
         {sent.length > 0 && (
           <>
             <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setShowSent(!showSent)}>
-              已送出 {sent.length} {showSent ? '▲' : '▼'}
+              已送出／離開 {sent.length} {showSent ? '▲' : '▼'}
             </button>
             {showSent && (
               <div className="ptags" style={{ marginTop: 8 }}>
@@ -99,14 +100,79 @@ function TriagePad() {
   );
 }
 
+/** 綠傷：自行離開、勤務車載走 */
+function GreenActions({ id, onDone }: { id: string; onDone: () => void }) {
+  const [pickHospital, setPickHospital] = useState(false);
+  const setLeft = useStore((s) => s.setLeft);
+  const duty = useStore((s) => s.dutyTransport);
+  const runtime = useStore((s) => s.runtime);
+  const travel = useStore((s) => s.travel.byHospital);
+  const settings = useStore((s) => s.incident.settings);
+  const options = HOSPITALS.filter(
+    (h) =>
+      (h.county === '新竹縣' || h.county === '新竹市') &&
+      h.level !== 'heavy' &&
+      !runtime[h.id]?.bypass &&
+      capacityOf(h, runtime[h.id], settings.nightMode).G - runtime[h.id].used.G - runtime[h.id].selfPresented.G > 0,
+  )
+    .map((h) => ({ h, go: effectiveTravel(travel[h.id], runtime[h.id], settings)?.go ?? 99 }))
+    .sort((a, b) => a.go - b.go)
+    .slice(0, 6);
+  return (
+    <>
+      <div className="grid g2">
+        <button
+          className="btn"
+          onClick={() => {
+            setLeft(id, true);
+            onDone();
+          }}
+        >
+          自行離開
+        </button>
+        <button className={`btn ${pickHospital ? 'on' : ''}`} onClick={() => setPickHospital(!pickHospital)}>
+          勤務車載走
+        </button>
+      </div>
+      {pickHospital && (
+        <div className="grid g2" style={{ marginTop: 8 }}>
+          {options.map(({ h, go }) => (
+            <button
+              key={h.id}
+              className="btn sm"
+              onClick={() => {
+                duty(id, h.id);
+                onDone();
+              }}
+            >
+              {h.short} <span className="muted">{Math.round(go)}′</span>
+            </button>
+          ))}
+          <button
+            className="btn sm"
+            onClick={() => {
+              duty(id, undefined);
+              onDone();
+            }}
+          >
+            未定
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
   const tagNames = p.tags.map((t) => PATIENT_TAGS.find((x) => x.id === t)?.name ?? t);
   const sub =
-    p.status === 'sent' && p.hospitalId
-      ? `➔${HOSPITAL_BY_ID[p.hospitalId]?.short}`
+    p.status === 'left'
+      ? '離開'
+      : p.status === 'sent'
+        ? `${p.byDuty ? '勤' : ''}➔${p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : ''}`
       : [p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '', tagNames.join('·')].filter(Boolean).join(' ');
   return (
-    <button className={`ptag ${p.color} ${p.status === 'sent' ? 'sent' : ''}`} onClick={onClick}>
+    <button className={`ptag ${p.color} ${p.status !== 'waiting' ? 'sent' : ''}`} onClick={onClick}>
       {p.label}
       {sub && <small>{sub}</small>}
     </button>
@@ -118,6 +184,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const toggleTag = useStore((s) => s.toggleTag);
   const retriage = useStore((s) => s.retriage);
   const setRedClass = useStore((s) => s.setRedClass);
+  const setLeft = useStore((s) => s.setLeft);
   const { names } = useTriage();
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
@@ -137,6 +204,8 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
         {p.prevLabels.length > 0 && <span className="muted small">原：{p.prevLabels.join('→')}</span>}
         {p.status === 'sent' && <span className="muted small">已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}</span>}
       </h2>
+
+      {p.color === 'G' && p.status === 'waiting' && <GreenActions id={p.id} onDone={onClose} />}
 
       <h3>標籤</h3>
       <div className="grid g4">
@@ -184,6 +253,12 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
             ))}
           </div>
         </>
+      )}
+
+      {p.status === 'left' && (
+        <button className="btn full" style={{ marginTop: 12 }} onClick={() => setLeft(p.id, false)}>
+          ↶ 恢復待送
+        </button>
       )}
 
       <h3>卡號</h3>

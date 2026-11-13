@@ -50,11 +50,25 @@ function PatientSummary() {
             <td className="big">{count('K')}</td>
           </tr>
           <tr>
-            <td>已後送</td>
+            <td>救護車後送</td>
             {(['R', 'Y', 'G'] as Color[]).map((c) => (
-              <td key={c}>{count(c, 'sent')}</td>
+              <td key={c}>{patients.filter((p) => p.color === c && p.status === 'sent' && !p.byDuty).length}</td>
             ))}
-            <td>—</td>
+            <td />
+          </tr>
+          <tr>
+            <td>勤務車</td>
+            {(['R', 'Y', 'G'] as Color[]).map((c) => (
+              <td key={c}>{patients.filter((p) => p.color === c && p.byDuty).length}</td>
+            ))}
+            <td />
+          </tr>
+          <tr>
+            <td>自行離開</td>
+            {(['R', 'Y', 'G'] as Color[]).map((c) => (
+              <td key={c}>{patients.filter((p) => p.color === c && p.status === 'left').length}</td>
+            ))}
+            <td />
           </tr>
         </tbody>
       </table>

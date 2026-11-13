@@ -171,9 +171,18 @@ export function vehicleAvailableMin(v: Vehicle, now: number): number | null {
 // ---------- 主流程 ----------
 
 interface Job {
+  /** 主要顏色（決定醫院級別與計分） */
   color: TransportColor;
   patients: Patient[];
   tags: string[];
+  /** 各色人數（量能檢查用） */
+  need: Cap;
+}
+
+function makeJob(color: TransportColor, ps: Patient[]): Job {
+  const need = { R: 0, Y: 0, G: 0 };
+  for (const p of ps) need[p.color as TransportColor] += 1;
+  return { color, patients: ps, tags: Array.from(new Set(ps.flatMap((p) => p.tags))), need };
 }
 
 interface SimVehicle {
@@ -220,16 +229,18 @@ export function computePlan(input: PlanInput): Plan {
     } else dispatchable.push(p);
   }
 
-  // 3. 綠傷分組
+  // 3. 組車：紅傷單獨；黃傷併載一位綠傷；其餘綠傷依每車人數分組
   const jobs: Job[] = [];
-  const greens: Patient[] = [];
+  const greens = dispatchable.filter((p) => p.color === 'G');
   for (const p of dispatchable) {
-    if (p.color === 'G') greens.push(p);
-    else jobs.push({ color: p.color as TransportColor, patients: [p], tags: p.tags });
+    if (p.color === 'R') jobs.push(makeJob('R', [p]));
+    else if (p.color === 'Y') {
+      const g = settings.yellowPlusGreen ? greens.shift() : undefined;
+      jobs.push(makeJob('Y', g ? [p, g] : [p]));
+    }
   }
   for (let i = 0; i < greens.length; i += settings.greensPerVehicle) {
-    const grp = greens.slice(i, i + settings.greensPerVehicle);
-    jobs.push({ color: 'G', patients: grp, tags: Array.from(new Set(grp.flatMap((p) => p.tags))) });
+    jobs.push(makeJob('G', greens.slice(i, i + settings.greensPerVehicle)));
   }
 
   // 4. 車輛可用時間、保留車數
@@ -288,7 +299,13 @@ export function computePlan(input: PlanInput): Plan {
       specialBonus(h, c, job.tags, rules) +
       (areaBonus(h.id, c) ? areaBonus(h.id, c) : WEIGHTS.countyBonus[c][h.county] ?? 0);
     if (go >= settings.longHaulMin) s -= WEIGHTS.longHaul[c];
-    if (!ignoreLoad) s -= surgePenalty(h.id, c, departMin + go);
+    if (!ignoreLoad) {
+      s -= surgePenalty(h.id, c, departMin + go);
+      // 累積收治與負荷回報（護理人力、情緒）
+      const u = simUsed[h.id];
+      s -= WEIGHTS.cumulative[c] * u[c] + WEIGHTS.cumulativeOther * (u.R + u.Y + u.G - u[c]);
+      s -= WEIGHTS.strainPenalty[runtime[h.id]?.strain ?? 0] ?? 0;
+    }
     return s;
   };
 
@@ -303,6 +320,12 @@ export function computePlan(input: PlanInput): Plan {
     return job.tags.includes('burn') && h.tags.includes('burn') && !localBurn;
   };
 
+  /** 各色剩餘量能是否足夠 */
+  const fits = (h: Hospital, job: Job) => {
+    const cap = capacityOf(h, runtime[h.id], settings.nightMode);
+    return (['R', 'Y', 'G'] as TransportColor[]).every((c) => !job.need[c] || cap[c] - simUsed[h.id][c] >= job.need[c]);
+  };
+
   const pick = (job: Job, respectCapacity: boolean, departMin: number) =>
     pickIn(job, respectCapacity, departMin, (h) => inTier1(h, job)) ?? pickIn(job, respectCapacity, departMin, () => true);
 
@@ -314,10 +337,9 @@ export function computePlan(input: PlanInput): Plan {
       if (rt?.bypass) continue;
       const tr = effectiveTravel(travel[h.id], rt, settings);
       if (!tr) continue;
-      const cap = capacityOf(h, rt, settings.nightMode)[job.color];
       if (respectCapacity) {
-        if (cap - simUsed[h.id][job.color] < job.patients.length) continue;
-      } else if (cap <= 0) continue;
+        if (!fits(h, job)) continue;
+      } else if (capacityOf(h, rt, settings.nightMode)[job.color] <= 0) continue;
       const score = scoreHospital(h, job, tr.go, departMin, !respectCapacity);
       if (!best || score > best.score) best = { h, score, go: tr.go, back: tr.back };
     }
@@ -350,11 +372,8 @@ export function computePlan(input: PlanInput): Plan {
 
     const h = chosen.h;
     const warnings: Warning[] = [];
-    if (ideal && ideal.h.id !== h.id) {
-      const iCap = capacityOf(ideal.h, runtime[ideal.h.id], settings.nightMode)[job.color];
-      if (iCap - simUsed[ideal.h.id][job.color] < job.patients.length) {
-        warnings.push({ kind: 'diverted', text: `滿載轉向（原首選 ${ideal.h.short}）` });
-      }
+    if (ideal && ideal.h.id !== h.id && !fits(ideal.h, job)) {
+      warnings.push({ kind: 'diverted', text: `滿載轉向（原首選 ${ideal.h.short}）` });
     }
     if (chosen.go >= settings.longHaulMin) {
       warnings.push({ kind: 'longHaul', text: `長程後送：車離場約 ${Math.round(returnMin - departMin)} 分` });
@@ -383,8 +402,11 @@ export function computePlan(input: PlanInput): Plan {
       warnings,
     });
 
-    simUsed[h.id][job.color] += job.patients.length;
-    (arrivals[h.id] ??= []).push({ at: arriveMin, color: job.color, n: job.patients.length });
+    for (const c of ['R', 'Y', 'G'] as TransportColor[]) {
+      if (!job.need[c]) continue;
+      simUsed[h.id][c] += job.need[c];
+      (arrivals[h.id] ??= []).push({ at: arriveMin, color: c, n: job.need[c] });
+    }
     sv.simTrips += 1;
     if (deconAfter) {
       // 化災：車輛返場後需除污，模擬中不再派用

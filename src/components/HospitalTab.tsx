@@ -57,6 +57,11 @@ function HospitalRow({ h, planned, onOpen }: { h: Hospital; planned?: Record<Tra
         <div className="hname">
           {h.short}
           {rt.bypass && <span style={{ color: 'var(--red)', fontSize: 14 }}> 關閉中</span>}
+          {!rt.bypass && (rt.strain ?? 0) > 0 && (
+            <span className={`chip ${rt.strain === 2 ? 'R' : 'Y'}`} style={{ fontSize: 13, marginLeft: 6 }}>
+              {rt.strain === 2 ? '爆量' : '吃緊'}
+            </span>
+          )}
           <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>
             {' '}
             {tr ? `${Math.round(tr.go)}分` : ''}
@@ -103,6 +108,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
   const adjustSelf = useStore((s) => s.adjustSelfPresented);
   const adjustCapacity = useStore((s) => s.adjustCapacity);
   const toggleDecon = useStore((s) => s.toggleDecon);
+  const setStrain = useStore((s) => s.setStrain);
   const toggleBypass = useStore((s) => s.toggleBypass);
   const cap = capacityOf(h, rt, settings.nightMode);
   const tr = effectiveTravel(travel, rt, settings);
@@ -137,6 +143,19 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
         );
       })}
 
+      <h3>負荷</h3>
+      <div className="grid g3">
+        {(['正常', '吃緊', '爆量'] as const).map((name, lv) => (
+          <button
+            key={name}
+            className={`btn sm ${(rt.strain ?? 0) === lv ? (lv === 2 ? 'chip R' : lv === 1 ? 'chip Y' : 'on') : ''}`}
+            onClick={() => setStrain(id, lv as 0 | 1 | 2)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
       <h3>車程 {tr ? Math.round(tr.go) : '—'} 分</h3>
       <div className="setrow">
         <span>修正</span>
@@ -164,7 +183,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
           除污能力：{rt.decon ? '有' : '無'}
         </button>
         <button className={`btn ${rt.bypass ? 'go' : 'danger'}`} onClick={() => toggleBypass(id)}>
-          {rt.bypass ? '重新開啟' : '關閉'}
+          {rt.bypass ? '重新開啟' : '關閉醫院'}
         </button>
       </div>
     </Sheet>

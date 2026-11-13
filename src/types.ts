@@ -29,6 +29,8 @@ export interface HospitalRuntime {
   used: Cap;
   selfPresented: Cap;
   bypass: boolean;
+  /** 醫院負荷回報（護理人力、情緒）：0 正常、1 吃緊、2 爆量 */
+  strain?: 0 | 1 | 2;
   travelAdjustMin: number;
   decon: boolean;
   /** 編輯模式調整後的容量（未設定則用靜態資料） */
@@ -58,7 +60,10 @@ export interface Patient {
   prevLabels: string[];
   seq: number; // 建立順序
   tags: string[];
-  status: 'waiting' | 'sent';
+  /** waiting 待送｜sent 已後送（救護車或勤務車）｜left 自行離開 */
+  status: 'waiting' | 'sent' | 'left';
+  /** 由勤務車載走（非救護車） */
+  byDuty?: boolean;
   hospitalId?: string;
   vehicleId?: string;
   sentAt?: number;
@@ -107,6 +112,8 @@ export interface Settings {
   handoverMin: number;
   trafficFactor: number;
   greensPerVehicle: 1 | 2 | 3;
+  /** 黃傷同車併載一位綠傷 */
+  yellowPlusGreen: boolean;
   longHaulMin: number;
   reserveVehicles: number;
   nightMode: boolean;
@@ -150,6 +157,7 @@ export const DEFAULT_SETTINGS: Settings = {
   handoverMin: 15,
   trafficFactor: 1.0,
   greensPerVehicle: 2,
+  yellowPlusGreen: true,
   longHaulMin: 35,
   reserveVehicles: 0,
   nightMode: false,

@@ -121,6 +121,16 @@ export function IncidentTab() {
             ))}
           </div>
         </SetRow>
+        <SetRow label="黃傷併載綠傷">
+          <div className="seg">
+            <button className={`btn sm ${!st.yellowPlusGreen ? 'on' : ''}`} onClick={() => update({ yellowPlusGreen: false })}>
+              否
+            </button>
+            <button className={`btn sm ${st.yellowPlusGreen ? 'on' : ''}`} onClick={() => update({ yellowPlusGreen: true })}>
+              是
+            </button>
+          </div>
+        </SetRow>
         <SetRow label="離線車程倍率">
           <div className="seg">
             {[1.0, 1.3, 1.6].map((f) => (

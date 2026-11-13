@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import { HOSPITAL_BY_ID, HOSPITALS, initialRuntimes } from '../data/hospitals';
 import { FIRE_UNITS, locate, SUPPORT_SOURCES, unitCoord } from '../data/places';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
-import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from '../engine/actions';
+import {
+  confirmDispatch,
+  dutyTransport as dutyTransportDomain,
+  hazmatNotifyList,
+  setLeft as setLeftDomain,
+  setVehicleStatus,
+  type DomainState,
+} from '../engine/actions';
+import { effectiveTravel } from '../engine/plan';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
@@ -86,6 +94,9 @@ interface Store extends Persisted {
 
   adjustSelfPresented(hid: string, c: TransportColor, delta: number): void;
   toggleBypass(hid: string): void;
+  setStrain(hid: string, level: 0 | 1 | 2): void;
+  setLeft(id: string, left: boolean): void;
+  dutyTransport(id: string, hid: string | undefined): void;
   adjustTravel(hid: string, delta: number): void;
   toggleDecon(hid: string): void;
   adjustCapacity(hid: string, c: TransportColor, delta: number): void;
@@ -444,6 +455,20 @@ export const useStore = create<Store>((set, get) => {
       if (val === r.selfPresented[c]) return;
       patchRuntime(hid, (r) => ({ ...r, selfPresented: { ...r.selfPresented, [c]: val } }));
       log(`${HOSPITAL_BY_ID[hid].short} 自行到院 ${TRIAGE_NAMES[get().incident.settings.triageSystem][c]} → ${val}`);
+    },
+    setStrain: (hid, level) => {
+      patchRuntime(hid, (r) => ({ ...r, strain: level }));
+      log(`${HOSPITAL_BY_ID[hid].short} 負荷：${['正常', '吃緊', '爆量'][level]}`);
+    },
+    setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
+    dutyTransport: (id, hid) => {
+      const s = get();
+      const before = domain();
+      const tr = hid ? effectiveTravel(s.travel.byHospital[hid], s.runtime[hid], s.incident.settings) : null;
+      const after = dutyTransportDomain(before, id, hid, tr?.go ?? 0, Date.now());
+      const p = s.patients.find((x) => x.id === id);
+      set({ undoStack: [...s.undoStack.slice(-19), { label: `${p?.label ?? ''} 勤務車`, state: before }] });
+      applyDomain(after);
     },
     toggleBypass: (hid) => {
       const on = !get().runtime[hid].bypass;

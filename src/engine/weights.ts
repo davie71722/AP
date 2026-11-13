@@ -79,8 +79,16 @@ export const WEIGHTS = {
    * 綠傷分散權重較低，避免為了分散而把輕傷送到重度級醫院。
    */
   surgeWindowMin: 30,
-  surgeSameColor: { R: 12, Y: 8, G: 3 } as Record<TransportColor, number>,
+  surgeSameColor: { R: 20, Y: 8, G: 3 } as Record<TransportColor, number>,
   surgeOtherColor: 3,
+  /**
+   * 累積收治（護理人力與情緒）：整個事件中該院每已收 1 位同色傷患扣 cumulative[色] 分，
+   * 他色每位扣 cumulativeOther 分。床位還夠也會適時分流，紅傷以發牌方式輪送。
+   */
+  cumulative: { R: 15, Y: 6, G: 4 } as Record<TransportColor, number>,
+  cumulativeOther: 1,
+  /** 醫院負荷回報：吃緊／爆量扣分 */
+  strainPenalty: [0, 20, 50] as number[],
   /** 以縣市內醫院為主：第一層只在這些縣市中、級別適合的醫院之間分配 */
   localCounties: ['新竹縣', '新竹市'] as string[],
   /** 第一層「級別適合」門檻（適配分）：紅傷＝重度／外傷重度、黃傷＝各級、綠傷＝中度／一般 */

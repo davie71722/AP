@@ -96,11 +96,14 @@ export function DispatchTab() {
           <h2>未分配（{plan.unassigned.reduce((n, u) => n + u.patientIds.length, 0)}）</h2>
           {plan.unassigned.map((u) => (
             <div key={u.patientIds.join('+')} className="row" style={{ padding: '6px 0', borderTop: '1px solid var(--line)' }}>
-              {u.patientIds.map((id) => (
-                <span key={id} className={`chip ${u.color}`}>
-                  {patients.find((x) => x.id === id)?.label}
-                </span>
-              ))}
+              {u.patientIds.map((id) => {
+                const p = patients.find((x) => x.id === id);
+                return (
+                  <span key={id} className={`chip ${p?.color ?? u.color}`}>
+                    {p?.label}
+                  </span>
+                );
+              })}
               <span style={{ color: u.reason === 'needsDecon' ? 'var(--purple)' : 'var(--orange)', fontWeight: 700 }}>
                 {{ noVehicle: '無車', noCapacity: '無量能', needsDecon: '未除污' }[u.reason]}
               </span>
@@ -130,13 +133,13 @@ function SuggestionCard({ s, onMarkArrived }: { s: Suggestion; onMarkArrived: ()
   const now = useStore((st) => st.now);
   const confirm = useStore((st) => st.confirm);
   const h = HOSPITAL_BY_ID[s.hospitalId];
-  const labels = s.patientIds.map((id) => patients.find((p) => p.id === id)?.label ?? '?');
+  const ps = s.patientIds.map((id) => patients.find((p) => p.id === id));
   return (
     <div className={`sug ${s.color} ${s.confirmable ? '' : 'pre'}`}>
       <div className="line1">
-        {labels.map((l) => (
-          <span key={l} className={`chip ${s.color}`} style={{ fontSize: 17 }}>
-            {l}
+        {ps.map((p, i) => (
+          <span key={p?.id ?? i} className={`chip ${p?.color ?? s.color}`} style={{ fontSize: 17 }}>
+            {p?.label ?? '?'}
           </span>
         ))}
         <span className="arrow">➔</span>

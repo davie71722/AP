@@ -3,7 +3,7 @@ import { HOSPITALS, HOSPITAL_BY_ID, initialRuntimes } from '../data/hospitals';
 import { FIRE_UNITS, TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
 import { DEFAULT_SETTINGS, patientLabel, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
-import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from './actions';
+import { confirmDispatch, dutyTransport, hazmatNotifyList, setLeft, setVehicleStatus, type DomainState } from './actions';
 import { computePlan, type PlanInput } from './plan';
 import { combineRules } from './rules';
 
@@ -207,7 +207,7 @@ describe('化災事件', () => {
 describe('車輛折返', () => {
   it('3 台車、8 位傷患：產生第 2、3 趟折返', () => {
     const plan = computePlan(
-      input({ patients: patients({ R: 2, Y: 3, G: 3 }), vehicles: vehicles(3), settings: { greensPerVehicle: 1 } }),
+      input({ patients: patients({ R: 2, Y: 3, G: 3 }), vehicles: vehicles(3), settings: { greensPerVehicle: 1, yellowPlusGreen: false } }),
     );
     expect(plan.suggestions).toHaveLength(8);
     const trips = plan.suggestions.map((s) => s.tripNo);
@@ -298,6 +298,59 @@ describe('在地常送醫院', () => {
     const erchong = { kind: 'pin' as const, label: '二重', lat: u.lat + 0.003, lng: u.lng - 0.002, township: '竹東', area: '二重' };
     const plan = computePlan({ ...input({ patients: patients({ R: 1 }) }), travel: offlineTravel(erchong), area: '二重' });
     expect(short(plan.suggestions[0].hospitalId)).toBe('新竹馬偕');
+  });
+});
+
+describe('護理量能與發牌輪送', () => {
+  it('紅傷嚴格輪送：每家輪到一位才輪下一輪', () => {
+    const hs = computePlan(input({ patients: patients({ R: 12 }), vehicles: vehicles(12) })).suggestions.map((s) => s.hospitalId);
+    for (let k = 0; k < 12; k += 4) expect(new Set(hs.slice(k, k + 4)).size).toBe(4);
+  });
+
+  it('醫院回報爆量時避開，吃緊時降低優先', () => {
+    const base = computePlan(input({ patients: patients({ R: 1 }) })).suggestions[0].hospitalId;
+    const runtime = initialRuntimes();
+    runtime[base].strain = 2;
+    expect(computePlan(input({ patients: patients({ R: 1 }), runtime })).suggestions[0].hospitalId).not.toBe(base);
+  });
+
+  it('床位還夠也會依累積收治人數分流', () => {
+    const runtime = initialRuntimes();
+    runtime['renci'].used.G = 6; // 仁慈已收 6 位綠傷，容量 10 還夠
+    const hs = computePlan(input({ at: '湖口', patients: patients({ G: 2 }), runtime, settings: { greensPerVehicle: 1 } })).suggestions.map((s) => short(s.hospitalId));
+    expect(hs).not.toEqual(['湖口仁慈', '湖口仁慈']);
+  });
+});
+
+describe('組車順序', () => {
+  it('先送紅傷，再來黃傷併載一位綠傷，其餘綠傷兩位一車', () => {
+    const ps = patients({ R: 1, Y: 2, G: 4 });
+    const plan = computePlan(input({ patients: ps, vehicles: vehicles(10) }));
+    const colorsOf = (ids: string[]) => ids.map((id) => ps.find((p) => p.id === id)!.color).join('');
+    expect(plan.suggestions.map((s) => colorsOf(s.patientIds))).toEqual(['R', 'YG', 'YG', 'GG']);
+    // 同車黃＋綠分別計入該院黃、綠量能
+    const yg = plan.suggestions[1];
+    expect(plan.simulatedUse[yg.hospitalId].G).toBeGreaterThanOrEqual(1);
+  });
+
+  it('確認黃＋綠同車時，醫院分別計入黃 1、綠 1', () => {
+    const ps = patients({ Y: 1, G: 1 });
+    const inp = input({ patients: ps, vehicles: vehicles(1) });
+    const sug = computePlan(inp).suggestions[0];
+    const st = confirmDispatch({ patients: ps, vehicles: inp.vehicles, runtime: inp.runtime, log: [] }, sug, NOW, inp.settings, inp.rules);
+    expect(st.runtime[sug.hospitalId].used).toMatchObject({ Y: 1, G: 1 });
+  });
+
+  it('自行離開與勤務車載走的綠傷不再派救護車', () => {
+    const ps = patients({ G: 3 });
+    let st: DomainState = { patients: ps, vehicles: vehicles(3), runtime: initialRuntimes(), log: [] };
+    st = setLeft(st, ps[0].id, true, NOW);
+    st = dutyTransport(st, ps[1].id, 'renci', 10, NOW);
+    expect(st.runtime['renci'].used.G).toBe(1);
+    const plan = computePlan(input({ patients: st.patients, runtime: st.runtime, settings: { greensPerVehicle: 1 } }));
+    expect(plan.suggestions.flatMap((s) => s.patientIds)).toEqual([ps[2].id]);
+    st = setLeft(st, ps[0].id, false, NOW);
+    expect(st.patients[0].status).toBe('waiting');
   });
 });
 

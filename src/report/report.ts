@@ -51,6 +51,7 @@ export function buildReport(
     `經過時間：${elapsedMin(incident, now)} 分`,
     `傷患總數 ${patients.length}：${f(N.R, by('R'))} ${f(N.Y, by('Y'))} ${f(N.G, by('G'))} ${f(N.K, by('K'))}`,
     `已後送：${f(N.R, by('R', 'sent'))} ${f(N.Y, by('Y', 'sent'))} ${f(N.G, by('G', 'sent'))}；待後送：${f(N.R, by('R', 'waiting'))} ${f(N.Y, by('Y', 'waiting'))} ${f(N.G, by('G', 'waiting'))}`,
+    `勤務車載走 ${patients.filter((p) => p.byDuty).length}、自行離開 ${patients.filter((p) => p.status === 'left').length}`,
     `待送${N.R}分類：${RED_CLASSES.map((rc) => `${rc.id}${redW.filter((p) => p.color === 'R' && p.redClass === rc.id).length}`).join(' ')}`,
     `車輛：現場待命${vs('standby')}、運送中${vs('transport')}、趕赴中${vs('enroute')}、待除污${vs('decon')}`,
     `人力：EMTP ${crew('emtp')}、EMT-2 ${crew('emt2')}（不含離線）`,
