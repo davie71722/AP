@@ -71,6 +71,9 @@ export interface Vehicle {
   etaToSceneMin?: number; // 自 addedAt 起算的到場分鐘
   returnAt?: number;
   trips: number;
+  /** 人力：EMT-2（中級）與 EMTP（高級）人數 */
+  emt2: number;
+  emtp: number;
   contaminated?: boolean;
   lastHospitalId?: string;
 }
@@ -92,7 +95,11 @@ export interface Settings {
   longHaulMin: number;
   reserveVehicles: number;
   nightMode: boolean;
-  redWaitAlertMin: number;
+  /** 化災時救護車每趟返場後需除污（預設否） */
+  hazmatVehicleDecon: boolean;
+  /** 新增車輛的預設人力 */
+  defaultEmt2: number;
+  defaultEmtp: number;
 }
 
 export interface LogEntry {
@@ -129,7 +136,9 @@ export const DEFAULT_SETTINGS: Settings = {
   longHaulMin: 35,
   reserveVehicles: 0,
   nightMode: false,
-  redWaitAlertMin: 25,
+  hazmatVehicleDecon: false,
+  defaultEmt2: 2,
+  defaultEmtp: 0,
 };
 
 export const COLOR_NAME: Record<Color, string> = { R: '紅', Y: '黃', G: '綠', K: '黑' };

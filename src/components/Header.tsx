@@ -7,6 +7,8 @@ export function Header() {
   const patients = useStore((s) => s.patients);
   const now = useStore((s) => s.now);
   const online = useStore((s) => s.online);
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
 
   const elapsed = incident.startAt ? Math.max(0, now - incident.startAt) : 0;
   const mm = Math.floor(elapsed / 60000);
@@ -36,6 +38,9 @@ export function Header() {
         <span className="meta">
           {types || '未選類型'}｜{incident.location?.label ?? '未選地點'}
         </span>
+        <button className="theme-btn" aria-label="切換日間／夜間模式" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}>
+          {theme === 'day' ? '☾' : '☀'}
+        </button>
         <span className="online">
           <i style={{ background: online ? 'var(--green)' : 'var(--red)' }} />
           {online ? '連線' : '離線'}

@@ -27,8 +27,7 @@ export type WarningKind =
   | 'diverted' // 滿載轉向
   | 'longHaul' // 長程後送
   | 'crossCounty' // 跨縣市
-  | 'hazmatHospital' // 化災責任醫院
-  | 'redWait'; // 紅傷等候過久
+  | 'hazmatHospital'; // 化災責任醫院
 
 export interface Warning {
   kind: WarningKind;
@@ -142,6 +141,11 @@ export function effectiveTravel(
   };
 }
 
+/** 化災時車輛每趟後是否需除污（預設否，可在設定開啟） */
+export function vehicleNeedsDecon(rules: CombinedRules, settings: Settings): boolean {
+  return rules.vehicleAfterTransport === 'decon' && settings.hazmatVehicleDecon;
+}
+
 // ---------- 車輛可用時間 ----------
 
 export function vehicleAvailableMin(v: Vehicle, now: number): number | null {
@@ -180,6 +184,7 @@ const COLOR_ORDER: Record<string, number> = { R: 0, Y: 1, G: 2 };
 
 export function computePlan(input: PlanInput): Plan {
   const { now, patients, vehicles, hospitals, runtime, travel, settings, rules } = input;
+  const deconAfter = vehicleNeedsDecon(rules, settings);
 
   // 1. 待送、非黑色，依紅→黃→綠、建立順序
   const waiting = patients
@@ -250,7 +255,9 @@ export function computePlan(input: PlanInput): Plan {
       fitScore(h, c, rules.trauma) -
       WEIGHTS.travel[c] * go -
       WEIGHTS.loadPenalty * loadRatio +
-      specialBonus(h, c, job.tags, rules);
+      specialBonus(h, c, job.tags, rules) +
+      (WEIGHTS.countyBonus[c][h.county] ?? 0) +
+      (c === 'R' && rules.trauma ? WEIGHTS.redPriorityHospitals[h.id] ?? 0 : 0);
     if (go >= settings.longHaulMin) s -= WEIGHTS.longHaul[c];
     return s;
   };
@@ -305,10 +312,6 @@ export function computePlan(input: PlanInput): Plan {
     }
     if (h.county !== '新竹縣' && h.county !== '新竹市') warnings.push({ kind: 'crossCounty', text: `跨縣市（${h.county}）` });
     if (h.tags.includes('hazmat')) warnings.push({ kind: 'hazmatHospital', text: '化災責任醫院' });
-    if (job.color === 'R' && departMin > settings.redWaitAlertMin) {
-      warnings.push({ kind: 'redWait', text: `紅傷等候過久（約 ${Math.round(departMin)} 分後出發），請求增援車輛` });
-      needReinforcement = true;
-    }
 
     const onScene = sv.simTrips === 0 && sv.avail <= WEIGHTS.onSceneToleranceMin;
     suggestions.push({
@@ -333,7 +336,7 @@ export function computePlan(input: PlanInput): Plan {
 
     simUsed[h.id][job.color] += job.patients.length;
     sv.simTrips += 1;
-    if (rules.vehicleAfterTransport === 'decon') {
+    if (deconAfter) {
       // 化災：車輛返場後需除污，模擬中不再派用
       pool = pool.filter((x) => x !== sv);
     } else {

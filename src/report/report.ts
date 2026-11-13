@@ -19,6 +19,8 @@ export function buildReport(
   const by = (c: string, st?: Patient['status']) => count((p) => p.color === c && (!st || p.status === st));
   const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
   const vs = (st: Vehicle['status']) => vehicles.filter((v) => v.status === st).length;
+  const crew = (k: 'emtp' | 'emt2') =>
+    vehicles.filter((v) => v.status !== 'offline').reduce((n, v) => n + (v[k] ?? 0), 0);
 
   const perHospital = HOSPITALS.map((h) => {
     const sent = patients.filter((p) => p.status === 'sent' && p.hospitalId === h.id);
@@ -49,6 +51,7 @@ export function buildReport(
       'waiting',
     )} 綠${by('G', 'waiting')}`,
     `車輛：現場待命${vs('standby')}、運送中${vs('transport')}、趕赴中${vs('enroute')}、待除污${vs('decon')}`,
+    `人力：EMTP ${crew('emtp')}、EMT-2 ${crew('emt2')}（不含離線）`,
     `各院收治：${perHospital.length ? perHospital.join('；') : '無'}`,
     `關閉醫院：${closed.length ? closed.join('、') : '無'}`,
   ];

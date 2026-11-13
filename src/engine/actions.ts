@@ -3,7 +3,7 @@ import type { HospitalRuntime, LogEntry, Patient, Settings, Vehicle, VehicleStat
 import { COLOR_NAME } from '../types';
 import { HOSPITAL_BY_ID } from '../data/hospitals';
 import type { CombinedRules } from './rules';
-import type { Suggestion } from './plan';
+import { vehicleNeedsDecon, type Suggestion } from './plan';
 
 export interface DomainState {
   patients: Patient[];
@@ -29,7 +29,7 @@ export function confirmDispatch(
   if (!h || !vehicle) return s;
   const ids = new Set(sug.patientIds);
   const totalMin = settings.loadMin + sug.goMin + settings.handoverMin + sug.backMin;
-  const contaminate = rules.vehicleAfterTransport === 'decon';
+  const contaminate = vehicleNeedsDecon(rules, settings);
 
   const patients = s.patients.map((p) =>
     ids.has(p.id)

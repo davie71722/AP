@@ -5,7 +5,7 @@ import type { Suggestion } from '../engine/plan';
 import { useStore } from '../store/store';
 import { usePlan, useRules } from '../store/usePlan';
 import { clockAfter, fmtMin } from './common';
-import { VehicleSheet } from './InputTab';
+import { crewText, VehicleSheet } from './InputTab';
 
 export function DispatchTab() {
   const plan = usePlan();
@@ -54,7 +54,7 @@ export function DispatchTab() {
         </button>
       )}
 
-      {plan.needReinforcement && <div className="alert red">⚠ 紅傷等候過久或無車可派：請求增援車輛</div>}
+      {plan.needReinforcement && <div className="alert red">⚠ 紅傷無車可派：請求增援車輛</div>}
 
       <section className="section">
         <div className="stats">
@@ -148,6 +148,7 @@ function SuggestionCard({ s, onMarkArrived }: { s: Suggestion; onMarkArrived: ()
         <span className="arrow">➔</span>
         <span>{h.short}</span>
       </div>
+      {vehicle && <div className="note">{crewText(vehicle)}</div>}
       <div className="times">
         <div>
           出發<b>{clockAfter(now, s.departMin)}</b>

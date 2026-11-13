@@ -4,7 +4,7 @@ import { FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
 import { useRules } from '../store/usePlan';
 import { COLOR_NAME, PATIENT_TAGS, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
-import { DoubleTapButton, Sheet, clockAfter } from './common';
+import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 
 const COLORS: Color[] = ['R', 'Y', 'G', 'K'];
 
@@ -67,8 +67,6 @@ export function InputTab() {
           </>
         )}
       </section>
-
-      <VehiclesSection />
 
       {openPatient && <PatientSheet id={openPatient} onClose={() => setOpenPatient(null)} />}
     </>
@@ -180,7 +178,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 
-function VehiclesSection() {
+export function VehiclesSection() {
   const vehicles = useStore((s) => s.vehicles);
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -235,6 +233,11 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** 人力：EMTP（高級）、EMT-2（中級） */
+export function crewText(v: Vehicle): string {
+  return `EMTP ${v.emtp ?? 0}｜EMT-2 ${v.emt2 ?? 0}`;
+}
+
 export function vehicleCountdown(v: Vehicle, now: number): string {
   if (v.status === 'enroute') {
     const left = (v.etaToSceneMin ?? 0) - (now - v.addedAt) / 60000;
@@ -253,7 +256,9 @@ function VehicleCard({ v, onClick }: { v: Vehicle; onClick: () => void }) {
   const sub = [vehicleCountdown(v, now), v.trips > 0 ? `已 ${v.trips} 趟` : ''].filter(Boolean).join('｜');
   return (
     <button className={`vcard ${v.status}`} onClick={onClick}>
-      <span className="name">{v.name}</span>
+      <span className="name">
+        {v.name} <span className="crew">{crewText(v)}</span>
+      </span>
       <span className={`st status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
       {sub && <span className="sub">{sub}</span>}
     </button>
@@ -266,6 +271,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const setStatus = useStore((s) => s.setVehicleStatus);
   const adjustEta = useStore((s) => s.adjustEta);
   const del = useStore((s) => s.deleteVehicle);
+  const adjustCrew = useStore((s) => s.adjustCrew);
   if (!v) return null;
   const act = (fn: () => void) => () => {
     fn();
@@ -303,6 +309,15 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
             ✔ 恢復現場待命
           </button>
         )}
+      </div>
+      <h3>人力</h3>
+      <div className="setrow">
+        <span>EMTP（高級）</span>
+        <Stepper min={0} max={6} value={v.emtp ?? 0} onChange={(n) => adjustCrew(v.id, 'emtp', n - (v.emtp ?? 0))} format={(n) => `${n}人`} />
+      </div>
+      <div className="setrow">
+        <span>EMT-2（中級）</span>
+        <Stepper min={0} max={6} value={v.emt2 ?? 0} onChange={(n) => adjustCrew(v.id, 'emt2', n - (v.emt2 ?? 0))} format={(n) => `${n}人`} />
       </div>
       {(v.status === 'enroute' || v.status === 'transport') && (
         <>

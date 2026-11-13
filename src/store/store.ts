@@ -24,7 +24,19 @@ import {
 } from '../types';
 import { loadSettingsPref, loadSnapshot, saveSettingsPref, saveSnapshot } from './db';
 
-export type Tab = 'incident' | 'input' | 'dispatch' | 'hospital' | 'report';
+export type Tab = 'incident' | 'input' | 'fleet' | 'dispatch' | 'hospital' | 'report';
+export type Theme = 'day' | 'night';
+
+const THEME_KEY = 'zhuxian-mci-theme';
+function loadTheme(): Theme {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t === 'day' || t === 'night') return t;
+  } catch {
+    /* 忽略 */
+  }
+  return 'night';
+}
 
 interface Persisted {
   incident: Incident;
@@ -39,6 +51,9 @@ interface Persisted {
 
 interface Store extends Persisted {
   hydrated: boolean;
+  theme: Theme;
+  setTheme(t: Theme): void;
+  adjustCrew(id: string, kind: 'emt2' | 'emtp', delta: number): void;
   tab: Tab;
   now: number;
   online: boolean;
@@ -142,6 +157,22 @@ export const useStore = create<Store>((set, get) => {
   return {
     ...freshPersisted(),
     hydrated: false,
+    theme: typeof localStorage === 'undefined' ? 'night' : loadTheme(),
+    setTheme: (theme) => {
+      try {
+        localStorage.setItem(THEME_KEY, theme);
+      } catch {
+        /* 忽略 */
+      }
+      set({ theme });
+    },
+    adjustCrew: (id, kind, delta) => {
+      const v = get().vehicles.find((x) => x.id === id);
+      if (!v) return;
+      const val = Math.max(0, (v[kind] ?? 0) + delta);
+      set((s) => ({ vehicles: s.vehicles.map((x) => (x.id === id ? { ...x, [kind]: val } : x)) }));
+      log(`${v.name} ${kind === 'emtp' ? 'EMTP' : 'EMT-2'} → ${val} 人`);
+    },
     tab: 'incident',
     now: Date.now(),
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
@@ -154,7 +185,9 @@ export const useStore = create<Store>((set, get) => {
       if (snap && snap.incident) {
         // 新增醫院時補上預設 runtime
         const runtime = { ...initialRuntimes(), ...snap.runtime };
-        set({ ...freshPersisted(), ...snap, runtime, hydrated: true, tab: snap.incident.startAt ? 'input' : 'incident' });
+        const incident = { ...snap.incident, settings: { ...DEFAULT_SETTINGS, ...snap.incident.settings } };
+        const vehicles = (snap.vehicles ?? []).map((v) => ({ ...v, emt2: v.emt2 ?? 2, emtp: v.emtp ?? 0 }));
+        set({ ...freshPersisted(), ...snap, incident, vehicles, runtime, hydrated: true, tab: snap.incident.startAt ? 'input' : 'incident' });
       } else set({ hydrated: true });
     },
 
@@ -313,6 +346,8 @@ export const useStore = create<Store>((set, get) => {
         addedAt: now,
         etaToSceneMin: loc ? etaFromTownship(unit.township, loc) * s.incident.settings.trafficFactor : 15,
         trips: 0,
+        emt2: s.incident.settings.defaultEmt2,
+        emtp: s.incident.settings.defaultEmtp,
       };
       set({ vehicles: [...s.vehicles, v] });
       log(`新增車輛 ${name}（趕赴中，ETA ${Math.round(v.etaToSceneMin ?? 0)} 分）`);
@@ -340,6 +375,8 @@ export const useStore = create<Store>((set, get) => {
         addedAt: now,
         etaToSceneMin: eta,
         trips: 0,
+        emt2: s.incident.settings.defaultEmt2,
+        emtp: s.incident.settings.defaultEmtp,
       };
       set({ vehicles: [...s.vehicles, v] });
       log(`新增支援車輛 ${name}（趕赴中，ETA ${Math.round(eta)} 分）`);

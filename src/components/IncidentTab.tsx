@@ -115,9 +115,6 @@ export function IncidentTab() {
         <SetRow label="長程門檻">
           <Stepper value={st.longHaulMin} min={10} step={5} onChange={(v) => update({ longHaulMin: v })} format={(v) => `${v}分`} />
         </SetRow>
-        <SetRow label="紅傷等候警示">
-          <Stepper value={st.redWaitAlertMin} min={10} max={60} step={5} onChange={(v) => update({ redWaitAlertMin: v })} format={(v) => `${v}分`} />
-        </SetRow>
         <SetRow label="縣內保留車">
           <Stepper value={st.reserveVehicles} min={0} onChange={(v) => update({ reserveVehicles: v })} format={(v) => `${v}台`} />
         </SetRow>
@@ -139,7 +136,26 @@ export function IncidentTab() {
             ))}
           </div>
         </SetRow>
-        <SetRow label="醫院容量">
+        <SetRow label="新車預設 EMTP">
+          <Stepper value={st.defaultEmtp} min={0} max={4} onChange={(v) => update({ defaultEmtp: v })} format={(v) => `${v}人`} />
+        </SetRow>
+        <SetRow label="新車預設 EMT-2">
+          <Stepper value={st.defaultEmt2} min={0} max={4} onChange={(v) => update({ defaultEmt2: v })} format={(v) => `${v}人`} />
+        </SetRow>
+        <SetRow label="化災：車輛每趟需除污">
+          <div className="seg">
+            <button className={`btn sm ${!st.hazmatVehicleDecon ? 'on' : ''}`} onClick={() => update({ hazmatVehicleDecon: false })}>
+              否
+            </button>
+            <button className={`btn sm ${st.hazmatVehicleDecon ? 'on' : ''}`} onClick={() => update({ hazmatVehicleDecon: true })}>
+              是
+            </button>
+          </div>
+        </SetRow>
+        <SetRow label="畫面">
+          <ThemeToggle />
+        </SetRow>
+        <SetRow label="醫院容量（日／夜）">
           <div className="seg">
             <button className={`btn sm ${!st.nightMode ? 'on' : ''}`} onClick={() => update({ nightMode: false })}>
               日間
@@ -159,6 +175,21 @@ export function IncidentTab() {
         </DoubleTapButton>
       </section>
     </>
+  );
+}
+
+export function ThemeToggle() {
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
+  return (
+    <div className="seg">
+      <button className={`btn sm ${theme === 'day' ? 'on' : ''}`} onClick={() => setTheme('day')}>
+        ☀ 日間
+      </button>
+      <button className={`btn sm ${theme === 'night' ? 'on' : ''}`} onClick={() => setTheme('night')}>
+        ☾ 夜間
+      </button>
+    </div>
   );
 }
 

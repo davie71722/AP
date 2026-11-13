@@ -26,6 +26,17 @@ export const WEIGHTS = {
    * 非創傷事件一律以 level 判斷。
    */
   redTraumaUsesTraumaLevel: true,
+  /**
+   * 縣市偏好：醫院會啟動重大外傷機制，紅傷優先送近的轄內（新竹縣）醫院及新竹市適合的醫院，
+   * 用完才轉桃園、苗栗。黃綠傷僅輕度偏好。
+   */
+  countyBonus: {
+    R: { 新竹縣: 10, 新竹市: 5, 桃園市: -20, 苗栗縣: -20 },
+    Y: { 新竹縣: 3, 新竹市: 0, 桃園市: -10, 苗栗縣: -10 },
+    G: { 新竹縣: 3, 新竹市: 0, 桃園市: -10, 苗栗縣: -10 },
+  } as Record<TransportColor, Record<string, number>>,
+  /** 紅傷（創傷事件）優先醫院：中醫大新竹 */
+  redPriorityHospitals: { 'cmuh-hc': 10 } as Record<string, number>,
   /** 車程權重（每分鐘扣分） */
   travel: { R: 1.0, Y: 1.1, G: 1.4 } as Record<TransportColor, number>,
   /** 負載懲罰：25 × 已用量 / 總量 */

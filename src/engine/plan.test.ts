@@ -35,6 +35,8 @@ function vehicle(i: number, status: Vehicle['status'] = 'standby'): Vehicle {
     status,
     addedAt: NOW,
     trips: 0,
+    emt2: 2,
+    emtp: 0,
   };
 }
 function vehicles(n: number): Vehicle[] {
@@ -57,6 +59,21 @@ function input(over: Partial<Omit<PlanInput, 'settings'>> & { types?: string[]; 
 const short = (id: string) => HOSPITAL_BY_ID[id].short;
 
 describe('紅傷轉向順序', () => {
+  it('紅傷優先送中醫大新竹（即使東元有量能）', () => {
+    for (const at of ['竹北', '湖口', '竹東', '新埔']) {
+      const plan = computePlan(input({ at, patients: patients({ R: 1 }) }));
+      expect(short(plan.suggestions[0].hospitalId)).toBe('中醫大新竹');
+    }
+  });
+
+  it('紅傷先填滿新竹縣與新竹市適合醫院，才送桃園、苗栗', () => {
+    const plan = computePlan(input({ patients: patients({ R: 20 }) }));
+    const hs = plan.suggestions.map((s) => s.hospitalId);
+    const firstOut = hs.findIndex((id) => !['新竹縣', '新竹市'].includes(HOSPITAL_BY_ID[id].county));
+    // 東元4 + 中醫大3 + 台大新竹4 + 馬偕4 = 15
+    expect(firstOut).toBe(15);
+  });
+
   it('新竹縣重度量能用盡後，紅傷依序轉向中醫大新竹 → 新竹市重度 → 為恭／林口', () => {
     const runtime = initialRuntimes();
     runtime['tungyuan'].used.R = 4; // 東元已滿
@@ -121,11 +138,23 @@ describe('化災事件', () => {
     expect(plan.unassigned[0]).toMatchObject({ reason: 'needsDecon', patientIds: [ps[0].id] });
   });
 
-  it('運送後車輛返場轉為待除污，解除後才可再用', () => {
+  it('預設：化災運送後車輛不需除污，可折返多趟', () => {
+    const rules = combineRules(['hazmat']);
+    const ps = patients({ Y: 3 }, ['decontaminated']);
+    const vs = [vehicle(1)];
+    const inp = input({ types: ['hazmat'], at: '湖口', patients: ps, vehicles: vs });
+    const plan = computePlan(inp);
+    expect(plan.suggestions.map((s) => s.tripNo)).toEqual([1, 2, 3]);
+    const st = confirmDispatch({ patients: ps, vehicles: vs, runtime: inp.runtime, log: [] }, plan.suggestions[0], NOW, inp.settings, rules);
+    expect(st.vehicles[0].contaminated).toBeFalsy();
+    expect(setVehicleStatus(st, 'v1', 'standby', NOW + 3600_000).vehicles[0].status).toBe('standby');
+  });
+
+  it('開啟「每趟需除污」：運送後車輛返場轉為待除污，解除後才可再用', () => {
     const rules = combineRules(['hazmat']);
     const ps = patients({ Y: 1 }, ['decontaminated']);
     const vs = [vehicle(1)];
-    const inp = input({ types: ['hazmat'], at: '湖口', patients: ps, vehicles: vs });
+    const inp = input({ types: ['hazmat'], at: '湖口', patients: ps, vehicles: vs, settings: { hazmatVehicleDecon: true } });
     const plan = computePlan(inp);
     expect(plan.suggestions[0].confirmable).toBe(true);
     let st: DomainState = { patients: ps, vehicles: vs, runtime: inp.runtime, log: [] };
