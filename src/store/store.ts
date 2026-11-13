@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { HOSPITAL_BY_ID, HOSPITALS, initialRuntimes } from '../data/hospitals';
-import { FIRE_UNITS, SUPPORT_SOURCES, TOWNSHIPS } from '../data/places';
+import { FIRE_UNITS, SUPPORT_SOURCES, unitCoord } from '../data/places';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from '../engine/actions';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
-import { etaFromPoint, etaFromTownship, offlineTravelState } from '../travel';
+import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
 import { fetchOnlineTravel, routesEnabled } from '../travel/routes';
 import {
   TRIAGE_NAMES,
@@ -219,7 +219,7 @@ export const useStore = create<Store>((set, get) => {
         const unit = FIRE_UNITS.find((u) => u.name === v.unit);
         const f = s.incident.settings.trafficFactor;
         const eta = unit
-          ? etaFromTownship(unit.township, loc) * f
+          ? etaFromUnit(unit, loc) * f
           : v.originLat
             ? etaFromPoint(v.originLat, v.originLng, loc) * f
             : undefined;
@@ -369,7 +369,7 @@ export const useStore = create<Store>((set, get) => {
       const name = nextVehicleName(unit.name, 91);
       const loc = s.incident.location;
       const now = Date.now();
-      const [lat, lng] = TOWNSHIPS[unit.township];
+      const [lat, lng] = unitCoord(unit);
       const v: Vehicle = {
         id: uid(),
         name,
@@ -379,7 +379,7 @@ export const useStore = create<Store>((set, get) => {
         originLng: lng,
         status: 'enroute',
         addedAt: now,
-        etaToSceneMin: loc ? etaFromTownship(unit.township, loc) * s.incident.settings.trafficFactor : 15,
+        etaToSceneMin: loc ? etaFromUnit(unit, loc) * s.incident.settings.trafficFactor : 15,
         trips: 0,
         emt2: s.incident.settings.defaultEmt2,
         emtp: s.incident.settings.defaultEmtp,
@@ -505,7 +505,7 @@ export const useStore = create<Store>((set, get) => {
         });
       const origins = enroute
         .map(({ v, u }) => {
-          const c = u ? TOWNSHIPS[u.township] : v.originLat ? [v.originLat, v.originLng] : null;
+          const c = u ? unitCoord(u) : v.originLat ? [v.originLat, v.originLng] : null;
           return c ? { id: v.id, lat: c[0], lng: c[1] } : null;
         })
         .filter((x): x is { id: string; lat: number; lng: number } => !!x);

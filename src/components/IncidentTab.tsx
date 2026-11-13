@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
-import { FREEWAY_SEGMENTS, nearestTownship, TOWNSHIPS } from '../data/places';
+import { AREAS, FREEWAY_SEGMENTS, nearestArea, TOWNSHIPS } from '../data/places';
 import { useStore } from '../store/store';
 import { DoubleTapButton, Stepper } from './common';
 
@@ -22,8 +22,8 @@ export function IncidentTab() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        const tw = nearestTownship(lat, lng);
-        setLocation({ kind: 'pin', label: `GPS（近${tw}）`, lat, lng, township: tw });
+        const { township, area } = nearestArea(lat, lng);
+        setLocation({ kind: 'pin', label: `GPS（近${area}）`, lat, lng, township, area });
         setGpsMsg(`已定位 ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       },
       (err) => setGpsMsg(`定位失敗：${err.message}`),
@@ -61,7 +61,16 @@ export function IncidentTab() {
             <button
               key={name}
               className={`btn sm ${loc?.kind === 'township' && loc.label === name ? 'on' : ''}`}
-              onClick={() => setLocation({ kind: 'township', label: name, lat, lng, township: name })}
+              onClick={() => setLocation({ kind: 'township', label: name, lat, lng, township: name, area: name })}
+            >
+              {name}
+            </button>
+          ))}
+          {Object.entries(AREAS).map(([name, a]) => (
+            <button
+              key={name}
+              className={`btn sm ${loc?.area === name ? 'on' : ''}`}
+              onClick={() => setLocation({ kind: 'township', label: a.label, lat: a.lat, lng: a.lng, township: a.township, area: name })}
             >
               {name}
             </button>
@@ -82,7 +91,7 @@ export function IncidentTab() {
                 <button
                   key={f.id}
                   className={`btn sm ${loc?.kind === 'freeway' && loc.label === f.label ? 'on' : ''}`}
-                  onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township })}
+                  onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township, area: f.township })}
                 >
                   {f.label}
                 </button>

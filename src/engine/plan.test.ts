@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HOSPITALS, HOSPITAL_BY_ID, initialRuntimes } from '../data/hospitals';
-import { TOWNSHIPS } from '../data/places';
+import { AREAS, TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
 import { DEFAULT_SETTINGS, patientLabel, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
 import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from './actions';
@@ -53,6 +53,7 @@ function input(over: Partial<Omit<PlanInput, 'settings'>> & { types?: string[]; 
     travel: over.travel ?? offlineTravel(loc(over.at ?? '竹北')),
     settings: { ...DEFAULT_SETTINGS, ...over.settings },
     rules: combineRules(over.types ?? ['traffic']),
+    area: over.area ?? over.at ?? '竹北',
   };
 }
 
@@ -81,12 +82,13 @@ describe('紅傷轉向順序', () => {
     expect(['新竹馬偕', '台大新竹']).toContain(short(bs.suggestions[0].hospitalId));
   });
 
-  it('紅傷先填滿新竹縣與新竹市適合醫院，才送桃園、苗栗', () => {
+  it('紅傷不送中度／一般級，新竹縣市重度與外傷重度醫院各輪到 2 位以上才分到外縣市', () => {
     const plan = computePlan(input({ patients: patients({ R: 20 }) }));
-    const hs = plan.suggestions.map((s) => s.hospitalId);
-    const firstOut = hs.findIndex((id) => !['新竹縣', '新竹市'].includes(HOSPITAL_BY_ID[id].county));
-    // 東元4 + 中醫大3 + 台大新竹4 + 馬偕4 = 15
-    expect(firstOut).toBe(15);
+    const hs = plan.suggestions.map((s) => short(s.hospitalId));
+    const local = ['東元', '中醫大新竹', '台大新竹', '新竹馬偕'];
+    const firstOut = hs.findIndex((h) => !local.includes(h));
+    for (const h of local) expect(hs.slice(0, firstOut).filter((x) => x === h).length).toBeGreaterThanOrEqual(2);
+    expect(['為恭', '林口長庚']).toContain(hs[firstOut]);
   });
 
   it('新竹縣重度量能用盡後，紅傷依序轉向中醫大新竹 → 新竹市重度 → 為恭／林口', () => {
@@ -255,6 +257,45 @@ describe('紅傷 ABCD 分類', () => {
     expect(patientLabel('R', 3, 'A', 'TST')).toBe('P1-3-A');
     expect(patientLabel('Y', 2, undefined, 'TST')).toBe('P2-2');
     expect(patientLabel('K', 1, undefined, 'TST')).toBe('死亡-1');
+  });
+});
+
+describe('分散送醫（發牌）', () => {
+  it('同時有多台車時，紅傷輪流發給不同醫院，不集中在同一家', () => {
+    const plan = computePlan(input({ patients: patients({ R: 4 }), vehicles: vehicles(4) }));
+    const hs = plan.suggestions.map((s) => short(s.hospitalId));
+    expect(new Set(hs).size).toBe(4);
+  });
+
+  it('已確認送往某院、即將抵達的傷患會計入，下一位改送他院', () => {
+    const first = computePlan(input({ patients: patients({ R: 1 }) })).suggestions[0].hospitalId;
+    const sent: Patient[] = [1, 2].map(() => ({ ...patient('R'), status: 'sent' as const, hospitalId: first, sentAt: NOW, arriveAt: NOW + 10 * 60000 }));
+    const runtime = initialRuntimes();
+    runtime[first].used.R = 2;
+    const plan = computePlan(input({ patients: [...sent, ...patients({ R: 1 })], runtime }));
+    expect(plan.suggestions[0].hospitalId).not.toBe(first);
+  });
+
+  it('隔了一段時間（超過分散時間窗）的下一波，不受前一波影響', () => {
+    // 4 台車、8 位紅傷：第二波約 30 分鐘後抵達，可再送最適合的醫院
+    const plan = computePlan(input({ patients: patients({ R: 8 }), vehicles: vehicles(4) }));
+    const hs = plan.suggestions.map((s) => short(s.hospitalId));
+    expect(new Set(hs.slice(0, 4)).size).toBe(4);
+    expect(hs.slice(4)).toContain('東元');
+  });
+
+  it('分散只是避免集中，不會因此把綠傷送重度級', () => {
+    const plan = computePlan(input({ patients: patients({ G: 30 }), vehicles: vehicles(30), settings: { greensPerVehicle: 1 } }));
+    for (const s of plan.suggestions) expect(HOSPITAL_BY_ID[s.hospitalId].level).not.toBe('heavy');
+  });
+});
+
+describe('在地常送醫院', () => {
+  it('寶山、二重轄區事故，紅傷先送新竹馬偕', () => {
+    expect(short(computePlan(input({ at: '寶山', patients: patients({ R: 1 }) })).suggestions[0].hospitalId)).toBe('新竹馬偕');
+    const erchong = { kind: 'township' as const, label: '二重', lat: AREAS['二重'].lat, lng: AREAS['二重'].lng, township: '竹東', area: '二重' };
+    const plan = computePlan({ ...input({ patients: patients({ R: 1 }) }), travel: offlineTravel(erchong), area: '二重' });
+    expect(short(plan.suggestions[0].hospitalId)).toBe('新竹馬偕');
   });
 });
 

@@ -62,6 +62,8 @@ export interface Patient {
   hospitalId?: string;
   vehicleId?: string;
   sentAt?: number;
+  /** 預估抵院時間（確認出發時計算，用於分散送醫） */
+  arriveAt?: number;
   triageTagNo?: string;
   history: { at: number; action: string }[];
 }
@@ -94,6 +96,8 @@ export interface IncidentLocation {
   lng: number;
   /** 所在（或最近）鄉鎮，用於山區加成 */
   township?: string;
+  /** 轄區（鄉鎮或分隊轄區，如「二重」），用於在地常送醫院 */
+  area?: string;
 }
 
 export interface Settings {

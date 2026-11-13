@@ -19,9 +19,11 @@ export function usePlan() {
   const runtime = useStore((s) => s.runtime);
   const travel = useStore((s) => s.travel.byHospital);
   const settings = useStore((s) => s.incident.settings);
+  const loc = useStore((s) => s.incident.location);
+  const area = loc?.area ?? loc?.township;
   return useMemo(
-    () => computePlan({ now, patients, vehicles, hospitals: HOSPITALS, runtime, travel, settings, rules }),
-    [now, patients, vehicles, runtime, travel, settings, rules],
+    () => computePlan({ now, patients, vehicles, hospitals: HOSPITALS, runtime, travel, settings, rules, area }),
+    [now, patients, vehicles, runtime, travel, settings, rules, area],
   );
 }
 

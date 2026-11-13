@@ -1,5 +1,5 @@
 import { HOSPITALS } from '../data/hospitals';
-import { nearestTownship, TOWNSHIPS } from '../data/places';
+import { nearestTownship, TOWNSHIPS, unitCoord, type Unit } from '../data/places';
 import type { IncidentLocation, TravelEntry, TravelState } from '../types';
 import { estimateMinutes } from './offline';
 
@@ -23,6 +23,12 @@ export function offlineTravelState(loc: IncidentLocation | null, now: number): T
 }
 
 /** 分隊所在鄉鎮 → 現場（離線估算，未乘倍率） */
+/** 分隊 → 現場（離線估算，未乘倍率）；有分隊所在地座標者用之 */
+export function etaFromUnit(u: Unit, loc: IncidentLocation): number {
+  const [lat, lng] = unitCoord(u);
+  return estimateMinutes(lat, lng, loc.lat, loc.lng, [u.township, sceneTownship(loc)]);
+}
+
 export function etaFromTownship(township: string, loc: IncidentLocation): number {
   const c = TOWNSHIPS[township];
   if (!c) return 15;

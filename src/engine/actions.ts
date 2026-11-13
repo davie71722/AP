@@ -38,6 +38,7 @@ export function confirmDispatch(
           hospitalId: h.id,
           vehicleId: vehicle.id,
           sentAt: now,
+          arriveAt: now + (settings.loadMin + sug.goMin) * 60000,
           history: [...p.history, { at: now, action: `確認出發：${vehicle.name} ➔ ${h.short}` }],
         }
       : p,

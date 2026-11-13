@@ -16,6 +16,14 @@ export const TOWNSHIPS: Record<string, [number, number]> = {
   五峰: [24.636, 121.12],
 };
 
+/**
+ * 鄉鎮內的分隊轄區（與鄉鎮中心差距大、送醫習慣不同者）。
+ * TODO: 座標為約略值，請以 Google Maps 校正。
+ */
+export const AREAS: Record<string, { lat: number; lng: number; township: string; label: string }> = {
+  二重: { lat: 24.783, lng: 121.04, township: '竹東', label: '二重（竹東）' },
+};
+
 /** 山區加成（分鐘） */
 export const MOUNTAIN_BONUS: Record<string, number> = {
   尖石: 20,
@@ -51,6 +59,8 @@ export const FREEWAY_SEGMENTS: FreewaySegment[] = [
 export interface Unit {
   name: string;
   township: string;
+  /** 分隊所在地（未設定則用鄉鎮中心） */
+  area?: string;
 }
 
 // TODO: 分隊名單待消防局確認實際編制。
@@ -66,7 +76,7 @@ export const FIRE_UNITS: Unit[] = [
   { name: '新埔', township: '新埔' },
   { name: '關西', township: '關西' },
   { name: '竹東', township: '竹東' },
-  { name: '二重', township: '竹東' },
+  { name: '二重', township: '竹東', area: '二重' },
   { name: '芎林', township: '芎林' },
   { name: '橫山', township: '橫山' },
   { name: '寶山', township: '寶山' },
@@ -90,6 +100,28 @@ export const SUPPORT_SOURCES: SupportSource[] = [
   { name: '苗栗支援', prefix: '苗栗', lat: 24.687, lng: 120.91 },
   { name: '民間救護車', prefix: '民間', defaultEtaMin: 20 },
 ];
+
+/** 分隊出發點座標 */
+export function unitCoord(u: Unit): [number, number] {
+  if (u.area && AREAS[u.area]) return [AREAS[u.area].lat, AREAS[u.area].lng];
+  return TOWNSHIPS[u.township];
+}
+
+/** 最近的轄區（含 AREAS），回傳 { township, area } */
+export function nearestArea(lat: number, lng: number): { township: string; area: string } {
+  const tw = nearestTownship(lat, lng);
+  let best = { township: tw, area: tw };
+  const [tl, tg] = TOWNSHIPS[tw];
+  let bestD = (tl - lat) ** 2 + (tg - lng) ** 2;
+  for (const [name, a] of Object.entries(AREAS)) {
+    const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = { township: a.township, area: name };
+    }
+  }
+  return best;
+}
 
 export function nearestTownship(lat: number, lng: number): string {
   let best = '竹北';

@@ -22,6 +22,8 @@ export interface PlanInput {
   travel: Record<string, TravelEntry>;
   settings: Settings;
   rules: CombinedRules;
+  /** 事發轄區（在地常送醫院用） */
+  area?: string;
 }
 
 export type WarningKind =
@@ -184,7 +186,8 @@ interface SimVehicle {
 const COLOR_ORDER: Record<string, number> = { R: 0, Y: 1, G: 2 };
 
 export function computePlan(input: PlanInput): Plan {
-  const { now, patients, vehicles, hospitals, runtime, travel, settings, rules } = input;
+  const { now, patients, vehicles, hospitals, runtime, travel, settings, rules, area } = input;
+  const areaBonus = (area && WEIGHTS.areaPreferred[area]) || {};
   const deconAfter = vehicleNeedsDecon(rules, settings);
 
   // 1. 待送、非黑色，依紅→黃→綠、建立順序
@@ -253,7 +256,24 @@ export function computePlan(input: PlanInput): Plan {
     };
   }
 
-  const scoreHospital = (h: Hospital, job: Job, go: number, ignoreLoad = false): number => {
+  // 各院到院紀錄（距今分鐘），用於分散送醫
+  const arrivals: Record<string, { at: number; color: TransportColor; n: number }[]> = {};
+  for (const p of patients) {
+    if (p.status !== 'sent' || !p.hospitalId || p.color === 'K') continue;
+    const at = p.arriveAt ?? (p.sentAt ?? now) + 20 * 60000;
+    (arrivals[p.hospitalId] ??= []).push({ at: (at - now) / 60000, color: p.color as TransportColor, n: 1 });
+  }
+  const surgePenalty = (hid: string, color: TransportColor, at: number): number => {
+    let pen = 0;
+    for (const a of arrivals[hid] ?? []) {
+      if (Math.abs(a.at - at) >= WEIGHTS.surgeWindowMin) continue;
+      pen += a.n * (a.color === color ? WEIGHTS.surgeSameColor[color] : WEIGHTS.surgeOtherColor);
+    }
+    return pen;
+  };
+
+  /** ignoreLoad：不考慮量能與分散（用來找「理想首選」） */
+  const scoreHospital = (h: Hospital, job: Job, go: number, departMin: number, ignoreLoad = false): number => {
     const c = job.color;
     const cap = capacityOf(h, runtime[h.id], settings.nightMode)[c];
     const loadRatio = ignoreLoad ? 0 : cap > 0 ? Math.min(1, simUsed[h.id][c] / cap) : 1;
@@ -262,12 +282,14 @@ export function computePlan(input: PlanInput): Plan {
       WEIGHTS.travel[c] * go -
       WEIGHTS.loadPenalty * loadRatio +
       specialBonus(h, c, job.tags, rules) +
-      (WEIGHTS.countyBonus[c][h.county] ?? 0);
+      (WEIGHTS.countyBonus[c][h.county] ?? 0) +
+      (areaBonus[h.id] ?? 0);
     if (go >= settings.longHaulMin) s -= WEIGHTS.longHaul[c];
+    if (!ignoreLoad) s -= surgePenalty(h.id, c, departMin + go);
     return s;
   };
 
-  const pick = (job: Job, respectCapacity: boolean) => {
+  const pick = (job: Job, respectCapacity: boolean, departMin: number) => {
     let best: { h: Hospital; score: number; go: number; back: number } | null = null;
     for (const h of hospitals) {
       const rt = runtime[h.id];
@@ -278,7 +300,7 @@ export function computePlan(input: PlanInput): Plan {
       if (respectCapacity) {
         if (cap - simUsed[h.id][job.color] < job.patients.length) continue;
       } else if (cap <= 0) continue;
-      const score = scoreHospital(h, job, tr.go, !respectCapacity);
+      const score = scoreHospital(h, job, tr.go, departMin, !respectCapacity);
       if (!best || score > best.score) best = { h, score, go: tr.go, back: tr.back };
     }
     return best;
@@ -294,24 +316,28 @@ export function computePlan(input: PlanInput): Plan {
       if (job.color === 'R') needReinforcement = true;
       continue;
     }
-    const chosen = pick(job, true);
+    // 5. 最早可用的車；同時可用時趟次少者優先
+    pool.sort((a, b) => a.avail - b.avail || a.trips + a.simTrips - (b.trips + b.simTrips));
+    const sv = pool[0];
+    // 7. 時間
+    const departMin = sv.avail + settings.loadMin;
+    const chosen = pick(job, true, departMin);
     if (!chosen) {
       unassigned.push({ patientIds: ids, color: job.color, reason: 'noCapacity', detail: '無可收治醫院（量能不足或關閉）' });
       continue;
     }
-    // 5. 最早可用的車；同時可用時趟次少者優先
-    pool.sort((a, b) => a.avail - b.avail || a.trips + a.simTrips - (b.trips + b.simTrips));
-    const sv = pool[0];
-    const ideal = pick(job, false);
-
-    // 7. 時間
-    const departMin = sv.avail + settings.loadMin;
+    const ideal = pick(job, false, departMin);
     const arriveMin = departMin + chosen.go;
     const returnMin = arriveMin + settings.handoverMin + chosen.back;
 
     const h = chosen.h;
     const warnings: Warning[] = [];
-    if (ideal && ideal.h.id !== h.id) warnings.push({ kind: 'diverted', text: `滿載轉向（原首選 ${ideal.h.short}）` });
+    if (ideal && ideal.h.id !== h.id) {
+      const iCap = capacityOf(ideal.h, runtime[ideal.h.id], settings.nightMode)[job.color];
+      if (iCap - simUsed[ideal.h.id][job.color] < job.patients.length) {
+        warnings.push({ kind: 'diverted', text: `滿載轉向（原首選 ${ideal.h.short}）` });
+      }
+    }
     if (chosen.go >= settings.longHaulMin) {
       warnings.push({ kind: 'longHaul', text: `長程後送：車離場約 ${Math.round(returnMin - departMin)} 分` });
     }
@@ -340,6 +366,7 @@ export function computePlan(input: PlanInput): Plan {
     });
 
     simUsed[h.id][job.color] += job.patients.length;
+    (arrivals[h.id] ??= []).push({ at: arriveMin, color: job.color, n: job.patients.length });
     sv.simTrips += 1;
     if (deconAfter) {
       // 化災：車輛返場後需除污，模擬中不再派用
