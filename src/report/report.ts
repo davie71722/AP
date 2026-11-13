@@ -2,7 +2,7 @@
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import type { HospitalRuntime, Incident, Patient, Vehicle } from '../types';
+import { RED_CLASSES, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
@@ -15,6 +15,10 @@ export function buildReport(
   runtime: Record<string, HospitalRuntime>,
   now: number,
 ): string {
+  const N = TRIAGE_NAMES[incident.settings.triageSystem ?? 'START'];
+  // TST 名稱以數字結尾（P1），與人數間加空格避免誤讀
+  const f = (name: string, n: number) => `${name}${/\d$/.test(name) ? ' ' : ''}${n}`;
+  const redW = patients.filter((p) => p.color === 'R' && p.status === 'waiting');
   const count = (pred: (p: Patient) => boolean) => patients.filter(pred).length;
   const by = (c: string, st?: Patient['status']) => count((p) => p.color === c && (!st || p.status === st));
   const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
@@ -28,7 +32,7 @@ export function buildReport(
     const parts = (['R', 'Y', 'G'] as const)
       .map((c) => [c, sent.filter((p) => p.color === c).length] as const)
       .filter(([, n]) => n > 0)
-      .map(([c, n]) => `${{ R: '紅', Y: '黃', G: '綠' }[c]}${n}`);
+      .map(([c, n]) => f(N[c], n));
     return `${h.short} ${parts.join('')}`;
   }).filter(Boolean);
 
@@ -45,11 +49,9 @@ export function buildReport(
     `【新竹縣MCI後送回報】${fmtClock(now)}`,
     `事件：${types}｜地點：${incident.location?.label ?? '未指定'}`,
     `經過時間：${elapsedMin(incident, now)} 分`,
-    `傷患總數 ${patients.length}：紅${by('R')} 黃${by('Y')} 綠${by('G')} 黑${by('K')}`,
-    `已後送：紅${by('R', 'sent')} 黃${by('Y', 'sent')} 綠${by('G', 'sent')}；待後送：紅${by('R', 'waiting')} 黃${by(
-      'Y',
-      'waiting',
-    )} 綠${by('G', 'waiting')}`,
+    `傷患總數 ${patients.length}：${f(N.R, by('R'))} ${f(N.Y, by('Y'))} ${f(N.G, by('G'))} ${f(N.K, by('K'))}`,
+    `已後送：${f(N.R, by('R', 'sent'))} ${f(N.Y, by('Y', 'sent'))} ${f(N.G, by('G', 'sent'))}；待後送：${f(N.R, by('R', 'waiting'))} ${f(N.Y, by('Y', 'waiting'))} ${f(N.G, by('G', 'waiting'))}`,
+    `待送${N.R}分類：${RED_CLASSES.map((rc) => `${rc.id}${redW.filter((p) => p.color === 'R' && p.redClass === rc.id).length}`).join(' ')}`,
     `車輛：現場待命${vs('standby')}、運送中${vs('transport')}、趕赴中${vs('enroute')}、待除污${vs('decon')}`,
     `人力：EMTP ${crew('emtp')}、EMT-2 ${crew('emt2')}（不含離線）`,
     `各院收治：${perHospital.length ? perHospital.join('；') : '無'}`,

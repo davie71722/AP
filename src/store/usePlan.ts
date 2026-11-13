@@ -3,6 +3,7 @@ import { HOSPITALS } from '../data/hospitals';
 import { computePlan } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { useStore } from './store';
+import { TRIAGE_NAMES, TRIAGE_SUB } from '../types';
 
 export function useRules() {
   const types = useStore((s) => s.incident.types);
@@ -22,4 +23,10 @@ export function usePlan() {
     () => computePlan({ now, patients, vehicles, hospitals: HOSPITALS, runtime, travel, settings, rules }),
     [now, patients, vehicles, runtime, travel, settings, rules],
   );
+}
+
+/** 目前檢傷系統與各色顯示名稱 */
+export function useTriage() {
+  const sys = useStore((s) => s.incident.settings.triageSystem);
+  return { sys, names: TRIAGE_NAMES[sys], sub: TRIAGE_SUB[sys] };
 }

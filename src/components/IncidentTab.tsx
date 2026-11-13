@@ -106,6 +106,16 @@ export function IncidentTab() {
 
       <section className="section">
         <h2>設定</h2>
+        <SetRow label="檢傷系統">
+          <div className="seg">
+            <button className={`btn sm ${st.triageSystem === 'START' ? 'on' : ''}`} onClick={() => update({ triageSystem: 'START' })}>
+              START
+            </button>
+            <button className={`btn sm ${st.triageSystem === 'TST' ? 'on' : ''}`} onClick={() => update({ triageSystem: 'TST' })}>
+              TST
+            </button>
+          </div>
+        </SetRow>
         <SetRow label="裝載時間">
           <Stepper value={st.loadMin} min={0} onChange={(v) => update({ loadMin: v })} format={(v) => `${v}分`} />
         </SetRow>

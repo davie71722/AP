@@ -2,8 +2,8 @@
 import { COUNTY_ORDER, HOSPITALS } from '../data/hospitals';
 import { capacityOf } from '../engine/plan';
 import { useStore } from '../store/store';
-import { usePlan } from '../store/usePlan';
-import { COLOR_NAME, type Color, type TransportColor, type Vehicle, type VehicleStatus } from '../types';
+import { usePlan, useTriage } from '../store/usePlan';
+import { RED_CLASSES, type Color, type TransportColor, type Vehicle, type VehicleStatus } from '../types';
 import { VehiclesSection } from './InputTab';
 
 const TC: TransportColor[] = ['R', 'Y', 'G'];
@@ -21,6 +21,8 @@ export function FleetTab() {
 
 function PatientSummary() {
   const patients = useStore((s) => s.patients);
+  const { names } = useTriage();
+  const redWaiting = patients.filter((p) => p.color === 'R' && p.status === 'waiting');
   const count = (c: Color, st?: 'waiting' | 'sent') =>
     patients.filter((p) => p.color === c && (!st || p.status === st)).length;
   return (
@@ -32,7 +34,7 @@ function PatientSummary() {
             <th />
             {(['R', 'Y', 'G', 'K'] as Color[]).map((c) => (
               <th key={c}>
-                <span className={`chip ${c}`}>{COLOR_NAME[c]}</span>
+                <span className={`chip ${c}`}>{names[c]}</span>
               </th>
             ))}
           </tr>
@@ -56,6 +58,16 @@ function PatientSummary() {
           </tr>
         </tbody>
       </table>
+      <div className="row" style={{ marginTop: 8 }}>
+        <span className="small" style={{ fontWeight: 700 }}>
+          {names.R} 待送分類：
+        </span>
+        {RED_CLASSES.map((rc) => (
+          <span key={rc.id} className="chip R">
+            {rc.id} {redWaiting.filter((p) => p.redClass === rc.id).length}
+          </span>
+        ))}
+      </div>
     </section>
   );
 }
@@ -121,6 +133,7 @@ function CrewSummary() {
 }
 
 function HospitalSummary() {
+  const { names } = useTriage();
   const runtime = useStore((s) => s.runtime);
   const night = useStore((s) => s.incident.settings.nightMode);
   const setTab = useStore((s) => s.setTab);
@@ -156,7 +169,7 @@ function HospitalSummary() {
             <th />
             {TC.map((c) => (
               <th key={c}>
-                <span className={`chip ${c}`}>{COLOR_NAME[c]}</span>
+                <span className={`chip ${c}`}>{names[c]}</span>
               </th>
             ))}
           </tr>

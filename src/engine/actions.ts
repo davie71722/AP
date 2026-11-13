@@ -1,6 +1,5 @@
 // 「確認出發」等改變真實狀態的動作（規格書 6.4），以純函式實作便於測試。
 import type { HospitalRuntime, LogEntry, Patient, Settings, Vehicle, VehicleStatus } from '../types';
-import { COLOR_NAME } from '../types';
 import { HOSPITAL_BY_ID } from '../data/hospitals';
 import type { CombinedRules } from './rules';
 import { vehicleNeedsDecon, type Suggestion } from './plan';
@@ -119,8 +118,4 @@ export function hazmatNotifyList(patients: Patient[], runtime: Record<string, Ho
     (byHospital[p.hospitalId] ??= []).push(p.label);
   }
   return Object.entries(byHospital).map(([hospitalId, labels]) => ({ hospitalId, labels }));
-}
-
-export function colorName(c: keyof typeof COLOR_NAME) {
-  return COLOR_NAME[c];
 }

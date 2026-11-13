@@ -1,5 +1,6 @@
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { useStore } from '../store/store';
+import { useTriage } from '../store/usePlan';
 import type { Color } from '../types';
 
 export function Header() {
@@ -8,6 +9,7 @@ export function Header() {
   const now = useStore((s) => s.now);
   const online = useStore((s) => s.online);
   const theme = useStore((s) => s.theme);
+  const { names } = useTriage();
   const setTheme = useStore((s) => s.setTheme);
 
   const elapsed = incident.startAt ? Math.max(0, now - incident.startAt) : 0;
@@ -26,6 +28,7 @@ export function Header() {
     return (
       <span className={`chip ${c}`} key={c}>
         {name}
+        {name.length > 1 ? ' ' : ''}
         {c === 'K' ? all.length : `${waiting}/${all.length}`}
       </span>
     );
@@ -47,10 +50,10 @@ export function Header() {
         </span>
       </div>
       <div className="counts">
-        {chip('R', '紅')}
-        {chip('Y', '黃')}
-        {chip('G', '綠')}
-        {chip('K', '黑')}
+        {chip('R', names.R)}
+        {chip('Y', names.Y)}
+        {chip('G', names.G)}
+        {chip('K', names.K)}
       </div>
     </header>
   );

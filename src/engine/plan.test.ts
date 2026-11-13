@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HOSPITALS, HOSPITAL_BY_ID, initialRuntimes } from '../data/hospitals';
 import { TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
-import { DEFAULT_SETTINGS, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
+import { DEFAULT_SETTINGS, patientLabel, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
 import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from './actions';
 import { computePlan, type PlanInput } from './plan';
 import { combineRules } from './rules';
@@ -17,7 +17,7 @@ function loc(t: string): IncidentLocation {
 let seq = 0;
 function patient(color: Color, tags: string[] = []): Patient {
   seq += 1;
-  return { id: `p${seq}`, color, label: `${color}${seq}`, prevLabels: [], seq, tags, status: 'waiting', history: [] };
+  return { id: `p${seq}`, color, label: `${color}${seq}`, num: seq, prevLabels: [], seq, tags, status: 'waiting', history: [] };
 }
 function patients(spec: Partial<Record<Color, number>>, tags: string[] = []): Patient[] {
   const out: Patient[] = [];
@@ -220,6 +220,26 @@ describe('車輛折返', () => {
     );
     expect(plan.reservedVehicleIds).toHaveLength(1);
     expect(new Set(plan.suggestions.map((s) => s.vehicleId)).size).toBe(2);
+  });
+});
+
+describe('紅傷 ABCD 分類', () => {
+  it('紅傷派遣順序 A → B → C → D → 未分類，同類依建立順序', () => {
+    const mk = (cls?: 'A' | 'B' | 'C' | 'D') => ({ ...patient('R'), redClass: cls });
+    const ps = [mk('D'), mk(), mk('C'), mk('A'), mk('B'), mk('A')];
+    const plan = computePlan(input({ patients: ps }));
+    const order = plan.suggestions.map((s) => ps.find((p) => p.id === s.patientIds[0])!.redClass ?? '-');
+    expect(order).toEqual(['A', 'A', 'B', 'C', 'D', '-']);
+    expect(plan.suggestions[0].patientIds[0]).toBe(ps[3].id);
+  });
+
+  it('代碼格式：START 紅3-A／黃2；TST P1-3-A／P2-2／死亡-1', () => {
+    expect(patientLabel('R', 3, 'A', 'START')).toBe('紅3-A');
+    expect(patientLabel('Y', 2, undefined, 'START')).toBe('黃2');
+    expect(patientLabel('Y', 2, 'A', 'START')).toBe('黃2');
+    expect(patientLabel('R', 3, 'A', 'TST')).toBe('P1-3-A');
+    expect(patientLabel('Y', 2, undefined, 'TST')).toBe('P2-2');
+    expect(patientLabel('K', 1, undefined, 'TST')).toBe('死亡-1');
   });
 });
 

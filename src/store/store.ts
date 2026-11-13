@@ -8,7 +8,10 @@ import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromTownship, offlineTravelState } from '../travel';
 import { fetchOnlineTravel, routesEnabled } from '../travel/routes';
 import {
-  COLOR_NAME,
+  TRIAGE_NAMES,
+  patientLabel,
+  type RedClass,
+  type TriageSystem,
   DEFAULT_SETTINGS,
   PATIENT_TAGS,
   type Color,
@@ -67,10 +70,11 @@ interface Store extends Persisted {
   updateSettings(p: Partial<Settings>): void;
   clearIncident(): void;
 
-  addPatient(c: Color): void;
+  addPatient(c: Color, redClass?: RedClass): void;
   removeLastPatient(c: Color): void;
   toggleTag(id: string, tag: string): void;
-  retriage(id: string, c: Color): void;
+  retriage(id: string, c: Color, redClass?: RedClass): void;
+  setRedClass(id: string, cls: RedClass): void;
   setTriageTagNo(id: string, no: string): void;
   deletePatient(id: string): void;
 
@@ -91,16 +95,9 @@ interface Store extends Persisted {
   refreshTravel(force?: boolean): Promise<void>;
 }
 
-export function labelLetters(n: number): string {
-  // 0→A … 25→Z, 26→AA
-  let s = '';
-  n += 1;
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
-    n = Math.floor((n - 1) / 26);
-  }
-  return s;
+/** 依目前檢傷系統重新產生所有代碼 */
+function relabel(patients: Patient[], system: TriageSystem): Patient[] {
+  return patients.map((p) => ({ ...p, label: patientLabel(p.color, p.num, p.redClass, system) }));
 }
 
 function freshIncident(): Incident {
@@ -187,7 +184,12 @@ export const useStore = create<Store>((set, get) => {
         const runtime = { ...initialRuntimes(), ...snap.runtime };
         const incident = { ...snap.incident, settings: { ...DEFAULT_SETTINGS, ...snap.incident.settings } };
         const vehicles = (snap.vehicles ?? []).map((v) => ({ ...v, emt2: v.emt2 ?? 2, emtp: v.emtp ?? 0 }));
-        set({ ...freshPersisted(), ...snap, incident, vehicles, runtime, hydrated: true, tab: snap.incident.startAt ? 'input' : 'incident' });
+        const counters = { ...snap.counters };
+        const patients = relabel(
+          (snap.patients ?? []).map((p) => (p.num ? p : { ...p, num: (counters[p.color] = (counters[p.color] ?? 0) + 1) })),
+          incident.settings.triageSystem,
+        );
+        set({ ...freshPersisted(), ...snap, incident, vehicles, patients, counters, runtime, hydrated: true, tab: snap.incident.startAt ? 'input' : 'incident' });
       } else set({ hydrated: true });
     },
 
@@ -241,7 +243,12 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const settings = { ...s.incident.settings, ...p };
       saveSettingsPref(settings);
-      set({ incident: { ...s.incident, settings } });
+      const changedSystem = p.triageSystem && p.triageSystem !== s.incident.settings.triageSystem;
+      set({
+        incident: { ...s.incident, settings },
+        patients: changedSystem ? relabel(s.patients, settings.triageSystem) : s.patients,
+      });
+      if (changedSystem && s.incident.startAt) log(`檢傷系統切換為 ${settings.triageSystem}`);
     },
 
     clearIncident: () => {
@@ -249,14 +256,18 @@ export const useStore = create<Store>((set, get) => {
     },
 
     // ---------- 傷患 ----------
-    addPatient: (c) => {
+    addPatient: (c, redClass) => {
       const s = get();
       const now = Date.now();
-      const label = `${COLOR_NAME[c]}${labelLetters(s.counters[c])}`;
+      const num = s.counters[c] + 1;
+      const cls = c === 'R' ? redClass : undefined;
+      const label = patientLabel(c, num, cls, s.incident.settings.triageSystem);
       const p: Patient = {
         id: uid(),
         color: c,
         label,
+        num,
+        redClass: cls,
         prevLabels: [],
         seq: s.seq + 1,
         tags: [],
@@ -292,19 +303,27 @@ export const useStore = create<Store>((set, get) => {
       log(`${label} ${on ? '加' : '移除'}標籤：${name}`);
     },
 
-    retriage: (id, c) => {
+    retriage: (id, c, redClass) => {
       const s = get();
       const p = s.patients.find((x) => x.id === id);
-      if (!p || p.color === c) return;
+      if (!p) return;
+      if (p.color === c) {
+        if (c === 'R' && redClass) get().setRedClass(id, redClass);
+        return;
+      }
       const now = Date.now();
-      const label = `${COLOR_NAME[c]}${labelLetters(s.counters[c])}`;
+      const num = s.counters[c] + 1;
+      const cls = c === 'R' ? redClass : undefined;
+      const label = patientLabel(c, num, cls, s.incident.settings.triageSystem);
       set({
-        counters: { ...s.counters, [c]: s.counters[c] + 1 },
+        counters: { ...s.counters, [c]: num },
         patients: s.patients.map((x) =>
           x.id === id
             ? {
                 ...x,
                 color: c,
+                num,
+                redClass: cls,
                 label,
                 prevLabels: [...x.prevLabels, x.label],
                 history: [...x.history, { at: now, action: `再檢傷：${x.label} → ${label}` }],
@@ -313,6 +332,22 @@ export const useStore = create<Store>((set, get) => {
         ),
       });
       log(`再檢傷：${p.label} → ${label}`);
+    },
+
+    setRedClass: (id, cls) => {
+      const s = get();
+      const p = s.patients.find((x) => x.id === id);
+      if (!p || p.color !== 'R' || p.redClass === cls) return;
+      const now = Date.now();
+      const label = patientLabel('R', p.num, cls, s.incident.settings.triageSystem);
+      set({
+        patients: s.patients.map((x) =>
+          x.id === id
+            ? { ...x, redClass: cls, label, history: [...x.history, { at: now, action: `紅傷分類：${x.label} → ${label}` }] }
+            : x,
+        ),
+      });
+      log(`紅傷分類：${p.label} → ${label}`);
     },
 
     setTriageTagNo: (id, no) =>
@@ -406,7 +441,7 @@ export const useStore = create<Store>((set, get) => {
       const val = Math.max(0, r.selfPresented[c] + delta);
       if (val === r.selfPresented[c]) return;
       patchRuntime(hid, (r) => ({ ...r, selfPresented: { ...r.selfPresented, [c]: val } }));
-      log(`${HOSPITAL_BY_ID[hid].short} 自行到院 ${COLOR_NAME[c]} → ${val}`);
+      log(`${HOSPITAL_BY_ID[hid].short} 自行到院 ${TRIAGE_NAMES[get().incident.settings.triageSystem][c]} → ${val}`);
     },
     toggleBypass: (hid) => {
       const on = !get().runtime[hid].bypass;
@@ -428,7 +463,7 @@ export const useStore = create<Store>((set, get) => {
       const base = r.capacityOverride ?? (s.incident.settings.nightMode && h.capacityNight ? h.capacityNight : h.capacity);
       const next = { ...base, [c]: Math.max(0, base[c] + delta) };
       patchRuntime(hid, (r) => ({ ...r, capacityOverride: next }));
-      log(`${h.short} ${COLOR_NAME[c]}傷容量 → ${next[c]}`);
+      log(`${h.short} ${TRIAGE_NAMES[get().incident.settings.triageSystem][c]}傷容量 → ${next[c]}`);
     },
 
     // ---------- 派遣 ----------

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { COUNTY_ORDER, HOSPITAL_BY_ID, HOSPITAL_DB_META, HOSPITALS } from '../data/hospitals';
 import { capacityOf, effectiveTravel } from '../engine/plan';
 import { useStore } from '../store/store';
-import { usePlan } from '../store/usePlan';
-import { COLOR_NAME, LEVEL_NAME, type Hospital, type TransportColor } from '../types';
+import { usePlan, useTriage } from '../store/usePlan';
+import { LEVEL_NAME, type Hospital, type TransportColor } from '../types';
 import { Sheet, Stepper } from './common';
 
 const TAG_NAME: Record<string, string> = { hazmat: '化災責任', peds: '兒科', burn: '燒燙傷', obstetric: '產科' };
@@ -113,6 +113,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
   const toggleBypass = useStore((s) => s.toggleBypass);
   const cap = capacityOf(h, rt, settings.nightMode);
   const tr = effectiveTravel(travel, rt, settings);
+  const { names } = useTriage();
 
   return (
     <Sheet onClose={onClose}>
@@ -131,7 +132,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
         return (
           <div className="bar-wrap" key={c}>
             <span className={`chip ${c}`} style={{ padding: '0 4px', fontSize: 13 }}>
-              {COLOR_NAME[c]}
+              {names[c]}
             </span>
             <div className={`bar ${c}`}>
               <span className="used" style={{ width: pct(rt.used[c]) }} />
@@ -155,7 +156,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
       <h3>自行到院（醫院回報已湧入人數）</h3>
       {TC.map((c) => (
         <div className="setrow" key={c}>
-          <span className={`chip ${c}`}>{COLOR_NAME[c]}傷</span>
+          <span className={`chip ${c}`}>{names[c]}傷</span>
           <Stepper min={0} value={rt.selfPresented[c]} onChange={(v) => adjustSelf(id, c, v - rt.selfPresented[c])} />
         </div>
       ))}
@@ -163,7 +164,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
       <h3>收治容量（{settings.nightMode ? '夜間' : '日間'}）</h3>
       {TC.map((c) => (
         <div className="setrow" key={c}>
-          <span className={`chip ${c}`}>{COLOR_NAME[c]}傷</span>
+          <span className={`chip ${c}`}>{names[c]}傷</span>
           <Stepper min={0} value={cap[c]} onChange={(v) => adjustCapacity(id, c, v - cap[c])} />
         </div>
       ))}

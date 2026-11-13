@@ -34,8 +34,8 @@ describe('回報文字', () => {
     const txt = buildReport(
       { types: ['hazmat', 'fire'], location: { kind: 'township', label: '湖口', lat: 0, lng: 0 }, startAt: now - 12 * 60000, settings: DEFAULT_SETTINGS, log: [] },
       [
-        { id: 'a', color: 'R', label: '紅A', prevLabels: [], seq: 1, tags: [], status: 'sent', hospitalId: 'tungyuan', history: [] },
-        { id: 'b', color: 'G', label: '綠A', prevLabels: [], seq: 2, tags: [], status: 'waiting', history: [] },
+        { id: 'a', color: 'R', label: '紅1', num: 1, prevLabels: [], seq: 1, tags: [], status: 'sent', hospitalId: 'tungyuan', history: [] },
+        { id: 'b', color: 'G', label: '綠1', num: 1, prevLabels: [], seq: 2, tags: [], status: 'waiting', history: [] },
       ],
       [],
       {},

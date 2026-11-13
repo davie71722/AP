@@ -9,6 +9,7 @@ import type {
   TravelEntry,
   Vehicle,
 } from '../types';
+import { RED_CLASS_ORDER } from '../types';
 import { bonusApplies, missingRequirements, type CombinedRules } from './rules';
 import { WEIGHTS, type FitClass } from './weights';
 
@@ -189,7 +190,12 @@ export function computePlan(input: PlanInput): Plan {
   // 1. 待送、非黑色，依紅→黃→綠、建立順序
   const waiting = patients
     .filter((p) => p.status === 'waiting' && p.color !== 'K')
-    .sort((a, b) => COLOR_ORDER[a.color] - COLOR_ORDER[b.color] || a.seq - b.seq);
+    .sort(
+      (a, b) =>
+        COLOR_ORDER[a.color] - COLOR_ORDER[b.color] ||
+        (a.color === 'R' ? (RED_CLASS_ORDER[a.redClass ?? ''] ?? 4) - (RED_CLASS_ORDER[b.redClass ?? ''] ?? 4) : 0) ||
+        a.seq - b.seq,
+    );
 
   const unassigned: Unassigned[] = [];
 

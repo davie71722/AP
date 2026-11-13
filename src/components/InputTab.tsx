@@ -2,16 +2,12 @@ import { useState } from 'react';
 import { HOSPITAL_BY_ID } from '../data/hospitals';
 import { FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
-import { useRules } from '../store/usePlan';
-import { COLOR_NAME, PATIENT_TAGS, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
+import { useRules, useTriage } from '../store/usePlan';
+import { PATIENT_TAGS, RED_CLASSES, TRIAGE_SYSTEM_NAME, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
-
-const COLORS: Color[] = ['R', 'Y', 'G', 'K'];
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
-  const addPatient = useStore((s) => s.addPatient);
-  const removeLast = useStore((s) => s.removeLastPatient);
   const [openPatient, setOpenPatient] = useState<string | null>(null);
   const [showSent, setShowSent] = useState(false);
 
@@ -20,31 +16,11 @@ export function InputTab() {
 
   return (
     <>
-      <section className="section">
-        <div className="triage">
-          {COLORS.map((c) => {
-            const n = patients.filter((p) => p.color === c).length;
-            const canUndo = patients.some((p) => p.color === c && p.status === 'waiting');
-            return (
-              <div className="triage-cell" key={c}>
-                <button className={`triage-btn ${c}`} onClick={() => addPatient(c)}>
-                  <span>＋{COLOR_NAME[c]}</span>
-                  <span className="n">{n}</span>
-                </button>
-                <button className="triage-undo" disabled={!canUndo} onClick={() => removeLast(c)}>
-                  −1
-                  <br />
-                  撤銷
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <TriagePad />
 
       <section className="section">
         <h2>
-          待送傷患 <span className="muted small">點代碼：標籤／再檢傷／卡號</span>
+          待送傷患 <span className="muted small">點代碼：ABCD／標籤／再檢傷／卡號</span>
         </h2>
         {waiting.length === 0 && <div className="empty">尚無待送傷患</div>}
         <div className="ptags">
@@ -73,6 +49,59 @@ export function InputTab() {
   );
 }
 
+function TriagePad() {
+  const patients = useStore((s) => s.patients);
+  const addPatient = useStore((s) => s.addPatient);
+  const removeLast = useStore((s) => s.removeLastPatient);
+  const { sys, names, sub } = useTriage();
+  const count = (c: Color) => patients.filter((p) => p.color === c).length;
+  const canUndo = (c: Color) => patients.some((p) => p.color === c && p.status === 'waiting');
+  const undoBtn = (c: Color) => (
+    <button className="triage-undo" disabled={!canUndo(c)} onClick={() => removeLast(c)}>
+      −1 撤銷
+    </button>
+  );
+  return (
+    <section className="section">
+      <div className="muted small" style={{ marginBottom: 6 }}>
+        檢傷系統：{TRIAGE_SYSTEM_NAME[sys]}（可在「事件 → 設定」切換）
+      </div>
+      <div className="red-block">
+        <div className="red-head">
+          <span>
+            ＋{names.R}
+            {sub.R && <small> {sub.R}</small>}
+            <span className="muted small">　點 ABCD 新增</span>
+          </span>
+          <span className="n">{count('R')}</span>
+        </div>
+        <div className="grid g4">
+          {RED_CLASSES.map((rc) => (
+            <button key={rc.id} className="triage-btn R abcd" onClick={() => addPatient('R', rc.id)}>
+              <span className="l">{rc.id}</span>
+              <span className="nm">{rc.name}</span>
+              <span className="c">{patients.filter((p) => p.color === 'R' && p.redClass === rc.id).length}</span>
+            </button>
+          ))}
+        </div>
+        {undoBtn('R')}
+      </div>
+      <div className="grid g3" style={{ marginTop: 8 }}>
+        {(['Y', 'G', 'K'] as Color[]).map((c) => (
+          <div className="triage-col" key={c}>
+            <button className={`triage-btn ${c}`} onClick={() => addPatient(c)}>
+              <span>＋{names[c]}</span>
+              {sub[c] && <small>{sub[c]}</small>}
+              <span className="n">{count(c)}</span>
+            </button>
+            {undoBtn(c)}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
   const tagNames = p.tags.map((t) => PATIENT_TAGS.find((x) => x.id === t)?.name ?? t);
   const sub =
@@ -91,6 +120,8 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const p = useStore((s) => s.patients.find((x) => x.id === id));
   const toggleTag = useStore((s) => s.toggleTag);
   const retriage = useStore((s) => s.retriage);
+  const setRedClass = useStore((s) => s.setRedClass);
+  const { names } = useTriage();
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
   const rules = useRules();
@@ -126,11 +157,32 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
 
       {p.status === 'waiting' && (
         <>
+          {p.color === 'R' && (
+            <>
+              <h3>紅傷分類（ABCD）</h3>
+              <div className="grid g4">
+                {RED_CLASSES.map((rc) => (
+                  <button key={rc.id} className={`btn sm ${p.redClass === rc.id ? 'on' : ''}`} onClick={() => setRedClass(p.id, rc.id)}>
+                    {rc.id} {rc.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <h3>再檢傷改色（保留原代碼）</h3>
-          <div className="grid g4">
-            {COLORS.map((c) => (
+          {p.color !== 'R' && (
+            <div className="grid g4" style={{ marginBottom: 6 }}>
+              {RED_CLASSES.map((rc) => (
+                <button key={rc.id} className="btn sm chip R" onClick={() => retriage(p.id, 'R', rc.id)}>
+                  改{names.R}-{rc.id}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="grid g3">
+            {(['Y', 'G', 'K'] as Color[]).map((c) => (
               <button key={c} className={`btn sm chip ${c}`} disabled={p.color === c} onClick={() => retriage(p.id, c)}>
-                改{COLOR_NAME[c]}
+                改{names[c]}
               </button>
             ))}
           </div>

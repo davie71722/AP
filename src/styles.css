@@ -531,3 +531,24 @@ button {
 .tbl td { font-size: 17px; }
 .tbl td.big { font-size: 24px; font-weight: 900; }
 .tbl td.zero b { color: var(--red); }
+
+/* 檢傷：紅傷 ABCD 區塊 */
+.red-block {
+  background: var(--red-d);
+  border: 2px solid var(--red);
+  border-radius: 14px;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+.red-head { display: flex; justify-content: space-between; align-items: center; font-weight: 900; font-size: 22px; }
+.red-head .n { font-size: 32px; font-variant-numeric: tabular-nums; }
+.red-head small { font-size: 15px; }
+.triage-btn.abcd { min-height: 92px; gap: 0; }
+.triage-btn.abcd .l { font-size: 34px; line-height: 1; }
+.triage-btn.abcd .nm { font-size: 15px; font-weight: 800; }
+.triage-btn.abcd .c { font-size: 15px; font-weight: 700; opacity: 0.9; font-variant-numeric: tabular-nums; }
+.triage-col { display: grid; gap: 6px; }
+.triage-col .triage-btn { min-height: 110px; font-size: 22px; }
+.triage-col .triage-btn small { font-size: 14px; font-weight: 700; }
+.triage-undo { min-height: 48px; }
