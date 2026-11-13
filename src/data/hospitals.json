@@ -1,0 +1,36 @@
+{
+  "version": "MOHW-115-02-12",
+  "source": "衛生福利部「急救責任醫院分區名單」（115/2/12 更新）",
+  "sourceUrl": "https://www.mohw.gov.tw/dl-97025-23d029a4-14c2-4ae9-a057-7a32d3885839.html",
+  "updatedAt": "2026-02-12",
+  "note": "座標為約略值（TODO：以 Google Maps 校正）。capacity 為預留值（TODO：與各院協定 MCI 收治量，日間／夜間各一套）。",
+  "hospitals": [
+    {"id":"tungyuan","name":"東元醫療社團法人東元綜合醫院","short":"東元","county":"新竹縣","level":"heavy","traumaLevel":"heavy","tags":["hazmat"],"lat":24.8275,"lng":121.0128,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"cmuh-hc","name":"中國醫藥大學新竹附設醫院","short":"中醫大新竹","county":"新竹縣","level":"medium","traumaLevel":"heavy","tags":[],"lat":24.8120,"lng":121.0290,"capacity":{"R":3,"Y":6,"G":12}},
+    {"id":"ntu-bio-zb","name":"臺大醫院新竹臺大分院生醫醫院竹北院區","short":"台大生醫竹北","county":"新竹縣","level":"medium","traumaLevel":"medium","tags":[],"lat":24.8150,"lng":121.0410,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"vgh-hc","name":"臺北榮民總醫院新竹分院","short":"竹東榮總","county":"新竹縣","level":"general","traumaLevel":"medium","tags":[],"lat":24.7400,"lng":121.0890,"capacity":{"R":1,"Y":3,"G":10}},
+    {"id":"renci","name":"天主教仁慈醫療財團法人仁慈醫院","short":"湖口仁慈","county":"新竹縣","level":"general","traumaLevel":"general","tags":["hazmat"],"lat":24.8990,"lng":121.0440,"capacity":{"R":1,"Y":3,"G":10}},
+    {"id":"ntu-bio-zd","name":"臺大醫院新竹臺大分院生醫醫院竹東院區","short":"台大竹東","county":"新竹縣","level":"general","traumaLevel":"general","tags":[],"lat":24.7370,"lng":121.0880,"capacity":{"R":0,"Y":3,"G":10}},
+
+    {"id":"ntu-hc","name":"臺大醫院新竹臺大分院新竹醫院","short":"台大新竹","county":"新竹市","level":"heavy","traumaLevel":"heavy","tags":[],"lat":24.8160,"lng":120.9720,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"mackay-hc","name":"新竹馬偕紀念醫院／新竹市立馬偕兒童醫院","short":"新竹馬偕","county":"新竹市","level":"heavy","traumaLevel":"heavy","tags":["peds"],"lat":24.8010,"lng":120.9920,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"cathay-hc","name":"國泰醫療財團法人新竹國泰綜合醫院","short":"新竹國泰","county":"新竹市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.8030,"lng":120.9660,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"af-hc","name":"國軍桃園總醫院新竹分院附設民眾診療服務處","short":"國軍新竹","county":"新竹市","level":"general","traumaLevel":"general","tags":[],"lat":24.7870,"lng":120.9530,"capacity":{"R":0,"Y":3,"G":10}},
+    {"id":"nanmen","name":"南門綜合醫院","short":"南門","county":"新竹市","level":"general","traumaLevel":"general","tags":[],"lat":24.8010,"lng":120.9640,"capacity":{"R":0,"Y":3,"G":10}},
+
+    {"id":"cgmh-lk","name":"長庚醫療財團法人林口長庚紀念醫院","short":"林口長庚","county":"桃園市","level":"heavy","traumaLevel":"heavy","tags":["burn","peds"],"lat":25.0620,"lng":121.3680,"capacity":{"R":8,"Y":15,"G":20}},
+    {"id":"tyh","name":"衛生福利部桃園醫院","short":"部立桃園","county":"桃園市","level":"heavy","traumaLevel":"heavy","tags":[],"lat":24.9790,"lng":121.2960,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"af-ty","name":"國軍桃園總醫院附設民眾診療服務處","short":"國軍桃園","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.8680,"lng":121.2370,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"landseed","name":"聯新國際醫院","short":"聯新","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.9450,"lng":121.2060,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"stpaul","name":"沙爾德聖保祿修女會醫療財團法人聖保祿醫院","short":"聖保祿","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.9840,"lng":121.2970,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"vgh-ty","name":"臺北榮民總醫院桃園分院","short":"桃園榮總","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.9870,"lng":121.3220,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"tiansheng","name":"天成醫療社團法人天晟醫院","short":"天晟","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.9580,"lng":121.2270,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"minsheng","name":"敏盛綜合醫院","short":"敏盛","county":"桃園市","level":"medium","traumaLevel":"medium","tags":[],"lat":24.9960,"lng":121.3150,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"xinwu","name":"衛生福利部桃園醫院新屋分院","short":"新屋分院","county":"桃園市","level":"general","traumaLevel":"general","tags":[],"lat":24.9730,"lng":121.1050,"capacity":{"R":0,"Y":3,"G":10}},
+
+    {"id":"weigong","name":"為恭醫療財團法人為恭紀念醫院","short":"為恭","county":"苗栗縣","level":"heavy","traumaLevel":"heavy","tags":[],"lat":24.6870,"lng":120.9100,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"dachien","name":"大千綜合醫院","short":"大千","county":"苗栗縣","level":"heavy","traumaLevel":"heavy","tags":[],"lat":24.5600,"lng":120.8180,"capacity":{"R":4,"Y":8,"G":15}},
+    {"id":"mlh","name":"衛生福利部苗栗醫院","short":"部立苗栗","county":"苗栗縣","level":"medium","traumaLevel":"medium","tags":["obstetric"],"lat":24.5700,"lng":120.8220,"capacity":{"R":2,"Y":5,"G":12}},
+    {"id":"li-yl","name":"李綜合醫療社團法人苑裡李綜合醫院","short":"苑裡李綜合","county":"苗栗縣","level":"medium","traumaLevel":"medium","tags":[],"lat":24.4400,"lng":120.6550,"capacity":{"R":2,"Y":5,"G":12}}
+  ]
+}
