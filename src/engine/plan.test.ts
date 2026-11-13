@@ -59,11 +59,26 @@ function input(over: Partial<Omit<PlanInput, 'settings'>> & { types?: string[]; 
 const short = (id: string) => HOSPITAL_BY_ID[id].short;
 
 describe('紅傷轉向順序', () => {
-  it('紅傷優先送中醫大新竹（即使東元有量能）', () => {
+  it('距離與處置能力綜合評估：東元就近時先送東元，中醫大排在新竹市重度級之前', () => {
+    // 竹北：東元近、完整重度級 → 先送東元；東元開始有負載後輪到中醫大，新竹市排在後面
+    const hs = computePlan(input({ at: '竹北', patients: patients({ R: 4 }) })).suggestions.map((s) => short(s.hospitalId));
+    expect(hs[0]).toBe('東元');
+    const firstCity = hs.findIndex((h) => h === '台大新竹' || h === '新竹馬偕');
+    const firstCmuh = hs.indexOf('中醫大新竹');
+    expect(firstCmuh).toBeGreaterThan(0);
+    if (firstCity >= 0) expect(firstCmuh).toBeLessThan(firstCity);
+  });
+
+  it('東元不可用時，距離相近則中醫大優先於新竹市；新竹市明顯較近則送新竹市', () => {
+    const runtime = initialRuntimes();
+    runtime['tungyuan'].bypass = true;
     for (const at of ['竹北', '湖口', '竹東', '新埔']) {
-      const plan = computePlan(input({ at, patients: patients({ R: 1 }) }));
+      const plan = computePlan(input({ at, patients: patients({ R: 1 }), runtime }));
       expect(short(plan.suggestions[0].hospitalId)).toBe('中醫大新竹');
     }
+    // 寶山緊鄰新竹市：馬偕近約 6 分鐘，綜合評估送新竹市
+    const bs = computePlan(input({ at: '寶山', patients: patients({ R: 1 }), runtime }));
+    expect(['新竹馬偕', '台大新竹']).toContain(short(bs.suggestions[0].hospitalId));
   });
 
   it('紅傷先填滿新竹縣與新竹市適合醫院，才送桃園、苗栗', () => {

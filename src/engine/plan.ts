@@ -262,8 +262,7 @@ export function computePlan(input: PlanInput): Plan {
       WEIGHTS.travel[c] * go -
       WEIGHTS.loadPenalty * loadRatio +
       specialBonus(h, c, job.tags, rules) +
-      (WEIGHTS.countyBonus[c][h.county] ?? 0) +
-      (c === 'R' && rules.trauma ? WEIGHTS.redPriorityHospitals[h.id] ?? 0 : 0);
+      (WEIGHTS.countyBonus[c][h.county] ?? 0);
     if (go >= settings.longHaulMin) s -= WEIGHTS.longHaul[c];
     return s;
   };
