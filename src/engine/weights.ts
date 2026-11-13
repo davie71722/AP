@@ -43,8 +43,8 @@ export const WEIGHTS = {
    * 二重、寶山分隊常送新竹馬偕（實際路況：寶山、二重往竹北需繞行科學園區）。
    */
   areaPreferred: {
-    寶山: { 'mackay-hc': 10 },
-    二重: { 'mackay-hc': 10 },
+    寶山: { 'mackay-hc': 15 },
+    二重: { 'mackay-hc': 15 },
   } as Record<string, Record<string, number>>,
   /**
    * 分散送醫（發牌）：同一家醫院在「預計抵院時間前後 surgeWindowMin 分鐘內」
@@ -55,6 +55,10 @@ export const WEIGHTS = {
   surgeWindowMin: 30,
   surgeSameColor: { R: 12, Y: 8, G: 3 } as Record<TransportColor, number>,
   surgeOtherColor: 3,
+  /** 以縣市內醫院為主：第一層只在這些縣市中、級別適合的醫院之間分配 */
+  localCounties: ['新竹縣', '新竹市'] as string[],
+  /** 第一層「級別適合」門檻（適配分）：紅傷＝重度／外傷重度、黃傷＝各級、綠傷＝中度／一般 */
+  localTierMinFit: 50,
   /** 車程權重（每分鐘扣分） */
   travel: { R: 1.0, Y: 1.1, G: 1.4 } as Record<TransportColor, number>,
   /** 負載懲罰：25 × 已用量 / 總量 */

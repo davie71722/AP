@@ -21,7 +21,7 @@ export const TOWNSHIPS: Record<string, [number, number]> = {
  * TODO: 座標為約略值，請以 Google Maps 校正。
  */
 export const AREAS: Record<string, { lat: number; lng: number; township: string; label: string }> = {
-  二重: { lat: 24.783, lng: 121.04, township: '竹東', label: '二重（竹東）' },
+  二重: { lat: 24.7905, lng: 121.039, township: '竹東', label: '二重' },
 };
 
 /** 山區加成（分鐘） */
@@ -58,32 +58,44 @@ export const FREEWAY_SEGMENTS: FreewaySegment[] = [
 
 export interface Unit {
   name: string;
+  brigade: string;
   township: string;
-  /** 分隊所在地（未設定則用鄉鎮中心） */
+  address: string;
+  phone: string;
+  /** 分隊位置（TODO：依地址估計之約略值，請以 Google Maps 校正） */
+  lat: number;
+  lng: number;
+  /** 分隊轄區（在地常送醫院用；未設定則用鄉鎮） */
   area?: string;
 }
 
-// TODO: 分隊名單待消防局確認實際編制。
+/** 新竹縣政府消防局局本部 */
+export const FIRE_HQ = { name: '新竹縣政府消防局', address: '新竹縣竹北市光明五街 295 號', phone: '03-5513520' };
+
+export const BRIGADES = ['第一大隊', '第二大隊', '第三大隊', '第四大隊'] as const;
+
 export const FIRE_UNITS: Unit[] = [
-  { name: '竹北', township: '竹北' },
-  { name: '光明', township: '竹北' },
-  { name: '六家', township: '竹北' },
-  { name: '高鐵', township: '竹北' },
-  { name: '新豐', township: '新豐' },
-  { name: '山崎', township: '新豐' },
-  { name: '湖口', township: '湖口' },
-  { name: '新工', township: '湖口' },
-  { name: '新埔', township: '新埔' },
-  { name: '關西', township: '關西' },
-  { name: '竹東', township: '竹東' },
-  { name: '二重', township: '竹東', area: '二重' },
-  { name: '芎林', township: '芎林' },
-  { name: '橫山', township: '橫山' },
-  { name: '寶山', township: '寶山' },
-  { name: '北埔', township: '北埔' },
-  { name: '峨眉', township: '峨眉' },
-  { name: '尖石', township: '尖石' },
-  { name: '五峰', township: '五峰' },
+  { name: '竹北', brigade: '第一大隊', township: '竹北', address: '竹北市福興路 757 號', phone: '03-5552922', lat: 24.8445, lng: 121.0105 },
+  { name: '光明', brigade: '第一大隊', township: '竹北', address: '竹北市光明五街 295 號', phone: '03-5559119', lat: 24.826, lng: 121.015 },
+  { name: '高鐵', brigade: '第一大隊', township: '竹北', address: '竹北市隘口二路 189 號', phone: '03-6670314', lat: 24.8105, lng: 121.042 },
+  { name: '豐田', brigade: '第一大隊', township: '竹北', address: '竹北市中正西路 2075 巷 6 號', phone: '03-5566119', lat: 24.862, lng: 120.985 },
+  { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉重興村建興路二段 788 之 1 號', phone: '03-5593340', lat: 24.898, lng: 120.989 },
+  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.874, lng: 121.01 },
+  { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮雞林里中正路 206 號', phone: '03-5962066', lat: 24.737, lng: 121.091 },
+  { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路 1 號', phone: '03-5921978', lat: 24.775, lng: 121.094 },
+  { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興村新興街 120 號', phone: '03-5932475', lat: 24.7175, lng: 121.116 },
+  { name: '五峰', brigade: '第二大隊', township: '五峰', address: '五峰鄉桃山村 2 鄰 21 號', phone: '03-5856320', lat: 24.598, lng: 121.125 },
+  { name: '花園', brigade: '第二大隊', township: '五峰', address: '五峰鄉花園村 1 鄰 6-1 號', phone: '03-5851803', lat: 24.664, lng: 121.148 },
+  { name: '尖石', brigade: '第二大隊', township: '尖石', address: '尖石鄉嘉樂村 2 鄰麥樹仁 62 號', phone: '03-5841014', lat: 24.704, lng: 121.199 },
+  { name: '田埔', brigade: '第二大隊', township: '尖石', address: '尖石鄉秀巒村 2 鄰田埔 71 號', phone: '03-5847880', lat: 24.615, lng: 121.285 },
+  { name: '新埔', brigade: '第三大隊', township: '新埔', address: '新埔鎮田新路 660 號', phone: '03-5882187', lat: 24.83, lng: 121.078 },
+  { name: '湖口', brigade: '第三大隊', township: '湖口', address: '湖口鄉信勢村成功路 109 號', phone: '03-5992454', lat: 24.902, lng: 121.043 },
+  { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉鳳凰村文化路 188 號', phone: '03-5981674', lat: 24.878, lng: 121.058 },
+  { name: '關西', brigade: '第三大隊', township: '關西', address: '關西鎮正義路 146 號', phone: '03-5872790', lat: 24.79, lng: 121.176 },
+  { name: '二重', brigade: '第四大隊', township: '竹東', address: '竹東鎮中興路四段 99 號', phone: '03-5829233', lat: 24.7905, lng: 121.039, area: '二重' },
+  { name: '寶山', brigade: '第四大隊', township: '寶山', address: '寶山鄉雙園路二段 288 號', phone: '03-5204755', lat: 24.759, lng: 120.983, area: '寶山' },
+  { name: '北埔', brigade: '第四大隊', township: '北埔', address: '北埔鄉南興村南興街 66 號', phone: '03-5804449', lat: 24.699, lng: 121.057 },
+  { name: '峨眉', brigade: '第四大隊', township: '峨眉', address: '峨眉鄉峨眉村峨眉街 1 號之 1', phone: '03-5800684', lat: 24.687, lng: 121.015 },
 ];
 
 export interface SupportSource {
@@ -103,8 +115,7 @@ export const SUPPORT_SOURCES: SupportSource[] = [
 
 /** 分隊出發點座標 */
 export function unitCoord(u: Unit): [number, number] {
-  if (u.area && AREAS[u.area]) return [AREAS[u.area].lat, AREAS[u.area].lng];
-  return TOWNSHIPS[u.township];
+  return [u.lat, u.lng];
 }
 
 /** 最近的轄區（含 AREAS），回傳 { township, area } */

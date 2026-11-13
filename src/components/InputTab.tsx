@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { HOSPITAL_BY_ID } from '../data/hospitals';
-import { FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
+import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
-import { PATIENT_TAGS, RED_CLASSES, TRIAGE_SYSTEM_NAME, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
+import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 
 export function InputTab() {
@@ -20,9 +20,9 @@ export function InputTab() {
 
       <section className="section">
         <h2>
-          待送傷患 <span className="muted small">點代碼：ABCD／標籤／再檢傷／卡號</span>
+          待送
         </h2>
-        {waiting.length === 0 && <div className="empty">尚無待送傷患</div>}
+        
         <div className="ptags">
           {waiting.map((p) => (
             <PatientChip key={p.id} p={p} onClick={() => setOpenPatient(p.id)} />
@@ -31,7 +31,7 @@ export function InputTab() {
         {sent.length > 0 && (
           <>
             <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setShowSent(!showSent)}>
-              {showSent ? '隱藏' : '顯示'}已送出（{sent.length}）
+              已送出 {sent.length} {showSent ? '▲' : '▼'}
             </button>
             {showSent && (
               <div className="ptags" style={{ marginTop: 8 }}>
@@ -53,7 +53,7 @@ function TriagePad() {
   const patients = useStore((s) => s.patients);
   const addPatient = useStore((s) => s.addPatient);
   const removeLast = useStore((s) => s.removeLastPatient);
-  const { sys, names, sub } = useTriage();
+  const { names, sub } = useTriage();
   const count = (c: Color) => patients.filter((p) => p.color === c).length;
   const canUndo = (c: Color) => patients.some((p) => p.color === c && p.status === 'waiting');
   const undoBtn = (c: Color) => (
@@ -63,15 +63,11 @@ function TriagePad() {
   );
   return (
     <section className="section">
-      <div className="muted small" style={{ marginBottom: 6 }}>
-        檢傷系統：{TRIAGE_SYSTEM_NAME[sys]}（可在「事件 → 設定」切換）
-      </div>
       <div className="red-block">
         <div className="red-head">
           <span>
             ＋{names.R}
             {sub.R && <small> {sub.R}</small>}
-            <span className="muted small">　點 ABCD 新增</span>
           </span>
           <span className="n">{count('R')}</span>
         </div>
@@ -159,7 +155,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
         <>
           {p.color === 'R' && (
             <>
-              <h3>紅傷分類（ABCD）</h3>
+              <h3>ABCD</h3>
               <div className="grid g4">
                 {RED_CLASSES.map((rc) => (
                   <button key={rc.id} className={`btn sm ${p.redClass === rc.id ? 'on' : ''}`} onClick={() => setRedClass(p.id, rc.id)}>
@@ -169,7 +165,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
               </div>
             </>
           )}
-          <h3>再檢傷改色（保留原代碼）</h3>
+          <h3>再檢傷</h3>
           {p.color !== 'R' && (
             <div className="grid g4" style={{ marginBottom: 6 }}>
               {RED_CLASSES.map((rc) => (
@@ -189,7 +185,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
         </>
       )}
 
-      <h3>檢傷卡號（選填）</h3>
+      <h3>卡號</h3>
       <div className="tagno">{no || '—'}</div>
       <div className="keypad">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '清除', '0', '⌫'].map((k) => (
@@ -242,7 +238,7 @@ export function VehiclesSection() {
           ＋新增車輛
         </button>
       </h2>
-      {vehicles.length === 0 && <div className="empty">尚未加入車輛</div>}
+      
       <div className="vlist">
         {vehicles.map((v) => (
           <VehicleCard key={v.id} v={v} onClick={() => setOpen(v.id)} />
@@ -261,18 +257,21 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
   const last = vehicles[vehicles.length - 1];
   return (
     <Sheet onClose={onClose}>
-      <h2>新增車輛</h2>
-      <p className="muted small" style={{ marginTop: -6 }}>
-        點一下＝新增一台（可連點），車號自 91 起。{last && <>剛加入：<b style={{ color: 'var(--text)' }}>{last.name}</b></>}
-      </p>
-      <h3>縣內分隊</h3>
-      <div className="grid g4">
-        {FIRE_UNITS.map((u) => (
-          <button key={u.name} className="btn sm" onClick={() => addUnit(u.name)}>
-            {u.name}
-          </button>
-        ))}
-      </div>
+      <h2>
+        新增車輛 {last && <span className="chip dim">{last.name}</span>}
+      </h2>
+      {BRIGADES.map((b) => (
+        <div key={b}>
+          <h3>{b}</h3>
+          <div className="grid g4">
+            {FIRE_UNITS.filter((u) => u.brigade === b).map((u) => (
+              <button key={u.name} className="btn sm" onClick={() => addUnit(u.name)}>
+                {u.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
       <h3>支援</h3>
       <div className="grid g2">
         {SUPPORT_SOURCES.map((s) => (
@@ -325,6 +324,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deleteVehicle);
   const adjustCrew = useStore((s) => s.adjustCrew);
   if (!v) return null;
+  const unit = FIRE_UNITS.find((u) => u.name === v.unit);
   const act = (fn: () => void) => () => {
     fn();
     onClose();
@@ -334,10 +334,14 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
       <h2>
         {v.name} <span className={`status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
       </h2>
-      <p className="muted" style={{ marginTop: -4 }}>
-        {v.unit}｜已完成 {v.trips} 趟
-        <br />
-        {vehicleCountdown(v, now)}
+      {unit && (
+        <a className="btn sm full" href={`tel:${unit.phone.replace(/-/g, '')}`} style={{ marginBottom: 8 }}>
+          📞 {unit.name}分隊 {unit.phone}
+        </a>
+      )}
+      <p className="muted" style={{ marginTop: 0 }}>
+        第 {v.trips} 趟完成
+        {vehicleCountdown(v, now) && <>｜{vehicleCountdown(v, now)}</>}
         {v.contaminated && v.status !== 'decon' ? '｜⚠ 已污染，返場後需除污' : ''}
       </p>
       <div className="grid">

@@ -45,7 +45,7 @@ export function DispatchTab() {
 
       {alerts.length > 0 && (
         <button className="alert" onClick={() => setAlertsOpen(!alertsOpen)}>
-          事件提醒（{alerts.length}）{alerts.length > 2 && <span className="muted small">{alertsOpen ? '▲ 收合' : '▼ 全部'}</span>}
+          事件提醒 {alerts.length > 2 && (alertsOpen ? '▲' : `▼ ${alerts.length}`)}
           <ul>
             {shownAlerts.map((a) => (
               <li key={a}>{a}</li>
@@ -76,7 +76,7 @@ export function DispatchTab() {
           />
         </div>
         {plan.reservedVehicleIds.length > 0 && (
-          <p className="muted small">保留不抽調：{plan.reservedVehicleIds.map((id) => vehicles.find((v) => v.id === id)?.name).join('、')}</p>
+          <p className="muted small">保留：{plan.reservedVehicleIds.map((id) => vehicles.find((v) => v.id === id)?.name).join('、')}</p>
         )}
         {undoStack.length > 0 && (
           <button className="btn warn full" style={{ marginTop: 8 }} onClick={undo}>
@@ -109,7 +109,6 @@ export function DispatchTab() {
         </section>
       )}
 
-      <p className="muted small">本系統為決策支援工具，最終派遣決定由現場指揮官／後送官負責。</p>
       {vehicleSheet && <VehicleSheet id={vehicleSheet} onClose={() => setVehicleSheet(null)} />}
     </>
   );

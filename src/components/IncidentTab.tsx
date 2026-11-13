@@ -1,6 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
-import { AREAS, FREEWAY_SEGMENTS, nearestArea, TOWNSHIPS } from '../data/places';
+import { googleMapsUrl, isMapsShortLink, isUrl, parseCoords, pinLocation } from '../data/geo';
+import { AREAS, FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
+import { geocodeAddress, resolveShortLink, ROUTES_PROXY_URL } from '../travel/routes';
+import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
 import { DoubleTapButton, Stepper } from './common';
 
@@ -11,56 +14,39 @@ export function IncidentTab() {
   const start = useStore((s) => s.startIncident);
   const update = useStore((s) => s.updateSettings);
   const clear = useStore((s) => s.clearIncident);
-  const [gpsMsg, setGpsMsg] = useState('');
   const [showFreeway, setShowFreeway] = useState(false);
   const st = incident.settings;
   const loc = incident.location;
 
-  const useGps = () => {
-    if (!navigator.geolocation) return setGpsMsg('此手機不支援定位');
-    setGpsMsg('定位中…');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const { township, area } = nearestArea(lat, lng);
-        setLocation({ kind: 'pin', label: `GPS（近${area}）`, lat, lng, township, area });
-        setGpsMsg(`已定位 ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-      },
-      (err) => setGpsMsg(`定位失敗：${err.message}`),
-      { enableHighAccuracy: true, timeout: 15000 },
-    );
-  };
-
   return (
     <>
-      {!incident.startAt && (
-        <div className="muted small" style={{ textAlign: 'center', marginBottom: 8 }}>
-          竹縣大傷後送小幫手｜決策支援工具，派遣由後送官決定
-        </div>
-      )}
-
       <section className="section">
-        <h2>① 事件類型（可複選）</h2>
+        <h2>事件類型</h2>
         <div className="grid g2">
           {INCIDENT_TYPES.map((t) => (
             <button key={t.id} className={`btn ${incident.types.includes(t.id) ? 'on' : ''}`} onClick={() => toggleType(t.id)}>
-              {incident.types.includes(t.id) ? '✔ ' : ''}
               {t.name}
             </button>
           ))}
         </div>
-        {incident.startAt ? <p className="muted small">進行中改類型會立即重算未送出的傷患。</p> : null}
       </section>
 
       <section className="section">
-        <h2>
-          ② 事發地點 {loc && <span className="muted small">目前：{loc.label}</span>}
-        </h2>
-        <div className="grid g3">
+        <h2>事發地點</h2>
+        {loc && (
+          <div className="loc-now">
+            <b>{loc.label}</b>
+            <a className="btn sm" href={googleMapsUrl(loc.lat, loc.lng)} target="_blank" rel="noreferrer">
+              🗺
+            </a>
+          </div>
+        )}
+        <LocationInput onPick={setLocation} />
+        <div className="grid g3" style={{ marginTop: 8 }}>
           {Object.entries(TOWNSHIPS).map(([name, [lat, lng]]) => (
             <button
               key={name}
-              className={`btn sm ${loc?.kind === 'township' && loc.label === name ? 'on' : ''}`}
+              className={`btn sm ${loc?.kind === 'township' && loc.area === name ? 'on' : ''}`}
               onClick={() => setLocation({ kind: 'township', label: name, lat, lng, township: name, area: name })}
             >
               {name}
@@ -69,46 +55,39 @@ export function IncidentTab() {
           {Object.entries(AREAS).map(([name, a]) => (
             <button
               key={name}
-              className={`btn sm ${loc?.area === name ? 'on' : ''}`}
+              className={`btn sm ${loc?.kind === 'township' && loc.area === name ? 'on' : ''}`}
               onClick={() => setLocation({ kind: 'township', label: a.label, lat: a.lat, lng: a.lng, township: a.township, area: name })}
             >
               {name}
             </button>
           ))}
-          <button className="btn sm" onClick={useGps}>
-            📍GPS
-          </button>
           <button className={`btn sm ${showFreeway || loc?.kind === 'freeway' ? 'on' : ''}`} onClick={() => setShowFreeway(!showFreeway)}>
-            🛣 國道
+            國道
           </button>
         </div>
-        {gpsMsg && <p className="muted small">{gpsMsg}</p>}
         {(showFreeway || loc?.kind === 'freeway') && (
-          <>
-            <h3>國道路段（座標約略值，待校正）</h3>
-            <div className="grid g2">
-              {FREEWAY_SEGMENTS.map((f) => (
-                <button
-                  key={f.id}
-                  className={`btn sm ${loc?.kind === 'freeway' && loc.label === f.label ? 'on' : ''}`}
-                  onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township, area: f.township })}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </>
+          <div className="grid g2" style={{ marginTop: 8 }}>
+            {FREEWAY_SEGMENTS.map((f) => (
+              <button
+                key={f.id}
+                className={`btn sm ${loc?.kind === 'freeway' && loc.label === f.label ? 'on' : ''}`}
+                onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township, area: f.township })}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         )}
       </section>
 
       <section className="section">
         {incident.startAt ? (
           <p style={{ margin: 0 }}>
-            ③ 事件已於 <b>{new Date(incident.startAt).toLocaleTimeString('zh-TW')}</b> 開始
+            開始 <b>{new Date(incident.startAt).toLocaleTimeString('zh-TW', { hour12: false })}</b>
           </p>
         ) : (
           <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} onClick={start}>
-            ③ ▶ 開始（記錄起始時間）
+            ▶ 開始
           </button>
         )}
       </section>
@@ -174,7 +153,7 @@ export function IncidentTab() {
         <SetRow label="畫面">
           <ThemeToggle />
         </SetRow>
-        <SetRow label="醫院容量（日／夜）">
+        <SetRow label="醫院容量">
           <div className="seg">
             <button className={`btn sm ${!st.nightMode ? 'on' : ''}`} onClick={() => update({ nightMode: false })}>
               日間
@@ -187,8 +166,6 @@ export function IncidentTab() {
       </section>
 
       <section className="section">
-        <h2>清除事件</h2>
-        <p className="muted small">清除所有傷患、車輛與紀錄（建議先到「回報」匯出）。</p>
         <DoubleTapButton className="full" onConfirm={clear} armedText="⚠ 再按一次確認清除">
           清除事件
         </DoubleTapButton>
@@ -209,6 +186,87 @@ export function ThemeToggle() {
         ☾ 夜間
       </button>
     </div>
+  );
+}
+
+/** 地址／座標／Google 地圖連結／GPS */
+function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
+  const [text, setText] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const online = useStore((s) => s.online);
+
+  const done = (l: IncidentLocation) => {
+    onPick(l);
+    setText('');
+    setMsg('');
+  };
+
+  const submit = async () => {
+    const t = text.trim();
+    if (!t) return;
+    const c = parseCoords(t);
+    if (c) return done(pinLocation(c.lat, c.lng));
+    if (!ROUTES_PROXY_URL) return setMsg('未設定地圖服務：請改用座標、地圖連結或 GPS');
+    if (!online) return setMsg(isUrl(t) ? '離線：請改貼含座標的地圖連結' : '離線：請改用座標、GPS 或鄉鎮');
+    setBusy(true);
+    try {
+      if (isMapsShortLink(t)) {
+        const full = await resolveShortLink(t);
+        const c2 = parseCoords(full);
+        if (c2) return done(pinLocation(c2.lat, c2.lng));
+        return setMsg('連結中找不到座標');
+      }
+      const g = await geocodeAddress(t);
+      if (g) return done(pinLocation(g.lat, g.lng, g.label.replace(/^\d+台灣/, '').replace(/^台灣/, '')));
+      setMsg('查無此地址');
+    } catch {
+      setMsg('查詢失敗');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const gps = () => {
+    if (!navigator.geolocation) return setMsg('無法定位');
+    setMsg('定位中…');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => done(pinLocation(pos.coords.latitude, pos.coords.longitude, 'GPS')),
+      (err) => setMsg(`定位失敗：${err.message}`),
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
+
+  return (
+    <>
+      <form
+        className="loc-input"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="地址・座標・地圖連結"
+          inputMode="text"
+          enterKeyHint="go"
+        />
+        <button className="btn primary" disabled={busy || !text.trim()}>
+          {busy ? '…' : '定位'}
+        </button>
+      </form>
+      <div className="grid g2" style={{ marginTop: 8 }}>
+        <button className="btn sm" onClick={gps}>
+          📍 GPS
+        </button>
+        <a className="btn sm" href={googleMapsUrl()} target="_blank" rel="noreferrer">
+          🗺 Google 地圖
+        </a>
+      </div>
+      {msg && <p className="small" style={{ color: 'var(--orange)', margin: '6px 0 0' }}>{msg}</p>}
+    </>
   );
 }
 

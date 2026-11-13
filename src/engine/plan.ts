@@ -188,6 +188,7 @@ const COLOR_ORDER: Record<string, number> = { R: 0, Y: 1, G: 2 };
 export function computePlan(input: PlanInput): Plan {
   const { now, patients, vehicles, hospitals, runtime, travel, settings, rules, area } = input;
   const areaBonus = (area && WEIGHTS.areaPreferred[area]) || {};
+  const localBurn = hospitals.some((h) => WEIGHTS.localCounties.includes(h.county) && h.tags.includes('burn') && !runtime[h.id]?.bypass);
   const deconAfter = vehicleNeedsDecon(rules, settings);
 
   // 1. 待送、非黑色，依紅→黃→綠、建立順序
@@ -289,9 +290,24 @@ export function computePlan(input: PlanInput): Plan {
     return s;
   };
 
-  const pick = (job: Job, respectCapacity: boolean, departMin: number) => {
+  /**
+   * 第一層：新竹縣市內、且級別適合此顏色的醫院（適配分 ≥ WEIGHTS.localTierMinFit）；
+   * 縣市內沒有、病人需要的專科（如燒燙傷中心）也列入第一層。
+   * 第一層都無量能時才開放第二層（外縣市與不適合級別）。
+   */
+  const inTier1 = (h: Hospital, job: Job) => {
+    const local = WEIGHTS.localCounties.includes(h.county);
+    if (local) return fitScore(h, job.color, rules.trauma) >= WEIGHTS.localTierMinFit;
+    return job.tags.includes('burn') && h.tags.includes('burn') && !localBurn;
+  };
+
+  const pick = (job: Job, respectCapacity: boolean, departMin: number) =>
+    pickIn(job, respectCapacity, departMin, (h) => inTier1(h, job)) ?? pickIn(job, respectCapacity, departMin, () => true);
+
+  const pickIn = (job: Job, respectCapacity: boolean, departMin: number, allow: (h: Hospital) => boolean) => {
     let best: { h: Hospital; score: number; go: number; back: number } | null = null;
     for (const h of hospitals) {
+      if (!allow(h)) continue;
       const rt = runtime[h.id];
       if (rt?.bypass) continue;
       const tr = effectiveTravel(travel[h.id], rt, settings);

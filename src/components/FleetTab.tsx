@@ -59,9 +59,6 @@ function PatientSummary() {
         </tbody>
       </table>
       <div className="row" style={{ marginTop: 8 }}>
-        <span className="small" style={{ fontWeight: 700 }}>
-          {names.R} 待送分類：
-        </span>
         {RED_CLASSES.map((rc) => (
           <span key={rc.id} className="chip R">
             {rc.id} {redWaiting.filter((p) => p.redClass === rc.id).length}
@@ -90,13 +87,13 @@ function CrewSummary() {
       <h2>救護車與 EMT 量能</h2>
       <div className="stats" style={{ marginBottom: 8 }}>
         <div className="stat">
-          <div className="k">已到場／總車數</div>
+          <div className="k">到場／總車</div>
           <div className="v">
             {arrived}／{vehicles.length}
           </div>
         </div>
         <div className="stat">
-          <div className="k">人力（不含離線）</div>
+          <div className="k">人力</div>
           <div className="v" style={{ fontSize: 20 }}>
             EMTP {sum(active, 'emtp')}
             <br />
@@ -161,7 +158,7 @@ function HospitalSummary() {
   return (
     <section className="section">
       <h2>
-        醫院剩餘量能 <span className="muted small">（扣除已收、自行到院、建議中；{night ? '夜間' : '日間'}）</span>
+        醫院剩餘量能 <span className="chip dim">{night ? '夜' : '日'}</span>
       </h2>
       <table className="tbl">
         <thead>
@@ -188,9 +185,9 @@ function HospitalSummary() {
           ))}
         </tbody>
       </table>
-      {closed.length > 0 && <p className="small" style={{ color: 'var(--red)' }}>關閉中：{closed.map((h) => h.short).join('、')}</p>}
+      {closed.length > 0 && <p className="small" style={{ color: 'var(--red)' }}>關閉：{closed.map((h) => h.short).join('、')}</p>}
       <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setTab('hospital')}>
-        查看各醫院 ›
+        各醫院 ›
       </button>
     </section>
   );

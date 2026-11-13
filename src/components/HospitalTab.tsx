@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { COUNTY_ORDER, HOSPITAL_BY_ID, HOSPITAL_DB_META, HOSPITALS } from '../data/hospitals';
+import { COUNTY_ORDER, HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { capacityOf, effectiveTravel } from '../engine/plan';
 import { useStore } from '../store/store';
 import { usePlan, useTriage } from '../store/usePlan';
@@ -37,13 +37,6 @@ export function HospitalTab() {
           <HospitalRow key={h.id} h={h} planned={planned[h.id]} onOpen={() => setOpen(h.id)} />
         ))}
       </section>
-      <p className="muted small">
-        點醫院名稱可修正車程、填自行到院人數、調整容量與除污能力。
-        <br />
-        資料版本：{HOSPITAL_DB_META.version}（{HOSPITAL_DB_META.updatedAt}）｜{HOSPITAL_DB_META.source}
-        <br />
-        {HOSPITAL_DB_META.note}
-      </p>
       {open && <HospitalSheet id={open} planned={planned[open]} onClose={() => setOpen(null)} />}
     </>
   );
@@ -120,11 +113,8 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
       <h2>
         {h.short} <span className={`badge ${h.level}`}>{LEVEL_NAME[h.level]}級</span>
       </h2>
-      <p className="muted small" style={{ marginTop: -6 }}>
-        {h.name}｜{h.county}
-      </p>
 
-      <h3>量能（實色已收、灰色自行到院、淡色建議中）</h3>
+      <h3>量能</h3>
       {TC.map((c) => {
         const total = Math.max(cap[c], 1);
         const pct = (n: number) => `${Math.min(100, (n / total) * 100)}%`;
@@ -147,13 +137,13 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
         );
       })}
 
-      <h3>車程修正（目前 {tr ? Math.round(tr.go) : '—'} 分）</h3>
+      <h3>車程 {tr ? Math.round(tr.go) : '—'} 分</h3>
       <div className="setrow">
-        <span>人工修正</span>
+        <span>修正</span>
         <Stepper value={rt.travelAdjustMin} step={5} onChange={(v) => adjustTravel(id, v - rt.travelAdjustMin)} format={(v) => `${v > 0 ? '+' : ''}${v}分`} />
       </div>
 
-      <h3>自行到院（醫院回報已湧入人數）</h3>
+      <h3>自行到院</h3>
       {TC.map((c) => (
         <div className="setrow" key={c}>
           <span className={`chip ${c}`}>{names[c]}傷</span>
@@ -161,7 +151,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
         </div>
       ))}
 
-      <h3>收治容量（{settings.nightMode ? '夜間' : '日間'}）</h3>
+      <h3>容量 <span className="chip dim">{settings.nightMode ? '夜' : '日'}</span></h3>
       {TC.map((c) => (
         <div className="setrow" key={c}>
           <span className={`chip ${c}`}>{names[c]}傷</span>
@@ -174,7 +164,7 @@ function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<
           除污能力：{rt.decon ? '有' : '無'}
         </button>
         <button className={`btn ${rt.bypass ? 'go' : 'danger'}`} onClick={() => toggleBypass(id)}>
-          {rt.bypass ? '重新開啟' : '關閉（Bypass）'}
+          {rt.bypass ? '重新開啟' : '關閉'}
         </button>
       </div>
     </Sheet>

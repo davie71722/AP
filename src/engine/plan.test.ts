@@ -82,12 +82,13 @@ describe('紅傷轉向順序', () => {
     expect(['新竹馬偕', '台大新竹']).toContain(short(bs.suggestions[0].hospitalId));
   });
 
-  it('紅傷不送中度／一般級，新竹縣市重度與外傷重度醫院各輪到 2 位以上才分到外縣市', () => {
+  it('以縣市內醫院為主：紅傷在縣市內重度／外傷重度醫院間分散，用完才轉外縣市', () => {
     const plan = computePlan(input({ patients: patients({ R: 20 }) }));
     const hs = plan.suggestions.map((s) => short(s.hospitalId));
     const local = ['東元', '中醫大新竹', '台大新竹', '新竹馬偕'];
     const firstOut = hs.findIndex((h) => !local.includes(h));
-    for (const h of local) expect(hs.slice(0, firstOut).filter((x) => x === h).length).toBeGreaterThanOrEqual(2);
+    // 縣市內量能（東元4＋中醫大3＋台大新竹4＋馬偕4＝15）用完才轉外縣市
+    expect(firstOut).toBe(15);
     expect(['為恭', '林口長庚']).toContain(hs[firstOut]);
   });
 

@@ -552,3 +552,22 @@ button {
 .triage-col .triage-btn { min-height: 110px; font-size: 22px; }
 .triage-col .triage-btn small { font-size: 14px; font-weight: 700; }
 .triage-undo { min-height: 48px; }
+
+/* 事發地點輸入 */
+.loc-now { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 10px; background: var(--blue-d); border: 2px solid var(--blue); font-size: 18px; }
+.loc-now .btn { min-height: 40px; text-decoration: none; }
+.loc-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.loc-input input {
+  min-height: 56px;
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  background: var(--well);
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+}
+.loc-input input:focus { outline: none; border-color: var(--blue); }
+a.btn { color: inherit; text-decoration: none; }
+.chip.dim { background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }

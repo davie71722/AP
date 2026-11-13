@@ -87,3 +87,32 @@ export async function fetchOnlineTravel(
     clearTimeout(timer);
   }
 }
+
+async function proxyPost<T>(body: unknown): Promise<T> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(ROUTES_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`代理回應 ${res.status}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 地址 → 座標（經代理呼叫 Google Geocoding） */
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number; label: string } | null> {
+  const r = await proxyPost<{ lat?: number; lng?: number; label?: string; error?: string }>({ address });
+  return r.lat !== undefined && r.lng !== undefined ? { lat: r.lat, lng: r.lng, label: r.label ?? address } : null;
+}
+
+/** Google 地圖短網址展開 */
+export async function resolveShortLink(url: string): Promise<string> {
+  const r = await proxyPost<{ url: string }>({ resolve: url });
+  return r.url;
+}
