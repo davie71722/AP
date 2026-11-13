@@ -22,6 +22,8 @@ export const TOWNSHIPS: Record<string, [number, number]> = {
  */
 export const AREAS: Record<string, { lat: number; lng: number; township: string; label: string }> = {
   二重: { lat: 24.7905, lng: 121.039, township: '竹東', label: '二重' },
+  山崎: { lat: 24.874, lng: 121.01, township: '新豐', label: '山崎' },
+  新工: { lat: 24.878, lng: 121.058, township: '湖口', label: '新工' },
 };
 
 /** 山區加成（分鐘） */
@@ -80,7 +82,7 @@ export const FIRE_UNITS: Unit[] = [
   { name: '高鐵', brigade: '第一大隊', township: '竹北', address: '竹北市隘口二路 189 號', phone: '03-6670314', lat: 24.8105, lng: 121.042 },
   { name: '豐田', brigade: '第一大隊', township: '竹北', address: '竹北市中正西路 2075 巷 6 號', phone: '03-5566119', lat: 24.862, lng: 120.985 },
   { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉重興村建興路二段 788 之 1 號', phone: '03-5593340', lat: 24.898, lng: 120.989 },
-  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.874, lng: 121.01 },
+  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.874, lng: 121.01, area: '山崎' },
   { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮雞林里中正路 206 號', phone: '03-5962066', lat: 24.737, lng: 121.091 },
   { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路 1 號', phone: '03-5921978', lat: 24.775, lng: 121.094 },
   { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興村新興街 120 號', phone: '03-5932475', lat: 24.7175, lng: 121.116 },
@@ -90,7 +92,7 @@ export const FIRE_UNITS: Unit[] = [
   { name: '田埔', brigade: '第二大隊', township: '尖石', address: '尖石鄉秀巒村 2 鄰田埔 71 號', phone: '03-5847880', lat: 24.615, lng: 121.285 },
   { name: '新埔', brigade: '第三大隊', township: '新埔', address: '新埔鎮田新路 660 號', phone: '03-5882187', lat: 24.83, lng: 121.078 },
   { name: '湖口', brigade: '第三大隊', township: '湖口', address: '湖口鄉信勢村成功路 109 號', phone: '03-5992454', lat: 24.902, lng: 121.043 },
-  { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉鳳凰村文化路 188 號', phone: '03-5981674', lat: 24.878, lng: 121.058 },
+  { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉鳳凰村文化路 188 號', phone: '03-5981674', lat: 24.878, lng: 121.058, area: '新工' },
   { name: '關西', brigade: '第三大隊', township: '關西', address: '關西鎮正義路 146 號', phone: '03-5872790', lat: 24.79, lng: 121.176 },
   { name: '二重', brigade: '第四大隊', township: '竹東', address: '竹東鎮中興路四段 99 號', phone: '03-5829233', lat: 24.7905, lng: 121.039, area: '二重' },
   { name: '寶山', brigade: '第四大隊', township: '寶山', address: '寶山鄉雙園路二段 288 號', phone: '03-5204755', lat: 24.759, lng: 120.983, area: '寶山' },

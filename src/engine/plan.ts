@@ -187,7 +187,10 @@ const COLOR_ORDER: Record<string, number> = { R: 0, Y: 1, G: 2 };
 
 export function computePlan(input: PlanInput): Plan {
   const { now, patients, vehicles, hospitals, runtime, travel, settings, rules, area } = input;
-  const areaBonus = (area && WEIGHTS.areaPreferred[area]) || {};
+  const areaRules = (area && WEIGHTS.areaPreferred[area]) || [];
+  /** 在地常送醫院加分 */
+  const areaBonus = (hid: string, c: TransportColor) =>
+    areaRules.some((r) => r.hospitals.includes(hid) && (!r.colors || r.colors.includes(c))) ? WEIGHTS.areaPreferredBonus : 0;
   const localBurn = hospitals.some((h) => WEIGHTS.localCounties.includes(h.county) && h.tags.includes('burn') && !runtime[h.id]?.bypass);
   const deconAfter = vehicleNeedsDecon(rules, settings);
 
@@ -283,8 +286,7 @@ export function computePlan(input: PlanInput): Plan {
       WEIGHTS.travel[c] * go -
       WEIGHTS.loadPenalty * loadRatio +
       specialBonus(h, c, job.tags, rules) +
-      (WEIGHTS.countyBonus[c][h.county] ?? 0) +
-      (areaBonus[h.id] ?? 0);
+      (areaBonus(h.id, c) ? areaBonus(h.id, c) : WEIGHTS.countyBonus[c][h.county] ?? 0);
     if (go >= settings.longHaulMin) s -= WEIGHTS.longHaul[c];
     if (!ignoreLoad) s -= surgePenalty(h.id, c, departMin + go);
     return s;
@@ -296,7 +298,7 @@ export function computePlan(input: PlanInput): Plan {
    * 第一層都無量能時才開放第二層（外縣市與不適合級別）。
    */
   const inTier1 = (h: Hospital, job: Job) => {
-    const local = WEIGHTS.localCounties.includes(h.county);
+    const local = WEIGHTS.localCounties.includes(h.county) || areaBonus(h.id, job.color) > 0;
     if (local) return fitScore(h, job.color, rules.trauma) >= WEIGHTS.localTierMinFit;
     return job.tags.includes('burn') && h.tags.includes('burn') && !localBurn;
   };

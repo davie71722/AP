@@ -263,7 +263,7 @@ describe('紅傷 ABCD 分類', () => {
 
 describe('分散送醫（發牌）', () => {
   it('同時有多台車時，紅傷輪流發給不同醫院，不集中在同一家', () => {
-    const plan = computePlan(input({ patients: patients({ R: 4 }), vehicles: vehicles(4) }));
+    const plan = computePlan(input({ patients: patients({ R: 4 }), vehicles: vehicles(4), area: '' }));
     const hs = plan.suggestions.map((s) => short(s.hospitalId));
     expect(new Set(hs).size).toBe(4);
   });
@@ -279,7 +279,7 @@ describe('分散送醫（發牌）', () => {
 
   it('隔了一段時間（超過分散時間窗）的下一波，不受前一波影響', () => {
     // 4 台車、8 位紅傷：第二波約 30 分鐘後抵達，可再送最適合的醫院
-    const plan = computePlan(input({ patients: patients({ R: 8 }), vehicles: vehicles(4) }));
+    const plan = computePlan(input({ patients: patients({ R: 8 }), vehicles: vehicles(4), area: '' }));
     const hs = plan.suggestions.map((s) => short(s.hospitalId));
     expect(new Set(hs.slice(0, 4)).size).toBe(4);
     expect(hs.slice(4)).toContain('東元');
@@ -297,6 +297,29 @@ describe('在地常送醫院', () => {
     const erchong = { kind: 'township' as const, label: '二重', lat: AREAS['二重'].lat, lng: AREAS['二重'].lng, township: '竹東', area: '二重' };
     const plan = computePlan({ ...input({ patients: patients({ R: 1 }) }), travel: offlineTravel(erchong), area: '二重' });
     expect(short(plan.suggestions[0].hospitalId)).toBe('新竹馬偕');
+  });
+});
+
+describe('各分隊常送醫院', () => {
+  const first = (at: string, c: Color, area?: string) =>
+    short(computePlan(input({ at, area, patients: patients({ [c]: 1 }) })).suggestions[0].hospitalId);
+  it('新豐、湖口、新工輕症送湖口仁慈', () => {
+    expect(first('新豐', 'G')).toBe('湖口仁慈');
+    expect(first('湖口', 'G')).toBe('湖口仁慈');
+    expect(first('湖口', 'Y')).toBe('湖口仁慈');
+  });
+  it('竹北、新埔送竹北的醫院', () => {
+    expect(['東元', '中醫大新竹', '台大生醫竹北']).toContain(first('竹北', 'Y'));
+    expect(['東元', '中醫大新竹', '台大生醫竹北']).toContain(first('新埔', 'Y'));
+  });
+  it('關西黃傷送國軍桃園或台大生醫竹北', () => {
+    expect(['國軍桃園', '台大生醫竹北']).toContain(first('關西', 'Y'));
+  });
+  it('竹東與山區：輕症送竹東兩院、重症送東元', () => {
+    for (const at of ['竹東', '尖石', '五峰', '橫山']) {
+      expect(['竹東榮總', '台大竹東']).toContain(first(at, 'G'));
+      expect(first(at, 'R')).toBe('東元');
+    }
   });
 });
 

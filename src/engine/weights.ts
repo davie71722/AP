@@ -10,6 +10,18 @@ import type { TransportColor } from '../types';
  */
 export type FitClass = 'heavy' | 'mediumTraumaHeavy' | 'medium' | 'general';
 
+export interface AreaRule {
+  hospitals: string[];
+  colors?: TransportColor[];
+}
+
+function AREA_ZHUDONG(): AreaRule[] {
+  return [
+    { hospitals: ['vgh-hc', 'ntu-bio-zd'], colors: ['Y', 'G'] },
+    { hospitals: ['tungyuan'], colors: ['R'] },
+  ];
+}
+
 export const WEIGHTS = {
   /** 級別適配表 */
   fit: {
@@ -39,13 +51,27 @@ export const WEIGHTS = {
     G: { 新竹縣: 3, 新竹市: 0, 桃園市: -10, 苗栗縣: -10 },
   } as Record<TransportColor, Record<string, number>>,
   /**
-   * 在地常送醫院：依事發轄區加分（各色皆適用）。
-   * 二重、寶山分隊常送新竹馬偕（實際路況：寶山、二重往竹北需繞行科學園區）。
+   * 在地常送醫院（各分隊實務送醫習慣）：依事發轄區加 areaPreferredBonus 分。
+   * colors 省略＝各色適用。仍須級別適合（例如紅傷不會因此送一般級）。
+   * 列為常送的外縣市醫院（如關西→國軍桃園）不扣縣市偏好分，並可列入第一層。
    */
   areaPreferred: {
-    寶山: { 'mackay-hc': 15 },
-    二重: { 'mackay-hc': 15 },
-  } as Record<string, Record<string, number>>,
+    竹北: [{ hospitals: ['tungyuan', 'cmuh-hc', 'ntu-bio-zb'] }],
+    新埔: [{ hospitals: ['tungyuan', 'cmuh-hc', 'ntu-bio-zb'] }],
+    新豐: [{ hospitals: ['cmuh-hc', 'renci'] }],
+    山崎: [{ hospitals: ['tungyuan', 'cmuh-hc'] }],
+    湖口: [{ hospitals: ['renci', 'tungyuan'] }],
+    新工: [{ hospitals: ['tungyuan', 'renci'] }],
+    關西: [{ hospitals: ['af-ty', 'ntu-bio-zb'] }],
+    寶山: [{ hospitals: ['mackay-hc'] }],
+    二重: [{ hospitals: ['mackay-hc'] }],
+    // 竹東與山區：輕症送竹東兩院，重症送東元
+    竹東: AREA_ZHUDONG(),
+    橫山: AREA_ZHUDONG(),
+    尖石: AREA_ZHUDONG(),
+    五峰: AREA_ZHUDONG(),
+  } as Record<string, AreaRule[]>,
+  areaPreferredBonus: 15,
   /**
    * 分散送醫（發牌）：同一家醫院在「預計抵院時間前後 surgeWindowMin 分鐘內」
    * 每已有 1 位同色傷患抵達扣 surgeSameColor[色] 分、其他顏色扣 surgeOtherColor 分，
