@@ -12,13 +12,15 @@
 
 ```bash
 npm install
-npm run dev        # 開發伺服器（--host，可用平板連區網測試）
+npm run dev        # 開發伺服器（--host，手機連同一個 Wi-Fi 即可開啟測試）
 npm test           # Vitest 單元測試
 npm run build      # 型別檢查 + 產生 PWA（dist/）
 npm run preview    # 預覽建置結果
 ```
 
-首次以瀏覽器開啟後，Service Worker 會快取全部檔案；之後**斷網也能完整啟動與運算**。建議在平板上「加入主畫面」以全螢幕執行。
+**本系統為手機直式網頁**（以 iPhone／Android 手機為設計目標，最小支援 320px 寬）。不另做電腦版：在電腦或平板上開啟時，也只顯示手機寬度的單欄畫面。
+
+首次以手機瀏覽器開啟後，Service Worker 會快取全部檔案；之後**斷網也能完整啟動與運算**。建議在手機上「加入主畫面」以全螢幕執行（iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式）。
 
 ## 技術架構
 

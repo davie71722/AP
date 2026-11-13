@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { COUNTY_ORDER, HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { HOSPITAL_BY_ID } from '../data/hospitals';
 import { FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
 import { useRules } from '../store/usePlan';
-import { COLOR_NAME, PATIENT_TAGS, VEHICLE_STATUS_NAME, type Color, type Patient, type TransportColor, type Vehicle } from '../types';
-import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
+import { COLOR_NAME, PATIENT_TAGS, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
+import { DoubleTapButton, Sheet, clockAfter } from './common';
 
 const COLORS: Color[] = ['R', 'Y', 'G', 'K'];
 
@@ -21,7 +21,6 @@ export function InputTab() {
   return (
     <>
       <section className="section">
-        <h2>檢傷（每點一次＝一位傷患）</h2>
         <div className="triage">
           {COLORS.map((c) => {
             const n = patients.filter((p) => p.color === c).length;
@@ -32,8 +31,10 @@ export function InputTab() {
                   <span>＋{COLOR_NAME[c]}</span>
                   <span className="n">{n}</span>
                 </button>
-                <button className="btn sm" disabled={!canUndo} onClick={() => removeLast(c)}>
-                  −1 撤銷
+                <button className="triage-undo" disabled={!canUndo} onClick={() => removeLast(c)}>
+                  −1
+                  <br />
+                  撤銷
                 </button>
               </div>
             );
@@ -43,21 +44,21 @@ export function InputTab() {
 
       <section className="section">
         <h2>
-          傷患代碼 <span className="muted small">點擊可加標籤、再檢傷、填卡號</span>
+          待送傷患 <span className="muted small">點代碼：標籤／再檢傷／卡號</span>
         </h2>
         {waiting.length === 0 && <div className="empty">尚無待送傷患</div>}
-        <div className="row">
+        <div className="ptags">
           {waiting.map((p) => (
             <PatientChip key={p.id} p={p} onClick={() => setOpenPatient(p.id)} />
           ))}
         </div>
         {sent.length > 0 && (
           <>
-            <button className="btn sm" style={{ marginTop: 10 }} onClick={() => setShowSent(!showSent)}>
+            <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setShowSent(!showSent)}>
               {showSent ? '隱藏' : '顯示'}已送出（{sent.length}）
             </button>
             {showSent && (
-              <div className="row" style={{ marginTop: 8 }}>
+              <div className="ptags" style={{ marginTop: 8 }}>
                 {sent.map((p) => (
                   <PatientChip key={p.id} p={p} onClick={() => setOpenPatient(p.id)} />
                 ))}
@@ -68,7 +69,6 @@ export function InputTab() {
       </section>
 
       <VehiclesSection />
-      <SelfPresentedSection />
 
       {openPatient && <PatientSheet id={openPatient} onClose={() => setOpenPatient(null)} />}
     </>
@@ -77,16 +77,14 @@ export function InputTab() {
 
 function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
   const tagNames = p.tags.map((t) => PATIENT_TAGS.find((x) => x.id === t)?.name ?? t);
+  const sub =
+    p.status === 'sent' && p.hospitalId
+      ? `➔${HOSPITAL_BY_ID[p.hospitalId]?.short}`
+      : [p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '', tagNames.join('·')].filter(Boolean).join(' ');
   return (
     <button className={`ptag ${p.color} ${p.status === 'sent' ? 'sent' : ''}`} onClick={onClick}>
       {p.label}
-      {(p.prevLabels.length > 0 || tagNames.length > 0 || p.status === 'sent') && (
-        <small>
-          {p.prevLabels.length > 0 && `←${p.prevLabels.join('←')} `}
-          {tagNames.join('·')}
-          {p.status === 'sent' && p.hospitalId && ` ➔${HOSPITAL_BY_ID[p.hospitalId]?.short}`}
-        </small>
-      )}
+      {sub && <small>{sub}</small>}
     </button>
   );
 }
@@ -107,21 +105,22 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   return (
     <Sheet onClose={onClose}>
       <h2>
-        <span className={`chip ${p.color}`}>{p.label}</span>{' '}
-        {p.prevLabels.length > 0 && <span className="muted small">原代碼：{p.prevLabels.join(' → ')}</span>}
-        {p.status === 'sent' && <span className="muted small">（已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}）</span>}
+        <span className={`chip ${p.color}`} style={{ fontSize: 22 }}>
+          {p.label}
+        </span>
+        {p.prevLabels.length > 0 && <span className="muted small">原：{p.prevLabels.join('→')}</span>}
+        {p.status === 'sent' && <span className="muted small">已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}</span>}
       </h2>
 
       <h3>標籤</h3>
-      <div className="grid cols-auto">
+      <div className="grid g4">
         {tags.map((t) => (
           <button
             key={t.id}
-            className={`btn ${p.tags.includes(t.id) ? 'on' : ''}`}
+            className={`btn sm ${p.tags.includes(t.id) ? 'on' : ''}`}
             style={rules.patientTags.includes(t.id) && !p.tags.includes(t.id) ? { borderColor: 'var(--orange)' } : undefined}
             onClick={() => toggleTag(p.id, t.id)}
           >
-            {p.tags.includes(t.id) ? '✔ ' : ''}
             {t.name}
           </button>
         ))}
@@ -129,11 +128,11 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
 
       {p.status === 'waiting' && (
         <>
-          <h3>再檢傷改色（保留原代碼紀錄）</h3>
-          <div className="grid cols-4">
+          <h3>再檢傷改色（保留原代碼）</h3>
+          <div className="grid g4">
             {COLORS.map((c) => (
-              <button key={c} className={`btn chip ${c}`} style={{ minHeight: 56 }} disabled={p.color === c} onClick={() => retriage(p.id, c)}>
-                改為{COLOR_NAME[c]}
+              <button key={c} className={`btn sm chip ${c}`} disabled={p.color === c} onClick={() => retriage(p.id, c)}>
+                改{COLOR_NAME[c]}
               </button>
             ))}
           </div>
@@ -141,26 +140,24 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
       )}
 
       <h3>檢傷卡號（選填）</h3>
-      <div className="row" style={{ alignItems: 'flex-start' }}>
-        <div className="report" style={{ minWidth: 140, minHeight: 48, fontSize: 22 }}>{no || '—'}</div>
-        <div className="keypad">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '清除'].map((k) => (
-            <button
-              key={k}
-              className="btn sm"
-              onClick={() => setNo(p.id, k === '⌫' ? no.slice(0, -1) : k === '清除' ? '' : (no + k).slice(0, 12))}
-            >
-              {k}
-            </button>
-          ))}
-        </div>
+      <div className="tagno">{no || '—'}</div>
+      <div className="keypad">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '清除', '0', '⌫'].map((k) => (
+          <button
+            key={k}
+            className="btn sm"
+            onClick={() => setNo(p.id, k === '⌫' ? no.slice(0, -1) : k === '清除' ? '' : (no + k).slice(0, 12))}
+          >
+            {k}
+          </button>
+        ))}
       </div>
 
       <h3>紀錄</h3>
       <div className="log">
         {p.history.map((h, i) => (
           <div key={i}>
-            <time>{new Date(h.at).toLocaleTimeString('zh-TW')}</time>
+            <time>{new Date(h.at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</time>
             {h.action}
           </div>
         ))}
@@ -169,6 +166,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
       {p.status === 'waiting' && (
         <div style={{ marginTop: 12 }}>
           <DoubleTapButton
+            className="full"
             onConfirm={() => {
               del(p.id);
               onClose();
@@ -184,14 +182,41 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
 
 function VehiclesSection() {
   const vehicles = useStore((s) => s.vehicles);
-  const addUnit = useStore((s) => s.addUnitVehicle);
-  const addSupport = useStore((s) => s.addSupportVehicle);
   const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   return (
     <section className="section">
-      <h2>救護車</h2>
-      <h3>縣內分隊（點一下＝新增一台，車號自 91 起）</h3>
-      <div className="grid cols-auto">
+      <h2>
+        救護車（{vehicles.length}）<span className="spacer" />
+        <button className="btn sm primary" onClick={() => setAdding(true)}>
+          ＋新增車輛
+        </button>
+      </h2>
+      {vehicles.length === 0 && <div className="empty">尚未加入車輛</div>}
+      <div className="vlist">
+        {vehicles.map((v) => (
+          <VehicleCard key={v.id} v={v} onClick={() => setOpen(v.id)} />
+        ))}
+      </div>
+      {open && <VehicleSheet id={open} onClose={() => setOpen(null)} />}
+      {adding && <AddVehicleSheet onClose={() => setAdding(false)} />}
+    </section>
+  );
+}
+
+function AddVehicleSheet({ onClose }: { onClose: () => void }) {
+  const addUnit = useStore((s) => s.addUnitVehicle);
+  const addSupport = useStore((s) => s.addSupportVehicle);
+  const vehicles = useStore((s) => s.vehicles);
+  const last = vehicles[vehicles.length - 1];
+  return (
+    <Sheet onClose={onClose}>
+      <h2>新增車輛</h2>
+      <p className="muted small" style={{ marginTop: -6 }}>
+        點一下＝新增一台（可連點），車號自 91 起。{last && <>剛加入：<b style={{ color: 'var(--text)' }}>{last.name}</b></>}
+      </p>
+      <h3>縣內分隊</h3>
+      <div className="grid g4">
         {FIRE_UNITS.map((u) => (
           <button key={u.name} className="btn sm" onClick={() => addUnit(u.name)}>
             {u.name}
@@ -199,22 +224,14 @@ function VehiclesSection() {
         ))}
       </div>
       <h3>支援</h3>
-      <div className="grid cols-wide">
+      <div className="grid g2">
         {SUPPORT_SOURCES.map((s) => (
           <button key={s.name} className="btn sm" onClick={() => addSupport(s.name)}>
             {s.name}
           </button>
         ))}
       </div>
-      <h3>車輛（{vehicles.length}）</h3>
-      {vehicles.length === 0 && <div className="empty">尚未加入車輛</div>}
-      <div className="grid cols-wide">
-        {vehicles.map((v) => (
-          <VehicleCard key={v.id} v={v} onClick={() => setOpen(v.id)} />
-        ))}
-      </div>
-      {open && <VehicleSheet id={open} onClose={() => setOpen(null)} />}
-    </section>
+    </Sheet>
   );
 }
 
@@ -233,14 +250,12 @@ export function vehicleCountdown(v: Vehicle, now: number): string {
 
 function VehicleCard({ v, onClick }: { v: Vehicle; onClick: () => void }) {
   const now = useStore((s) => s.now);
+  const sub = [vehicleCountdown(v, now), v.trips > 0 ? `已 ${v.trips} 趟` : ''].filter(Boolean).join('｜');
   return (
     <button className={`vcard ${v.status}`} onClick={onClick}>
       <span className="name">{v.name}</span>
-      <span className={`status-${v.status}`}>
-        {VEHICLE_STATUS_NAME[v.status]}
-        {v.trips > 0 && <span className="muted">｜已 {v.trips} 趟</span>}
-      </span>
-      <span className="small muted">{vehicleCountdown(v, now)}</span>
+      <span className={`st status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
+      {sub && <span className="sub">{sub}</span>}
     </button>
   );
 }
@@ -259,13 +274,15 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   return (
     <Sheet onClose={onClose}>
       <h2>
-        {v.name} <span className={`status-${v.status} small`}>{VEHICLE_STATUS_NAME[v.status]}</span>
+        {v.name} <span className={`status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
       </h2>
-      <p className="muted">
-        {v.unit}｜已完成 {v.trips} 趟｜{vehicleCountdown(v, now)}
+      <p className="muted" style={{ marginTop: -4 }}>
+        {v.unit}｜已完成 {v.trips} 趟
+        <br />
+        {vehicleCountdown(v, now)}
         {v.contaminated && v.status !== 'decon' ? '｜⚠ 已污染，返場後需除污' : ''}
       </p>
-      <div className="grid cols-2">
+      <div className="grid">
         {v.status === 'enroute' && (
           <button className="btn go" onClick={act(() => setStatus(v.id, 'standby'))}>
             ✔ 已到場待命
@@ -286,68 +303,29 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
             ✔ 恢復現場待命
           </button>
         )}
-        {v.status !== 'offline' && (
-          <button className="btn warn" onClick={act(() => setStatus(v.id, 'offline'))}>
-            離線（被改派／故障）
-          </button>
-        )}
       </div>
       {(v.status === 'enroute' || v.status === 'transport') && (
         <>
           <h3>{v.status === 'enroute' ? '到場時間修正' : '返場時間修正'}</h3>
-          <div className="row">
-            <button className="btn" onClick={() => adjustEta(v.id, -5)}>
-              −5 分
-            </button>
-            <button className="btn" onClick={() => adjustEta(v.id, -1)}>
-              −1 分
-            </button>
-            <button className="btn" onClick={() => adjustEta(v.id, 1)}>
-              ＋1 分
-            </button>
-            <button className="btn" onClick={() => adjustEta(v.id, 5)}>
-              ＋5 分
-            </button>
+          <div className="grid g4">
+            {[-5, -1, 1, 5].map((d) => (
+              <button key={d} className="btn sm" onClick={() => adjustEta(v.id, d)}>
+                {d > 0 ? `＋${d}` : `−${-d}`}分
+              </button>
+            ))}
           </div>
         </>
       )}
-      <div style={{ marginTop: 12 }}>
+      <div className="grid g2" style={{ marginTop: 12 }}>
+        {v.status !== 'offline' ? (
+          <button className="btn warn" onClick={act(() => setStatus(v.id, 'offline'))}>
+            離線（改派／故障）
+          </button>
+        ) : (
+          <span />
+        )}
         <DoubleTapButton onConfirm={act(() => del(v.id))}>刪除車輛</DoubleTapButton>
       </div>
     </Sheet>
-  );
-}
-
-function SelfPresentedSection() {
-  const runtime = useStore((s) => s.runtime);
-  const adjust = useStore((s) => s.adjustSelfPresented);
-  const [all, setAll] = useState(false);
-  const list = HOSPITALS.filter((h) => all || h.county === '新竹縣' || h.county === '新竹市').sort(
-    (a, b) => COUNTY_ORDER.indexOf(a.county) - COUNTY_ORDER.indexOf(b.county),
-  );
-  const total = HOSPITALS.reduce((n, h) => {
-    const s = runtime[h.id].selfPresented;
-    return n + s.R + s.Y + s.G;
-  }, 0);
-  return (
-    <section className="section">
-      <h2>
-        醫院自行到院 <span className="muted small">（例：東元回報已湧入 8 名綠傷；共 {total} 人）</span>
-      </h2>
-      {list.map((h) => (
-        <div key={h.id} className="row" style={{ borderTop: '1px solid var(--line)', padding: '6px 0' }}>
-          <b style={{ minWidth: 110 }}>{h.short}</b>
-          {(['R', 'Y', 'G'] as TransportColor[]).map((c) => (
-            <span key={c} className="row">
-              <span className={`chip ${c}`}>{COLOR_NAME[c]}</span>
-              <Stepper small min={0} value={runtime[h.id].selfPresented[c]} onChange={(v) => adjust(h.id, c, v - runtime[h.id].selfPresented[c])} />
-            </span>
-          ))}
-        </div>
-      ))}
-      <button className="btn sm" style={{ marginTop: 8 }} onClick={() => setAll(!all)}>
-        {all ? '只顯示新竹縣市' : '顯示桃園、苗栗醫院'}
-      </button>
-    </section>
   );
 }

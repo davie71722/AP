@@ -8,12 +8,12 @@ import { ReportTab } from './components/ReportTab';
 import { useStore, type Tab } from './store/store';
 import { usePlan } from './store/usePlan';
 
-const TABS: { id: Tab; name: string }[] = [
-  { id: 'incident', name: '事件' },
-  { id: 'input', name: '輸入' },
-  { id: 'dispatch', name: '派遣' },
-  { id: 'hospital', name: '醫院' },
-  { id: 'report', name: '回報' },
+const TABS: { id: Tab; name: string; ic: string }[] = [
+  { id: 'incident', name: '事件', ic: '⚑' },
+  { id: 'input', name: '輸入', ic: '＋' },
+  { id: 'dispatch', name: '派遣', ic: '🚑' },
+  { id: 'hospital', name: '醫院', ic: '🏥' },
+  { id: 'report', name: '回報', ic: '📋' },
 ];
 
 export default function App() {
@@ -64,8 +64,9 @@ export default function App() {
       <nav className="tabbar">
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+            <span className="ic">{t.ic}</span>
             {t.name}
-            {t.id === 'dispatch' && confirmable > 0 && <span className="dot">{confirmable}</span>}
+            {t.id === 'dispatch' && confirmable > 0 && <span className="badge-n">{confirmable}</span>}
           </button>
         ))}
       </nav>

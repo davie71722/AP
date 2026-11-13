@@ -33,13 +33,13 @@ export function ReportTab() {
       <section className="section">
         <h2>回報文字</h2>
         <div className="report">{text}</div>
-        <button className="btn primary" style={{ width: '100%', marginTop: 10 }} onClick={copy}>
+        <button className="btn primary full" style={{ marginTop: 10 }} onClick={copy}>
           {copied ? '✔ 已複製' : '📋 複製回報文字'}
         </button>
       </section>
       <section className="section">
         <h2>匯出（事後檢討）</h2>
-        <div className="row">
+        <div className="grid">
           <button
             className="btn"
             onClick={() =>

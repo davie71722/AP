@@ -12,7 +12,10 @@ export function Header() {
   const mm = Math.floor(elapsed / 60000);
   const ss = Math.floor((elapsed % 60000) / 1000);
   const hh = Math.floor(mm / 60);
-  const clock = hh > 0 ? `${hh}:${String(mm % 60).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  const clock =
+    hh > 0
+      ? `${hh}:${String(mm % 60).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+      : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
   const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋');
 
   const chip = (c: Color, name: string) => {
@@ -20,28 +23,30 @@ export function Header() {
     const waiting = all.filter((p) => p.status === 'waiting').length;
     return (
       <span className={`chip ${c}`} key={c}>
-        {name} {c === 'K' ? all.length : `${waiting}/${all.length}`}
+        {name}
+        {c === 'K' ? all.length : `${waiting}/${all.length}`}
       </span>
     );
   };
 
   return (
     <header className="topbar">
-      <span className="title">竹縣大傷後送小幫手</span>
-      <span className="meta">
-        {types || '未選事件類型'}｜{incident.location?.label ?? '未選地點'}
-      </span>
-      {incident.startAt ? <span className="clock">⏱ {clock}</span> : <span className="meta">（尚未開始）</span>}
-      <span className="row small muted" title={online ? '連線中' : '離線'}>
-        <span className="online-dot" style={{ background: online ? 'var(--green)' : 'var(--red)' }} />
-        {online ? '連線' : '離線'}
-      </span>
-      <span className="counts">
+      <div className="r1">
+        <span className="clock">{incident.startAt ? clock : '--:--'}</span>
+        <span className="meta">
+          {types || '未選類型'}｜{incident.location?.label ?? '未選地點'}
+        </span>
+        <span className="online">
+          <i style={{ background: online ? 'var(--green)' : 'var(--red)' }} />
+          {online ? '連線' : '離線'}
+        </span>
+      </div>
+      <div className="counts">
         {chip('R', '紅')}
         {chip('Y', '黃')}
         {chip('G', '綠')}
         {chip('K', '黑')}
-      </span>
+      </div>
     </header>
   );
 }
