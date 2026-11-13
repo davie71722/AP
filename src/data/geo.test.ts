@@ -18,8 +18,11 @@ describe('地點輸入解析', () => {
   it('地址文字不誤判為座標', () => {
     expect(parseCoords('新竹縣竹東鎮中興路四段99號')).toBeNull();
   });
-  it('依座標判斷轄區', () => {
-    expect(pinLocation(24.7905, 121.039).area).toBe('二重');
-    expect(pinLocation(24.76, 120.985).township).toBe('寶山');
+  it('依座標判斷轄區分隊', () => {
+    expect(pinLocation(24.793, 121.037)).toMatchObject({ unit: '二重', area: '二重', township: '竹東' });
+    expect(pinLocation(24.76, 120.985)).toMatchObject({ unit: '寶山', area: '寶山' });
+    expect(pinLocation(24.876, 121.012)).toMatchObject({ unit: '山崎', area: '山崎', township: '新豐' });
+    expect(pinLocation(24.84, 121.012)).toMatchObject({ unit: '竹北', area: '竹北' });
+    expect(pinLocation(24.62, 121.28)).toMatchObject({ unit: '田埔', area: '尖石' });
   });
 });

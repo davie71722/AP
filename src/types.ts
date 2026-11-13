@@ -96,8 +96,10 @@ export interface IncidentLocation {
   lng: number;
   /** 所在（或最近）鄉鎮，用於山區加成 */
   township?: string;
-  /** 轄區（鄉鎮或分隊轄區，如「二重」），用於在地常送醫院 */
+  /** 常送醫院分區（由轄區分隊決定，如「二重」） */
   area?: string;
+  /** 轄區分隊 */
+  unit?: string;
 }
 
 export interface Settings {

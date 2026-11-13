@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
 import { googleMapsUrl, isMapsShortLink, isUrl, parseCoords, pinLocation } from '../data/geo';
-import { AREAS, FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
+import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
 import { geocodeAddress, resolveShortLink, ROUTES_PROXY_URL } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
@@ -35,48 +35,44 @@ export function IncidentTab() {
         <h2>事發地點</h2>
         {loc && (
           <div className="loc-now">
-            <b>{loc.label}</b>
+            <span>
+              <b>{loc.label}</b>
+              {loc.unit && <span className="chip dim" style={{ marginLeft: 8 }}>{loc.unit}分隊轄區</span>}
+            </span>
             <a className="btn sm" href={googleMapsUrl(loc.lat, loc.lng)} target="_blank" rel="noreferrer">
               🗺
             </a>
           </div>
         )}
         <LocationInput onPick={setLocation} />
-        <div className="grid g3" style={{ marginTop: 8 }}>
-          {Object.entries(TOWNSHIPS).map(([name, [lat, lng]]) => (
-            <button
-              key={name}
-              className={`btn sm ${loc?.kind === 'township' && loc.area === name ? 'on' : ''}`}
-              onClick={() => setLocation({ kind: 'township', label: name, lat, lng, township: name, area: name })}
-            >
-              {name}
-            </button>
-          ))}
-          {Object.entries(AREAS).map(([name, a]) => (
-            <button
-              key={name}
-              className={`btn sm ${loc?.kind === 'township' && loc.area === name ? 'on' : ''}`}
-              onClick={() => setLocation({ kind: 'township', label: a.label, lat: a.lat, lng: a.lng, township: a.township, area: name })}
-            >
-              {name}
-            </button>
-          ))}
-          <button className={`btn sm ${showFreeway || loc?.kind === 'freeway' ? 'on' : ''}`} onClick={() => setShowFreeway(!showFreeway)}>
-            國道
-          </button>
-        </div>
-        {(showFreeway || loc?.kind === 'freeway') && (
-          <div className="grid g2" style={{ marginTop: 8 }}>
-            {FREEWAY_SEGMENTS.map((f) => (
-              <button
-                key={f.id}
-                className={`btn sm ${loc?.kind === 'freeway' && loc.label === f.label ? 'on' : ''}`}
-                onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township, area: f.township })}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <button className={`btn sm full ${showFreeway ? 'on' : ''}`} style={{ marginTop: 8 }} onClick={() => setShowFreeway(!showFreeway)}>
+          鄉鎮／國道 {showFreeway ? '▲' : '▼'}
+        </button>
+        {showFreeway && (
+          <>
+            <div className="grid g3" style={{ marginTop: 8 }}>
+              {Object.entries(TOWNSHIPS).map(([name, [lat, lng]]) => (
+                <button
+                  key={name}
+                  className={`btn sm ${loc?.kind === 'township' && loc.label === name ? 'on' : ''}`}
+                  onClick={() => setLocation({ kind: 'township', label: name, lat, lng, township: name })}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <div className="grid g2" style={{ marginTop: 8 }}>
+              {FREEWAY_SEGMENTS.map((f) => (
+                <button
+                  key={f.id}
+                  className={`btn sm ${loc?.kind === 'freeway' && loc.label === f.label ? 'on' : ''}`}
+                  onClick={() => setLocation({ kind: 'freeway', label: f.label, lat: f.lat, lng: f.lng, township: f.township })}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </section>
 

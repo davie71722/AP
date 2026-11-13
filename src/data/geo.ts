@@ -1,5 +1,5 @@
 // 事發地點輸入解析：座標、Google 地圖連結（含座標者可離線解析）
-import { nearestArea } from './places';
+import { locate } from './places';
 import type { IncidentLocation } from '../types';
 
 const inTaiwan = (lat: number, lng: number) => lat > 21 && lat < 26.5 && lng > 118 && lng < 123;
@@ -30,14 +30,15 @@ export function isUrl(text: string): boolean {
 }
 
 export function pinLocation(lat: number, lng: number, label?: string): IncidentLocation {
-  const { township, area } = nearestArea(lat, lng);
+  const { township, area, unit } = locate(lat, lng);
   return {
     kind: 'pin',
-    label: label || `${area} ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    label: label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     lat,
     lng,
     township,
     area,
+    unit,
   };
 }
 

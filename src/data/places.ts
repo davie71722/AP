@@ -16,16 +16,6 @@ export const TOWNSHIPS: Record<string, [number, number]> = {
   五峰: [24.636, 121.12],
 };
 
-/**
- * 鄉鎮內的分隊轄區（與鄉鎮中心差距大、送醫習慣不同者）。
- * TODO: 座標為約略值，請以 Google Maps 校正。
- */
-export const AREAS: Record<string, { lat: number; lng: number; township: string; label: string }> = {
-  二重: { lat: 24.7905, lng: 121.039, township: '竹東', label: '二重' },
-  山崎: { lat: 24.874, lng: 121.01, township: '新豐', label: '山崎' },
-  新工: { lat: 24.878, lng: 121.058, township: '湖口', label: '新工' },
-};
-
 /** 山區加成（分鐘） */
 export const MOUNTAIN_BONUS: Record<string, number> = {
   尖石: 20,
@@ -67,7 +57,7 @@ export interface Unit {
   /** 分隊位置（TODO：依地址估計之約略值，請以 Google Maps 校正） */
   lat: number;
   lng: number;
-  /** 分隊轄區（在地常送醫院用；未設定則用鄉鎮） */
+  /** 常送醫院分區（同鄉鎮但送醫習慣不同的分隊才設定） */
   area?: string;
 }
 
@@ -120,20 +110,30 @@ export function unitCoord(u: Unit): [number, number] {
   return [u.lat, u.lng];
 }
 
-/** 最近的轄區（含 AREAS），回傳 { township, area } */
-export function nearestArea(lat: number, lng: number): { township: string; area: string } {
-  const tw = nearestTownship(lat, lng);
-  let best = { township: tw, area: tw };
-  const [tl, tg] = TOWNSHIPS[tw];
-  let bestD = (tl - lat) ** 2 + (tg - lng) ** 2;
-  for (const [name, a] of Object.entries(AREAS)) {
-    const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
+/** 事故現場的轄區分隊（以最近分隊近似） */
+export function jurisdiction(lat: number, lng: number): Unit {
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = FIRE_UNITS[0];
+  let bestD = Infinity;
+  for (const u of FIRE_UNITS) {
+    const d = (u.lat - lat) ** 2 + ((u.lng - lng) * k) ** 2;
     if (d < bestD) {
       bestD = d;
-      best = { township: a.township, area: name };
+      best = u;
     }
   }
   return best;
+}
+
+/** 轄區分隊對應的常送醫院分區（未設定則用鄉鎮） */
+export function unitArea(u: Unit): string {
+  return u.area ?? u.township;
+}
+
+/** 依座標判斷鄉鎮、轄區分隊與常送醫院分區 */
+export function locate(lat: number, lng: number): { township: string; area: string; unit: string } {
+  const u = jurisdiction(lat, lng);
+  return { township: u.township, area: unitArea(u), unit: u.name };
 }
 
 export function nearestTownship(lat: number, lng: number): string {

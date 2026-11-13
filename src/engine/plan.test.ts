@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HOSPITALS, HOSPITAL_BY_ID, initialRuntimes } from '../data/hospitals';
-import { AREAS, TOWNSHIPS } from '../data/places';
+import { FIRE_UNITS, TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
 import { DEFAULT_SETTINGS, patientLabel, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
 import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from './actions';
@@ -294,7 +294,8 @@ describe('分散送醫（發牌）', () => {
 describe('在地常送醫院', () => {
   it('寶山、二重轄區事故，紅傷先送新竹馬偕', () => {
     expect(short(computePlan(input({ at: '寶山', patients: patients({ R: 1 }) })).suggestions[0].hospitalId)).toBe('新竹馬偕');
-    const erchong = { kind: 'township' as const, label: '二重', lat: AREAS['二重'].lat, lng: AREAS['二重'].lng, township: '竹東', area: '二重' };
+    const u = FIRE_UNITS.find((x) => x.name === '二重')!;
+    const erchong = { kind: 'pin' as const, label: '二重', lat: u.lat + 0.003, lng: u.lng - 0.002, township: '竹東', area: '二重' };
     const plan = computePlan({ ...input({ patients: patients({ R: 1 }) }), travel: offlineTravel(erchong), area: '二重' });
     expect(short(plan.suggestions[0].hospitalId)).toBe('新竹馬偕');
   });

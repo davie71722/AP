@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { HOSPITAL_BY_ID, HOSPITALS, initialRuntimes } from '../data/hospitals';
-import { FIRE_UNITS, SUPPORT_SOURCES, unitCoord } from '../data/places';
+import { FIRE_UNITS, locate, SUPPORT_SOURCES, unitCoord } from '../data/places';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { confirmDispatch, hazmatNotifyList, setVehicleStatus, type DomainState } from '../engine/actions';
 import type { Suggestion } from '../engine/plan';
@@ -211,6 +211,8 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setLocation: (loc) => {
+      const j = locate(loc.lat, loc.lng);
+      loc = { ...loc, township: loc.township ?? j.township, area: j.area, unit: j.unit };
       const s = get();
       const now = Date.now();
       // 趕赴中車輛依新地點重估 ETA（自加入起算）

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { HOSPITAL_BY_ID } from '../data/hospitals';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { useStore } from '../store/store';
+import { etaFromUnit } from '../travel';
 import { useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
@@ -255,11 +256,31 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
   const addSupport = useStore((s) => s.addSupportVehicle);
   const vehicles = useStore((s) => s.vehicles);
   const last = vehicles[vehicles.length - 1];
+  const loc = useStore((s) => s.incident.location);
+  const factor = useStore((s) => s.incident.settings.trafficFactor);
+  // 依到場時間排序的鄰近分隊（轄區分隊排第一）
+  const near = loc
+    ? FIRE_UNITS.map((u) => ({ u, eta: etaFromUnit(u, loc) * factor }))
+        .sort((a, b) => Number(b.u.name === loc.unit) - Number(a.u.name === loc.unit) || a.eta - b.eta)
+        .slice(0, 6)
+    : [];
   return (
     <Sheet onClose={onClose}>
       <h2>
         新增車輛 {last && <span className="chip dim">{last.name}</span>}
       </h2>
+      {near.length > 0 && (
+        <>
+          <h3>鄰近分隊</h3>
+          <div className="grid g3">
+            {near.map(({ u, eta }) => (
+              <button key={u.name} className={`btn sm ${u.name === loc?.unit ? 'on' : ''}`} onClick={() => addUnit(u.name)}>
+                {u.name} <span className="muted">{Math.round(eta)}′</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {BRIGADES.map((b) => (
         <div key={b}>
           <h3>{b}</h3>
@@ -324,7 +345,6 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deleteVehicle);
   const adjustCrew = useStore((s) => s.adjustCrew);
   if (!v) return null;
-  const unit = FIRE_UNITS.find((u) => u.name === v.unit);
   const act = (fn: () => void) => () => {
     fn();
     onClose();
@@ -334,11 +354,6 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
       <h2>
         {v.name} <span className={`status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
       </h2>
-      {unit && (
-        <a className="btn sm full" href={`tel:${unit.phone.replace(/-/g, '')}`} style={{ marginBottom: 8 }}>
-          📞 {unit.name}分隊 {unit.phone}
-        </a>
-      )}
       <p className="muted" style={{ marginTop: 0 }}>
         第 {v.trips} 趟完成
         {vehicleCountdown(v, now) && <>｜{vehicleCountdown(v, now)}</>}
