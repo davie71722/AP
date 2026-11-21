@@ -1,3 +1,4 @@
+import { townshipAt } from '../data/boundaries';
 import { HOSPITALS } from '../data/hospitals';
 import { nearestTownship, TOWNSHIPS, unitCoord, type Unit } from '../data/places';
 import type { IncidentLocation, TravelEntry, TravelState } from '../types';
@@ -9,7 +10,7 @@ function sceneMountainKey(loc: IncidentLocation): string {
 }
 
 export function sceneTownship(loc: IncidentLocation): string {
-  return loc.township ?? nearestTownship(loc.lat, loc.lng);
+  return loc.township ?? townshipAt(loc.lat, loc.lng) ?? nearestTownship(loc.lat, loc.lng);
 }
 
 /** 以離線估算建立 現場↔各醫院 車程 */

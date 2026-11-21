@@ -51,7 +51,8 @@ function input(over: Partial<Omit<PlanInput, 'settings'>> & { types?: string[]; 
     hospitals: HOSPITALS,
     runtime: over.runtime ?? initialRuntimes(),
     travel: over.travel ?? offlineTravel(loc(over.at ?? '竹北')),
-    settings: { ...DEFAULT_SETTINGS, ...over.settings },
+    // 預設關閉「第 1 輛到場車留守」，該規則另有測試
+    settings: { ...DEFAULT_SETTINGS, firstVehicleHold: false, ...over.settings },
     rules: combineRules(over.types ?? ['traffic']),
     area: over.area ?? over.at ?? '竹北',
   };
@@ -319,6 +320,23 @@ describe('護理量能與發牌輪送', () => {
     runtime['renci'].used.G = 8; // 仁慈已收 8 位綠傷，容量 10 還夠
     const hs = computePlan(input({ at: '湖口', patients: patients({ G: 2 }), runtime, settings: { greensPerVehicle: 1 } })).suggestions.map((s) => short(s.hospitalId));
     expect(hs).not.toEqual(['湖口仁慈', '湖口仁慈']);
+  });
+});
+
+describe('第 1 輛到場車留守（大傷 SOP）', () => {
+  it('尚無車到場時，預計第 1 輛到場的車不排入派遣', () => {
+    const vs = [{ ...vehicle(1, 'enroute'), etaToSceneMin: 3 }, { ...vehicle(2, 'enroute'), etaToSceneMin: 8 }];
+    const plan = computePlan(input({ patients: patients({ R: 1 }), vehicles: vs, settings: { firstVehicleHold: true } }));
+    expect(plan.suggestions[0].vehicleId).toBe('v2');
+  });
+  it('第 1 輛到場即留守，解除前不派；第 2 輛起正常派遣', () => {
+    const vs = [vehicle(1, 'enroute'), vehicle(2, 'enroute')];
+    let st: DomainState = { patients: [], vehicles: vs, runtime: initialRuntimes(), log: [] };
+    st = setVehicleStatus(st, 'v1', 'standby', NOW, true);
+    st = setVehicleStatus(st, 'v2', 'standby', NOW, true);
+    expect(st.vehicles.map((v) => !!v.held)).toEqual([true, false]);
+    const plan = computePlan(input({ patients: patients({ R: 2 }), vehicles: st.vehicles, settings: { firstVehicleHold: true } }));
+    expect(plan.suggestions.every((s) => s.vehicleId === 'v2')).toBe(true);
   });
 });
 

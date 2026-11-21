@@ -92,6 +92,10 @@ export interface Vehicle {
   emtp: number;
   contaminated?: boolean;
   lastHospitalId?: string;
+  /** 第 1 輛到場車：留守現場（指揮／協助檢傷），不列入派遣 */
+  held?: boolean;
+  /** 曾被指定為第 1 輛到場車（只指定一次） */
+  wasHeld?: boolean;
 }
 
 export interface IncidentLocation {
@@ -114,6 +118,8 @@ export interface Settings {
   greensPerVehicle: 1 | 2 | 3;
   /** 黃傷同車併載一位綠傷 */
   yellowPlusGreen: boolean;
+  /** 第 1 輛到場的救護車留在現場協助檢傷與指揮，不先載送（大傷 SOP） */
+  firstVehicleHold: boolean;
   longHaulMin: number;
   reserveVehicles: number;
   nightMode: boolean;
@@ -163,6 +169,7 @@ export const DEFAULT_SETTINGS: Settings = {
   trafficFactor: 1.0,
   greensPerVehicle: 2,
   yellowPlusGreen: true,
+  firstVehicleHold: true,
   longHaulMin: 35,
   reserveVehicles: 0,
   nightMode: false,

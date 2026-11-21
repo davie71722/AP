@@ -70,6 +70,8 @@ export interface Unassigned {
 export interface Plan {
   suggestions: Suggestion[];
   unassigned: Unassigned[];
+  /** 預計第 1 輛到場、到場後留守的車 */
+  pendingHoldId: string | null;
   /** 被保留（不可抽調）的車 */
   reservedVehicleIds: string[];
   availableNow: number;
@@ -246,8 +248,20 @@ export function computePlan(input: PlanInput): Plan {
   // 4. 車輛可用時間、保留車數
   let pool: SimVehicle[] = [];
   for (const v of vehicles) {
+    if (v.held) continue; // 留守現場
     const a = vehicleAvailableMin(v, now);
     if (a !== null) pool.push({ v, avail: a, trips: v.trips, simTrips: 0 });
+  }
+  let pendingHoldId: string | null = null;
+  // 尚未有車到場時，預計第 1 輛到場的車將留守，不排入派遣
+  if (settings.firstVehicleHold && !vehicles.some((v) => v.wasHeld)) {
+    const first = pool
+      .filter((s) => s.v.status === 'enroute' || s.v.status === 'standby')
+      .sort((a, b) => a.avail - b.avail)[0];
+    if (first) {
+      pool = pool.filter((s) => s !== first);
+      pendingHoldId = first.v.id;
+    }
   }
   const reservedVehicleIds: string[] = [];
   if (settings.reserveVehicles > 0) {
@@ -398,7 +412,7 @@ export function computePlan(input: PlanInput): Plan {
       backMin: chosen.back,
       score: chosen.score,
       confirmable: onScene && sv.v.status === 'standby',
-      needsArrivalMark: onScene && sv.v.status === 'enroute',
+      needsArrivalMark: sv.simTrips === 0 && sv.v.status === 'enroute',
       warnings,
     });
 
@@ -419,6 +433,7 @@ export function computePlan(input: PlanInput): Plan {
   const clearMin = suggestions.length ? Math.max(...suggestions.map((s) => s.departMin)) : null;
 
   return {
+    pendingHoldId,
     suggestions,
     unassigned,
     reservedVehicleIds,

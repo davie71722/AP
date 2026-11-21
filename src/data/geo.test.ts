@@ -34,8 +34,15 @@ describe('地點輸入解析', () => {
   it('依座標判斷轄區分隊', () => {
     expect(pinLocation(24.793, 121.037)).toMatchObject({ unit: '二重', area: '二重', township: '竹東' });
     expect(pinLocation(24.76, 120.985)).toMatchObject({ unit: '寶山', area: '寶山' });
-    expect(pinLocation(24.876, 121.012)).toMatchObject({ unit: '山崎', area: '山崎', township: '新豐' });
+    expect(pinLocation(24.882, 121.0)).toMatchObject({ unit: '山崎', area: '山崎', township: '新豐' });
     expect(pinLocation(24.84, 121.012)).toMatchObject({ unit: '竹北', area: '竹北' });
     expect(pinLocation(24.62, 121.28)).toMatchObject({ unit: '田埔', area: '尖石' });
+  });
+  it('依鄉鎮界線判斷：內灣屬橫山鄉，由橫山分隊負責', () => {
+    expect(pinLocation(24.705, 121.183)).toMatchObject({ township: '橫山', unit: '橫山' });
+    expect(pinLocation(24.8245, 121.0245)).toMatchObject({ township: '竹北' });
+    expect(pinLocation(24.8265, 121.0745)).toMatchObject({ township: '新埔', unit: '新埔' });
+    // 新竹市內（縣外）：取全縣最近分隊
+    expect(pinLocation(24.8047, 120.9714).unit).toBeTruthy();
   });
 });

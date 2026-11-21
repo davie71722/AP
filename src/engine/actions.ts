@@ -78,6 +78,7 @@ export function setVehicleStatus(
   vehicleId: string,
   status: VehicleStatus,
   now: number,
+  holdFirst = false,
 ): DomainState {
   const v = s.vehicles.find((x) => x.id === vehicleId);
   if (!v) return s;
@@ -95,6 +96,9 @@ export function setVehicleStatus(
       { enroute: '趕赴中', standby: '現場待命', transport: '運送中', decon: '待除污', offline: '離線' }[status]
     }`;
   }
+  // 第 1 輛到場車留守（協助檢傷與指揮，直到指揮權轉移）
+  const hold = holdFirst && next === 'standby' && v.status === 'enroute' && !s.vehicles.some((x) => x.wasHeld);
+  if (hold) text = `${v.name} 第 1 輛到場：留守現場（指揮、協助檢傷）`;
   const vehicles = s.vehicles.map((x) =>
     x.id === vehicleId
       ? {
@@ -102,6 +106,7 @@ export function setVehicleStatus(
           status: next,
           contaminated,
           returnAt: next === 'transport' ? x.returnAt : undefined,
+          ...(hold ? { held: true, wasHeld: true } : {}),
         }
       : x,
   );
@@ -121,7 +126,14 @@ export function hazmatNotifyList(patients: Patient[], runtime: Record<string, Ho
 }
 
 /** 綠傷由勤務車載走（不佔救護車）；hospitalId 為空表示載離現場未定醫院 */
-export function dutyTransport(s: DomainState, patientId: string, hospitalId: string | undefined, goMin: number, now: number): DomainState {
+export function dutyTransport(
+  s: DomainState,
+  patientId: string,
+  hospitalId: string | undefined,
+  goMin: number,
+  now: number,
+  how = '勤務車',
+): DomainState {
   const p = s.patients.find((x) => x.id === patientId);
   if (!p || p.status !== 'waiting') return s;
   const h = hospitalId ? HOSPITAL_BY_ID[hospitalId] : undefined;
@@ -134,7 +146,7 @@ export function dutyTransport(s: DomainState, patientId: string, hospitalId: str
           hospitalId: h?.id,
           sentAt: now,
           arriveAt: h ? now + goMin * 60000 : undefined,
-          history: [...x.history, { at: now, action: `勤務車載走${h ? ` ➔ ${h.short}` : ''}` }],
+          history: [...x.history, { at: now, action: `${how}${h ? ` ➔ ${h.short}` : ''}` }],
         }
       : x,
   );
@@ -144,7 +156,7 @@ export function dutyTransport(s: DomainState, patientId: string, hospitalId: str
     const c = p.color as 'R' | 'Y' | 'G';
     runtime = { ...s.runtime, [h.id]: { ...rt, used: { ...rt.used, [c]: rt.used[c] + 1 } } };
   }
-  return { ...s, patients, runtime, log: [...s.log, { at: now, text: `${p.label} 勤務車載走${h ? ` ➔ ${h.short}` : ''}` }] };
+  return { ...s, patients, runtime, log: [...s.log, { at: now, text: `${p.label} ${how}${h ? ` ➔ ${h.short}` : ''}` }] };
 }
 
 /** 傷患自行離開／恢復待送 */

@@ -3,7 +3,7 @@ import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { capacityOf, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { sourceEtaMin, useStore } from '../store/store';
-import { useRules, useTriage } from '../store/usePlan';
+import { usePlan, useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 
@@ -185,6 +185,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const setRedClass = useStore((s) => s.setRedClass);
   const setLeft = useStore((s) => s.setLeft);
   const { names } = useTriage();
+  const [showTags, setShowTags] = useState(false);
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
   const rules = useRules();
@@ -206,8 +207,16 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
 
       {p.color === 'G' && p.status === 'waiting' && <GreenActions id={p.id} onDone={onClose} />}
 
-      <h3>標籤</h3>
-      <div className="grid g4">
+      {rules.hazmat && (
+        <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginBottom: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
+          {p.tags.includes('decontaminated') ? '✔ 已除污' : '已除污'}
+        </button>
+      )}
+      <button className={`btn sm full ${showTags ? 'on' : ''}`} onClick={() => setShowTags(!showTags)}>
+        傷情標籤{p.tags.length ? `（${p.tags.length}）` : ''} {showTags ? '▲' : '▼'}
+      </button>
+      {showTags && (
+      <div className="grid g4" style={{ marginTop: 8 }}>
         {tags.map((t) => (
           <button
             key={t.id}
@@ -219,6 +228,7 @@ function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
           </button>
         ))}
       </div>
+      )}
 
       {p.status === 'waiting' && (
         <>
@@ -400,13 +410,14 @@ export function vehicleCountdown(v: Vehicle, now: number): string {
 
 function VehicleCard({ v, onClick }: { v: Vehicle; onClick: () => void }) {
   const now = useStore((s) => s.now);
+  const willHold = usePlan().pendingHoldId === v.id;
   const sub = [vehicleCountdown(v, now), v.trips > 0 ? `已 ${v.trips} 趟` : ''].filter(Boolean).join('｜');
   return (
     <button className={`vcard ${v.status}`} onClick={onClick}>
       <span className="name">
         {v.name} <span className="crew">{crewText(v)}</span>
       </span>
-      <span className={`st status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
+      <span className={`st status-${v.held ? 'transport' : v.status}`}>{v.held ? '留守' : willHold ? '到場後留守' : VEHICLE_STATUS_NAME[v.status]}</span>
       {sub && <span className="sub">{sub}</span>}
     </button>
   );
@@ -419,6 +430,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const adjustEta = useStore((s) => s.adjustEta);
   const del = useStore((s) => s.deleteVehicle);
   const adjustCrew = useStore((s) => s.adjustCrew);
+  const releaseHold = useStore((s) => s.releaseHold);
   if (!v) return null;
   const act = (fn: () => void) => () => {
     fn();
@@ -427,7 +439,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   return (
     <Sheet onClose={onClose}>
       <h2>
-        {v.name} <span className={`status-${v.status}`}>{VEHICLE_STATUS_NAME[v.status]}</span>
+        {v.name} <span className={`status-${v.held ? 'transport' : v.status}`}>{v.held ? '留守（指揮）' : VEHICLE_STATUS_NAME[v.status]}</span>
       </h2>
       <p className="muted" style={{ marginTop: 0 }}>
         第 {v.trips} 趟完成
@@ -435,6 +447,11 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
         {v.contaminated && v.status !== 'decon' ? '｜⚠ 已污染，返場後需除污' : ''}
       </p>
       <div className="grid">
+        {v.held && (
+          <button className="btn go" onClick={act(() => releaseHold(v.id))}>
+            解除留守，可載送
+          </button>
+        )}
         {v.status === 'enroute' && (
           <button className="btn go" onClick={act(() => setStatus(v.id, 'standby'))}>
             ✔ 已到場待命

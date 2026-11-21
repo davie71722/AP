@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { HOSPITAL_BY_ID } from '../data/hospitals';
+import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { capacityOf, effectiveTravel, fitScore } from '../engine/plan';
 import { hazmatNotifyList } from '../engine/actions';
 import type { Suggestion } from '../engine/plan';
 import { useStore } from '../store/store';
 import { routesEnabled } from '../travel/routes';
 import { usePlan, useRules } from '../store/usePlan';
-import { clockAfter, fmtMin } from './common';
+import { clockAfter, fmtMin, Sheet } from './common';
 import { crewText, VehicleSheet } from './InputTab';
 
 export function DispatchTab() {
@@ -22,6 +23,12 @@ export function DispatchTab() {
   const refreshTravel = useStore((s) => s.refreshTravel);
   const [vehicleSheet, setVehicleSheet] = useState<string | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const redCrossCounty =
+    plan.suggestions.some((s) => s.color === 'R' && s.warnings.some((w) => w.kind === 'crossCounty')) ||
+    plan.unassigned.some((u) => u.color === 'R' && u.reason === 'noCapacity');
+  const noVehicle = plan.unassigned.some((u) => u.reason === 'noVehicle');
+  const greensWaiting = patients.filter((p) => p.color === 'G' && p.status === 'waiting').length;
 
   const waiting = (c: string) => patients.filter((p) => p.status === 'waiting' && p.color === c).length;
   const notify = rules.hazmat ? hazmatNotifyList(patients, runtime) : [];
@@ -56,7 +63,13 @@ export function DispatchTab() {
         </button>
       )}
 
-      {plan.needReinforcement && <div className="alert red">⚠ 紅傷無車可派：請求增援車輛</div>}
+      {redCrossCounty && <div className="alert red">縣市內紅傷量能已滿：報請指揮科啟動跨縣市支援</div>}
+      {noVehicle && <div className="alert red">救護車不足：請求加派救護車或民間救護車</div>}
+      {greensWaiting >= 6 && (
+        <button className="alert" onClick={() => setGroupOpen(true)}>
+          綠傷 {greensWaiting} 位待送 ➔ 群送（巴士） ›
+        </button>
+      )}
 
       <section className="section">
         <div className="stats">
@@ -90,7 +103,7 @@ export function DispatchTab() {
       <h2 style={{ margin: '4px 2px 8px', fontSize: 18 }}>派遣建議（{plan.suggestions.length}）</h2>
       {plan.suggestions.length === 0 && <div className="section empty">目前沒有可派遣的建議</div>}
       {plan.suggestions.map((s) => (
-        <SuggestionCard key={s.key} s={s} onMarkArrived={() => setVehicleSheet(s.vehicleId)} />
+        <SuggestionCard key={s.key} s={s} onOpenVehicle={() => setVehicleSheet(s.vehicleId)} />
       ))}
 
       {plan.unassigned.length > 0 && (
@@ -115,6 +128,7 @@ export function DispatchTab() {
       )}
 
       {vehicleSheet && <VehicleSheet id={vehicleSheet} onClose={() => setVehicleSheet(null)} />}
+      {groupOpen && <GroupSheet onClose={() => setGroupOpen(false)} />}
     </>
   );
 }
@@ -129,11 +143,12 @@ function Stat({ k, v, sub }: { k: string; v: string; sub?: string }) {
   );
 }
 
-function SuggestionCard({ s, onMarkArrived }: { s: Suggestion; onMarkArrived: () => void }) {
+function SuggestionCard({ s, onOpenVehicle }: { s: Suggestion; onOpenVehicle: () => void }) {
   const patients = useStore((st) => st.patients);
   const vehicle = useStore((st) => st.vehicles.find((v) => v.id === s.vehicleId));
   const now = useStore((st) => st.now);
   const confirm = useStore((st) => st.confirm);
+  const arriveAndConfirm = useStore((st) => st.arriveAndConfirm);
   const h = HOSPITAL_BY_ID[s.hospitalId];
   const ps = s.patientIds.map((id) => patients.find((p) => p.id === id));
   return (
@@ -145,7 +160,7 @@ function SuggestionCard({ s, onMarkArrived }: { s: Suggestion; onMarkArrived: ()
           </span>
         ))}
         <span className="arrow">➔</span>
-        <span>
+        <span onClick={onOpenVehicle} style={{ cursor: 'pointer' }}>
           {vehicle?.name}
           <span className="muted small">（第{s.tripNo}趟）</span>
         </span>
@@ -179,13 +194,54 @@ function SuggestionCard({ s, onMarkArrived }: { s: Suggestion; onMarkArrived: ()
             ✔ 確認出發
           </button>
         ) : s.needsArrivalMark ? (
-          <button className="btn full" onClick={onMarkArrived}>
-            {vehicle?.name} 已到場？點此確認
+          <button className="btn go full" onClick={() => arriveAndConfirm(s)}>
+            ✔ 到場並出發
           </button>
         ) : (
           <span className="pre-label">預排｜車約 {Math.ceil(s.availableMin)} 分後可用</span>
         )}
       </div>
     </div>
+  );
+}
+
+/** 綠傷群送（巴士）：選醫院，依剩餘量能一次送出 */
+function GroupSheet({ onClose }: { onClose: () => void }) {
+  const runtime = useStore((st) => st.runtime);
+  const travel = useStore((st) => st.travel.byHospital);
+  const settings = useStore((st) => st.incident.settings);
+  const groupTransport = useStore((st) => st.groupTransport);
+  const greens = useStore((st) => st.patients.filter((p) => p.color === 'G' && p.status === 'waiting').length);
+  const options = HOSPITALS.filter((h) => !runtime[h.id]?.bypass && h.level !== 'heavy')
+    .map((h) => {
+      const rt = runtime[h.id];
+      const room = capacityOf(h, rt, settings.nightMode).G - rt.used.G - rt.selfPresented.G;
+      return { h, room, go: effectiveTravel(travel[h.id], rt, settings)?.go ?? 99 };
+    })
+    .filter((x) => x.room > 0)
+    // 群送：送較遠、以一般級為主的醫院，保留近處醫院給重傷
+    .sort((a, b) => fitScore(b.h, 'G', true) - fitScore(a.h, 'G', true) || Number(b.room >= greens) - Number(a.room >= greens) || a.go - b.go)
+    .slice(0, 8);
+  return (
+    <Sheet onClose={onClose}>
+      <h2>綠傷 {greens} 位 ➔ 群送</h2>
+      <div className="grid">
+        {options.map(({ h, room, go }) => (
+          <button
+            key={h.id}
+            className="btn hit"
+            onClick={() => {
+              groupTransport(h.id);
+              onClose();
+            }}
+          >
+            <b>
+              {h.short} <span className="muted">{Math.round(go)}′</span>
+            </b>
+            <span className="muted small">可收 {room} 位{room < greens ? `（送 ${room} 位，其餘留待）` : ''}</span>
+          </button>
+        ))}
+      </div>
+    </Sheet>
   );
 }

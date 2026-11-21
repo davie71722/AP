@@ -1,3 +1,4 @@
+import { townshipAt } from './boundaries';
 // 地點與車輛基礎資料（規格書「八」）。座標皆為約略值。
 
 export const TOWNSHIPS: Record<string, [number, number]> = {
@@ -78,7 +79,7 @@ export const FIRE_UNITS: Unit[] = [
   { name: '高鐵', brigade: '第一大隊', township: '竹北', address: '竹北市隘口二路 189 號', phone: '03-6670314', lat: 24.8105, lng: 121.042 },
   { name: '豐田', brigade: '第一大隊', township: '竹北', address: '竹北市中正西路 2075 巷 6 號', phone: '03-5566119', lat: 24.862, lng: 120.985 },
   { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉重興村建興路二段 788 之 1 號', phone: '03-5593340', lat: 24.898, lng: 120.989 },
-  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.874, lng: 121.01, area: '山崎' },
+  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.8805, lng: 121.005, area: '山崎' },
   { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮雞林里中正路 206 號', phone: '03-5962066', lat: 24.737, lng: 121.091 },
   { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路 1 號', phone: '03-5921978', lat: 24.775, lng: 121.094 },
   { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興村新興街 120 號', phone: '03-5932475', lat: 24.7175, lng: 121.116 },
@@ -116,12 +117,19 @@ export function unitCoord(u: Unit): [number, number] {
   return [u.lat, u.lng];
 }
 
-/** 事故現場的轄區分隊（以最近分隊近似） */
+/**
+ * 事故現場的轄區分隊：先依鄉鎮界線判斷所在鄉鎮，再取該鄉鎮內最近的分隊
+ * （竹北、新豐、湖口、竹東、五峰、尖石有多個分隊）；縣外（如新竹市）取全縣最近分隊。
+ * 註：同鄉鎮多分隊的實際分界依消防局轄區劃分，此處以最近分隊近似。
+ */
 export function jurisdiction(lat: number, lng: number): Unit {
+  const tw = townshipAt(lat, lng);
+  const candidates = tw ? FIRE_UNITS.filter((u) => u.township === tw) : [];
+  const pool = candidates.length ? candidates : FIRE_UNITS;
   const k = Math.cos((lat * Math.PI) / 180);
-  let best = FIRE_UNITS[0];
+  let best = pool[0];
   let bestD = Infinity;
-  for (const u of FIRE_UNITS) {
+  for (const u of pool) {
     const d = (u.lat - lat) ** 2 + ((u.lng - lng) * k) ** 2;
     if (d < bestD) {
       bestD = d;
@@ -139,7 +147,7 @@ export function unitArea(u: Unit): string {
 /** 依座標判斷鄉鎮、轄區分隊與常送醫院分區 */
 export function locate(lat: number, lng: number): { township: string; area: string; unit: string } {
   const u = jurisdiction(lat, lng);
-  return { township: u.township, area: unitArea(u), unit: u.name };
+  return { township: townshipAt(lat, lng) ?? u.township, area: unitArea(u), unit: u.name };
 }
 
 export function nearestTownship(lat: number, lng: number): string {

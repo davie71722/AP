@@ -15,22 +15,12 @@ export function IncidentTab() {
   const update = useStore((s) => s.updateSettings);
   const clear = useStore((s) => s.clearIncident);
   const [showFreeway, setShowFreeway] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const st = incident.settings;
   const loc = incident.location;
 
   return (
     <>
-      <section className="section">
-        <h2>事件類型</h2>
-        <div className="grid g2">
-          {INCIDENT_TYPES.map((t) => (
-            <button key={t.id} className={`btn ${incident.types.includes(t.id) ? 'on' : ''}`} onClick={() => toggleType(t.id)}>
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section className="section">
         <h2>事發地點</h2>
         {loc && (
@@ -77,19 +67,44 @@ export function IncidentTab() {
       </section>
 
       <section className="section">
+        <h2>事件類型 <span className="muted small">選填</span></h2>
+        <div className="grid g2">
+          {INCIDENT_TYPES.map((t) => (
+            <button key={t.id} className={`btn ${incident.types.includes(t.id) ? 'on' : ''}`} onClick={() => toggleType(t.id)}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
         {incident.startAt ? (
           <p style={{ margin: 0 }}>
             開始 <b>{new Date(incident.startAt).toLocaleTimeString('zh-TW', { hour12: false })}</b>
           </p>
         ) : (
-          <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} onClick={start}>
+          <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} onClick={() => start()}>
             ▶ 開始
           </button>
         )}
       </section>
 
       <section className="section">
-        <h2>設定</h2>
+        <button className={`btn sm full ${showSettings ? 'on' : ''}`} onClick={() => setShowSettings(!showSettings)}>
+          進階設定 {showSettings ? '▲' : '▼'}
+        </button>
+        {showSettings && (
+        <div style={{ marginTop: 8 }}>
+        <SetRow label="第 1 輛到場車留守">
+          <div className="seg">
+            <button className={`btn sm ${!st.firstVehicleHold ? 'on' : ''}`} onClick={() => update({ firstVehicleHold: false })}>
+              否
+            </button>
+            <button className={`btn sm ${st.firstVehicleHold ? 'on' : ''}`} onClick={() => update({ firstVehicleHold: true })}>
+              是
+            </button>
+          </div>
+        </SetRow>
         <SetRow label="檢傷系統">
           <div className="seg">
             <button className={`btn sm ${st.triageSystem === 'START' ? 'on' : ''}`} onClick={() => update({ triageSystem: 'START' })}>
@@ -169,6 +184,8 @@ export function IncidentTab() {
             </button>
           </div>
         </SetRow>
+        </div>
+        )}
       </section>
 
       <section className="section">

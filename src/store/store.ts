@@ -10,7 +10,8 @@ import {
   setVehicleStatus,
   type DomainState,
 } from '../engine/actions';
-import { effectiveTravel } from '../engine/plan';
+import { capacityOf, effectiveTravel } from '../engine/plan';
+import { missingRequirements } from '../engine/rules';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
@@ -74,7 +75,7 @@ interface Store extends Persisted {
 
   toggleType(id: string): void;
   setLocation(loc: IncidentLocation): void;
-  startIncident(): void;
+  startIncident(goToInput?: boolean): void;
   updateSettings(p: Partial<Settings>): void;
   clearIncident(): void;
 
@@ -89,6 +90,9 @@ interface Store extends Persisted {
   addUnitVehicle(unit: string): void;
   addSupportVehicle(name: string): void;
   setVehicleStatus(id: string, s: VehicleStatus): void;
+  releaseHold(id: string): void;
+  arriveAndConfirm(s: Suggestion): void;
+  groupTransport(hid: string): void;
   adjustEta(id: string, delta: number): void;
   deleteVehicle(id: string): void;
 
@@ -259,11 +263,11 @@ export const useStore = create<Store>((set, get) => {
       void get().refreshTravel(true);
     },
 
-    startIncident: () => {
+    startIncident: (goToInput = true) => {
       const s = get();
       if (s.incident.startAt) return;
       const now = Date.now();
-      set({ incident: { ...s.incident, startAt: now }, tab: 'input', now });
+      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'input' as Tab } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
       log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
     },
@@ -286,6 +290,7 @@ export const useStore = create<Store>((set, get) => {
 
     // ---------- 傷患 ----------
     addPatient: (c, redClass) => {
+      if (!get().incident.startAt) get().startIncident(false);
       const s = get();
       const now = Date.now();
       const num = s.counters[c] + 1;
@@ -392,6 +397,7 @@ export const useStore = create<Store>((set, get) => {
 
     // ---------- 車輛 ----------
     addUnitVehicle: (unitName) => {
+      if (!get().incident.startAt) get().startIncident(false);
       const s = get();
       const unit = FIRE_UNITS.find((u) => u.name === unitName);
       if (!unit) return;
@@ -418,6 +424,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     addSupportVehicle: (srcName) => {
+      if (!get().incident.startAt) get().startIncident(false);
       const s = get();
       const src = SUPPORT_SOURCES.find((x) => x.name === srcName);
       if (!src) return;
@@ -443,7 +450,36 @@ export const useStore = create<Store>((set, get) => {
       log(`新增支援車輛 ${name}（趕赴中，ETA ${Math.round(eta)} 分）`);
     },
 
-    setVehicleStatus: (id, status) => applyDomain(setVehicleStatus(domain(), id, status, Date.now())),
+    setVehicleStatus: (id, status) =>
+      applyDomain(setVehicleStatus(domain(), id, status, Date.now(), get().incident.settings.firstVehicleHold)),
+    releaseHold: (id) => {
+      const v = get().vehicles.find((x) => x.id === id);
+      if (!v?.held) return;
+      set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === id ? { ...x, held: false } : x)) }));
+      log(`${v.name} 解除留守，可載送`);
+    },
+    arriveAndConfirm: (sug) => {
+      // 這台車是派遣建議選定的，直接到場出發（不指定為留守車）
+      applyDomain(setVehicleStatus(domain(), sug.vehicleId, 'standby', Date.now(), false));
+      get().confirm(sug);
+    },
+    groupTransport: (hid) => {
+      const s = get();
+      const h = HOSPITAL_BY_ID[hid];
+      const rt = s.runtime[hid];
+      const cap = capacityOf(h, rt, s.incident.settings.nightMode).G - rt.used.G - rt.selfPresented.G;
+      const rules = combineRules(s.incident.types);
+      const greens = s.patients
+        .filter((p) => p.color === 'G' && p.status === 'waiting' && missingRequirements(p, rules).length === 0)
+        .slice(0, Math.max(0, cap));
+      if (!greens.length) return;
+      const before = domain();
+      const tr = effectiveTravel(s.travel.byHospital[hid], rt, s.incident.settings);
+      let d = before;
+      for (const p of greens) d = dutyTransportDomain(d, p.id, hid, tr?.go ?? 0, Date.now(), '群送');
+      set({ undoStack: [...s.undoStack.slice(-19), { label: `綠傷群送 ${greens.length} 位`, state: before }] });
+      applyDomain(d);
+    },
 
     adjustEta: (id, delta) =>
       set((s) => ({
