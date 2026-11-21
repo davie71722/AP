@@ -199,7 +199,7 @@ export function computePlan(input: PlanInput): Plan {
   const areaRules = (area && WEIGHTS.areaPreferred[area]) || [];
   /** 在地常送醫院加分 */
   const areaBonus = (hid: string, c: TransportColor) =>
-    areaRules.some((r) => r.hospitals.includes(hid) && (!r.colors || r.colors.includes(c))) ? WEIGHTS.areaPreferredBonus : 0;
+    areaRules.some((r) => r.hospitals.includes(hid) && (!r.colors || r.colors.includes(c))) ? WEIGHTS.areaPreferredBonus[c] : 0;
   const localBurn = hospitals.some((h) => WEIGHTS.localCounties.includes(h.county) && h.tags.includes('burn') && !runtime[h.id]?.bypass);
   const deconAfter = vehicleNeedsDecon(rules, settings);
 
@@ -379,7 +379,7 @@ export function computePlan(input: PlanInput): Plan {
       warnings.push({ kind: 'longHaul', text: `長程後送：車離場約 ${Math.round(returnMin - departMin)} 分` });
     }
     if (h.county !== '新竹縣' && h.county !== '新竹市') warnings.push({ kind: 'crossCounty', text: `跨縣市（${h.county}）` });
-    if (h.tags.includes('hazmat')) warnings.push({ kind: 'hazmatHospital', text: '化災責任醫院' });
+    if (rules.hazmat && h.tags.includes('hazmat')) warnings.push({ kind: 'hazmatHospital', text: '化災責任醫院' });
 
     const onScene = sv.simTrips === 0 && sv.avail <= WEIGHTS.onSceneToleranceMin;
     suggestions.push({

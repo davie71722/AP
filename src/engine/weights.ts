@@ -71,7 +71,8 @@ export const WEIGHTS = {
     尖石: AREA_ZHUDONG(),
     五峰: AREA_ZHUDONG(),
   } as Record<string, AreaRule[]>,
-  areaPreferredBonus: 15,
+  /** 紅傷仍以發牌輪送為主，黃綠傷較重視在地習慣 */
+  areaPreferredBonus: { R: 20, Y: 30, G: 30 } as Record<TransportColor, number>,
   /**
    * 分散送醫（發牌）：同一家醫院在「預計抵院時間前後 surgeWindowMin 分鐘內」
    * 每已有 1 位同色傷患抵達扣 surgeSameColor[色] 分、其他顏色扣 surgeOtherColor 分，

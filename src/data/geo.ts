@@ -64,7 +64,7 @@ export function pinLocation(lat: number, lng: number, label?: string): IncidentL
   const { township, area, unit } = locate(lat, lng);
   return {
     kind: 'pin',
-    label: label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+    label: label || `${township} ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
     lat,
     lng,
     township,

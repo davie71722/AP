@@ -316,7 +316,7 @@ describe('護理量能與發牌輪送', () => {
 
   it('床位還夠也會依累積收治人數分流', () => {
     const runtime = initialRuntimes();
-    runtime['renci'].used.G = 6; // 仁慈已收 6 位綠傷，容量 10 還夠
+    runtime['renci'].used.G = 8; // 仁慈已收 8 位綠傷，容量 10 還夠
     const hs = computePlan(input({ at: '湖口', patients: patients({ G: 2 }), runtime, settings: { greensPerVehicle: 1 } })).suggestions.map((s) => short(s.hospitalId));
     expect(hs).not.toEqual(['湖口仁慈', '湖口仁慈']);
   });

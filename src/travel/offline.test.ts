@@ -11,7 +11,8 @@ describe('離線車程估算', () => {
   });
   it('依距離分段速度並加山區加成', () => {
     const base = estimateMinutes(24.7, 121.2, 24.75, 121.1);
-    expect(estimateMinutes(24.7, 121.2, 24.75, 121.1, ['尖石'])).toBeCloseTo(base + 20);
+    expect(estimateMinutes(24.7, 121.2, 24.75, 121.1, ['五峰'])).toBeCloseTo(base + 20);
+    expect(estimateMinutes(24.7, 121.2, 24.75, 121.1, ['尖石', '田埔'])).toBeCloseTo(base + 25);
     // 同點：只剩固定 3 分
     expect(estimateMinutes(24.8, 121, 24.8, 121)).toBe(3);
   });

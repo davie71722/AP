@@ -17,9 +17,15 @@ export const TOWNSHIPS: Record<string, [number, number]> = {
 };
 
 /** 山區加成（分鐘） */
+/**
+ * 依「轄區分隊」給山區加成（分鐘）：同一鄉鎮山區深淺差很多，
+ * 例如尖石分隊在嘉樂（近內灣，淺山），田埔在後山。
+ */
 export const MOUNTAIN_BONUS: Record<string, number> = {
-  尖石: 20,
+  田埔: 25,
+  花園: 20,
   五峰: 20,
+  尖石: 5,
   橫山: 5,
   北埔: 5,
   峨眉: 5,
