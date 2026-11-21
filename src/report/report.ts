@@ -2,7 +2,7 @@
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import { RED_CLASSES, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
+import { injuryText, RED_CLASSES, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
@@ -94,7 +94,7 @@ export function logToCsv(incident: Incident): string {
 
 export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): string {
   const rows = [
-    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '傷勢註解', '檢傷卡號'],
+    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '傷勢', '檢傷卡號'],
     ...patients.map((p) => [
       p.label,
       p.prevLabels.join('→'),
@@ -103,7 +103,7 @@ export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): st
       p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '',
       (p.vehicleId && vehicles.find((v) => v.id === p.vehicleId)?.name) || (p.byDuty ? '勤務車' : ''),
       p.sentAt ? new Date(p.sentAt).toLocaleString('zh-TW') : '',
-      p.note ?? '',
+      injuryText(p),
       p.triageTagNo ?? '',
     ]),
   ];

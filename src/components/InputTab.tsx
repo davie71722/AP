@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+
+const BodyMap = lazy(() => import('./BodyMap').then((m) => ({ default: m.BodyMap })));
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
-import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
+import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, woundText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
 
@@ -187,6 +189,8 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const setLeft = useStore((s) => s.setLeft);
   const { names } = useTriage();
   const setNote = useStore((s) => s.setPatientNote);
+  const setWounds = useStore((s) => s.setWounds);
+  const [showMap, setShowMap] = useState(false);
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
   const rules = useRules();
@@ -225,13 +229,19 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       )}
 
       <h3>傷勢</h3>
-      <button className="btn full body-map-btn" disabled title="人形圖模組即將匯入">
-        🧍 人形圖選取部位（即將推出）
+      <button className={`btn full ${showMap ? 'on' : ''}`} onClick={() => setShowMap(!showMap)}>
+        🧍 人形圖{p.wounds?.length ? `（${p.wounds.length} 處）` : '：點部位記錄傷口'} {showMap ? '▲' : '▼'}
       </button>
+      {showMap && (
+        <Suspense fallback={<div className="empty">載入人形圖…</div>}>
+          <BodyMap wounds={p.wounds ?? []} onChange={(w) => setWounds(p.id, w)} />
+        </Suspense>
+      )}
+      {!showMap && p.wounds && p.wounds.length > 0 && <div className="wound-text">{p.wounds.map(woundText).join('；')}</div>}
       <input
         className="note-input"
         value={p.note ?? ''}
-        placeholder="傷勢註解（例：左大腿開放性骨折）"
+        placeholder="其他註解（例：意識模糊、疑似骨盆骨折）"
         onChange={(e) => setNote(p.id, e.target.value)}
       />
 

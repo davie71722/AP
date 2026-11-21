@@ -4,7 +4,7 @@ import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
-import type { Hospital, Patient } from '../types';
+import { injuryText, type Hospital, type Patient } from '../types';
 import { clockAfter, SentCounts } from './common';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
@@ -124,7 +124,9 @@ export function ProgressTab() {
                   {t.arriveAt ? `｜${arrived ? '已抵院' : `預估抵院 ${clockAfter(t.arriveAt, 0)}`}` : ''}
                 </span>
               </div>
-              {t.ps.some((p) => p.note) && <div className="muted small">{t.ps.map((p) => p.note).filter(Boolean).join('；')}</div>}
+              {t.ps.some((p) => injuryText(p)) && (
+                <div className="muted small">{t.ps.map((p) => (injuryText(p) ? `${p.label}：${injuryText(p)}` : '')).filter(Boolean).join('｜')}</div>
+              )}
             </button>
           );
         })}

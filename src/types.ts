@@ -76,7 +76,39 @@ export interface Patient {
   triageTagNo?: string;
   /** 後送官註解 */
   note?: string;
+  /** 人形圖傷口 */
+  wounds?: Wound[];
   history: { at: number; action: string }[];
+}
+
+/** 人形圖傷口（格式同「外傷人形圖傷口紀錄」模組） */
+export interface Wound {
+  /** 含左右的部位名稱，如「左中指背側」 */
+  region: string;
+  /** 擦傷、撕裂傷、挫傷、燙傷、截肢、感染 */
+  type: string;
+  /** 撕裂傷長度（cm，0＝未填） */
+  cm: number;
+  /** 燙傷度數 I／II／III（可空） */
+  deg: string;
+  /** 燙傷面積 %（0＝未填） */
+  tbsa: number;
+  /** 標記點位置與分頁 */
+  x: number;
+  y: number;
+  v: 'front' | 'back' | 'face' | 'hand' | 'foot';
+}
+
+/** 傷口 → 描述文字 */
+export function woundText(w: Wound): string {
+  if (w.type === '撕裂傷') return `${w.region} ${w.cm > 0 ? w.cm + 'cm ' : ''}撕裂傷`;
+  if (w.type === '燙傷') return `${w.region} ${w.deg ? w.deg + '度 ' : ''}燙傷${w.tbsa > 0 ? ` (TBSA ${w.tbsa}%)` : ''}`;
+  return `${w.region} ${w.type}`;
+}
+
+/** 病人的傷勢文字：人形圖傷口＋註解，以全形分號串接 */
+export function injuryText(p: { wounds?: Wound[]; note?: string }): string {
+  return [...(p.wounds ?? []).map(woundText), p.note?.trim()].filter(Boolean).join('；');
 }
 
 export type VehicleStatus = 'enroute' | 'standby' | 'transport' | 'decon' | 'offline';

@@ -36,6 +36,7 @@ import {
   type TravelState,
   type Vehicle,
   type VehicleStatus,
+  type Wound,
 } from '../types';
 import { loadSettingsPref, loadSnapshot, saveSettingsPref, saveSnapshot } from './db';
 
@@ -91,6 +92,7 @@ interface Store extends Persisted {
   setRedClass(id: string, cls: RedClass): void;
   setTriageTagNo(id: string, no: string): void;
   setPatientNote(id: string, note: string): void;
+  setWounds(id: string, wounds: Wound[]): void;
   /** 加入已到場的救護車：分隊、車號、TP／T2 人數 */
   addVehicle(unit: string, num: number, tp: number, t2: number): void;
   /** 後送官自選：病人、車輛、醫院 → 出發 */
@@ -414,6 +416,9 @@ export const useStore = create<Store>((set, get) => {
       });
       log(`紅傷分類：${p.label} → ${label}`);
     },
+
+    setWounds: (id, wounds) =>
+      set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, wounds } : p)) })),
 
     setPatientNote: (id, note) =>
       set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, note: note.slice(0, 200) } : p)) })),

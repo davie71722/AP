@@ -6,7 +6,7 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import type { Patient, Vehicle } from '../types';
+import { woundText, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, SentCounts, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
@@ -315,8 +315,9 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
             onChange={(e) => setNote(p.id, e.target.value)}
           />
           <button className="btn sm" onClick={() => setEdit(p.id)}>
-            ⋯
+            🧍
           </button>
+          {p.wounds && p.wounds.length > 0 && <div className="wound-text span3">{p.wounds.map(woundText).join('；')}</div>}
         </div>
       ))}
 
