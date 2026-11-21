@@ -21,7 +21,7 @@ describe('案件總結', () => {
   it('條列、沒有的不寫，含傷患明細', () => {
     const incident: Incident = {
       types: ['traffic'],
-      location: { kind: 'point', label: '竹北 24.82, 121.02', lat: 24.82, lng: 121.02 },
+      location: { kind: 'pin', label: '竹北 24.82, 121.02', lat: 24.82, lng: 121.02 },
       startAt: T(14, 0),
       endAt: T(15, 10),
       settings: DEFAULT_SETTINGS,
