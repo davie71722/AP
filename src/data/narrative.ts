@@ -137,6 +137,8 @@ export function injuryPhrase(t: TraumaEntry, withStatus = true, merge?: Merge): 
   if (merge?.tbsa) name = name.replace(/\(.*\)$/, '') + `(TBSA合計${merge.tbsa}%)`;
   let prefix = sidePrefix(t);
   if (merge?.regions.length) {
+    // 有實際部位時用較短的名稱
+    name = { 'y-lac': '撕裂穿刺傷', 'g-lac': '撕裂傷(已止血)', 'g-abr': '擦挫傷' }[t.id] ?? name;
     // 已由人形圖部位說明的側別不再重複
     const covered = new Set(merge.regions.map((r) => limbOf(r)).filter(Boolean));
     const rest = (t.sides ?? []).filter((x) => !covered.has(x));
@@ -198,9 +200,18 @@ export function procedurePhrase(acts: string[]): string {
   const parts: string[] = [];
   parts.push(...(g.airway ?? []), ...(g.o2 ?? []), ...(g.bleed ?? []), ...(g.chest ?? []));
   if (g.fix?.length || g.fixplus?.length) {
-    const fix = g.fix?.length ? `${joinAnd(g.fix)}固定` : '';
+    // 脊椎固定合寫：長背板頸圈固定
+    const fixes = g.fix ?? [];
+    const board = fixes.some((x) => /長背板|全身脊椎/.test(x));
+    const collar = fixes.some((x) => x === '頸圈' || x === '頭頸');
+    const spine = board && collar ? '長背板頸圈' : board ? '長背板' : collar ? '頸圈' : '';
+    const rest = fixes.filter((x) => !/長背板|全身脊椎/.test(x) && x !== '頸圈' && x !== '頭頸');
+    const nouns = [spine, ...rest].filter(Boolean);
+    const phrases = nouns.length ? [`${joinAnd(nouns)}固定`] : [];
     const plus = g.fixplus ?? [];
-    parts.push(fix ? (plus.length ? `${fix}並${joinAnd(plus)}` : fix) : joinAnd(plus));
+    if (phrases.length && plus.length) phrases[0] = `${phrases[0]}並${joinAnd(plus)}`;
+    else if (plus.length) phrases.push(joinAnd(plus));
+    parts.push(...phrases);
   }
   if (g.access?.length) parts.push(`建立${joinAnd(g.access)}`);
   if (g.med?.length) parts.push(`給${joinAnd([...g.med, ...(g.blood ?? [])])}`);
@@ -215,6 +226,8 @@ export function procedurePhrase(acts: string[]): string {
  * 紅牌不列擦傷、挫傷、撕裂傷等輕微傷。
  */
 const MERGE_TYPE: Record<string, string> = { 'y-fx': '疑似骨折/脫臼', 'y-openfx': '疑似骨折/脫臼', 'r-amp': '截肢' };
+/** 軟組織傷勢可併入的人形圖傷口 */
+const SOFT: Record<string, string[]> = { 'y-lac': ['撕裂傷'], 'g-lac': ['撕裂傷'], 'g-abr': ['擦傷', '挫傷'] };
 const BURN = ['r-burn', 'y-burn', 'g-burn'];
 
 const TIER: Record<string, number> = { r: 0, y: 1, g: 2 };
@@ -233,6 +246,20 @@ export function narrative(trauma: TraumaEntry[] | undefined, wounds: Wound[] = [
     ws.forEach((w) => used.add(w));
     const fxs = [...new Set(ws.map((w) => w.fx).filter(Boolean))];
     merges.set(x.id, { regions: [...new Set(ws.map((w) => w.region))], fx: fxs.length === 1 ? fxs[0] : undefined });
+  }
+  // 撕裂傷、擦挫傷：人形圖部位併入傷勢（右大腿6cm撕裂穿刺傷）
+  for (const x of t) {
+    const types = SOFT[x.id];
+    if (!types) continue;
+    const ws = wounds.filter((w) => !used.has(w) && types.includes(w.type));
+    if (!ws.length) continue;
+    ws.forEach((w) => used.add(w));
+    const regions: string[] = [];
+    for (const w of ws) {
+      const r = `${w.region}${w.type === '撕裂傷' && w.cm > 0 ? `${w.cm}cm` : ''}`;
+      if (!regions.includes(r)) regions.push(r);
+    }
+    merges.set(x.id, { regions });
   }
   // 燒燙傷：傷勢寫 TBSA 合計，部位依度數列出
   const burnTbsa = wounds.filter((w) => w.type === '燙傷').reduce((n, w) => n + (w.tbsa || 0), 0);
