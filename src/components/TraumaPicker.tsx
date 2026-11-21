@@ -1,7 +1,7 @@
 // 創傷標籤 → 側別、評估、處置按鈕（含防呆），自動組成交接註解
 import { useEffect, useRef, useState } from 'react';
-import { CHEST_SIDES, entryName, LIMB_SIDES, SIDE_KIND, STATUS, TRAUMA_BY_ID, traumaListFor, keepForColor, type TraumaEntry } from '../data/trauma';
-import { actState, addAct, isKeyAct, removeAct, sideLock, toggleSide } from '../data/traumaRules';
+import { CHEST_SIDES, entryName, LIMB_SIDES, SIDE_KIND, STATUS, SUBTYPES, TRAUMA_BY_ID, traumaListFor, keepForColor, type TraumaEntry } from '../data/trauma';
+import { actState, addAct, isKeyAct, ownerOf, removeAct, setSubtype, sideLock, toggleSide } from '../data/traumaRules';
 import { useStore } from '../store/store';
 import type { Color } from '../types';
 
@@ -76,6 +76,9 @@ export function TraumaPicker({
       setArmed(null);
       return onChange(addAct(value, id, act, now));
     }
+    // 只能在第一次點選的傷勢下取消；其他傷勢的同一按鈕僅顯示已選
+    const owner = ownerOf(value, act);
+    if (owner && owner.id !== id) return flash(`「${st.stored}」記錄在「${owner.name}」，請在該處取消`);
     if (isKeyAct(st.stored) && armed !== `a:${act}`) {
       setArmed(`a:${act}`);
       return flash(`再按一次取消「${st.stored}」`);
@@ -116,6 +119,18 @@ export function TraumaPicker({
                 </div>
               </div>
             )}
+            {SUBTYPES[id] && (
+              <div>
+                <div className={`tr-sub ${sel.subtype ? '' : 'need'}`}>型態{sel.subtype ? '' : '（必選）'}</div>
+                <div className="tr-acts">
+                  {SUBTYPES[id].map((x) => (
+                    <button key={x} className={`btn sm side ${sel.subtype === x ? 'on' : ''}`} onClick={() => onChange(setSubtype(value, id, x))}>
+                      {x}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {(
               [
                 ['評估', d.acts.filter((a) => STATUS.has(a))],
@@ -128,10 +143,11 @@ export function TraumaPicker({
                   <div className="tr-acts">
                     {acts.map((a) => {
                       const st = actState(value, a);
+                      const shared = !!st.stored && ownerOf(value, a)?.id !== id;
                       return (
                         <button
                           key={a}
-                          className={`btn sm ${st.stored ? 'on' : ''} ${st.disabled ? 'dim' : ''} ${armed === `a:${a}` ? 'armed' : ''}`}
+                          className={`btn sm ${st.stored ? 'on' : ''} ${shared ? 'shared' : ''} ${st.disabled ? 'dim' : ''} ${armed === `a:${a}` ? 'armed' : ''}`}
                           aria-disabled={st.disabled}
                           title={st.reason}
                           onClick={() => tapAct(id, a)}

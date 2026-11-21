@@ -1,45 +1,46 @@
 import { describe, expect, it } from 'vitest';
-import { actText, combinedText, hasAdvAirway, keyFlags, patientActs, TQ } from './trauma';
-import { injuryText } from '../types';
+import { actText, keyFlags, TQ, type TraumaEntry } from './trauma';
+import { injuryPhrase, narrative, procedurePhrase, woundPhrases } from './narrative';
+import type { Wound } from '../types';
 
-describe('創傷與處置：整合註解（傷勢 → 評估 → 處置）', () => {
-  it('多重傷勢：評估與處置去重、依傷勢與按鈕順序', () => {
-    const trauma = [
-      { id: 'r-head', name: '重度頭部外傷', acts: ['耳鼻流出血/腦脊髓液', '已抽吸', '已放聲門上呼吸道(i-gel)', '已上頸圈', '頭部抬高30度'] },
-      { id: 'r-face', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '已行環甲膜切開'] },
-      { id: 'r-neckpen', name: '頸部穿刺/血腫', acts: ['血腫擴大', '局部加壓止血', '已打大口徑IV'] },
-      { id: 'r-ptx', name: '氣胸/血胸', acts: ['呼吸音減弱(左)', '氣管偏移', '已針刺減壓(左)'] },
+const W = (region: string, type: string, extra: Partial<Wound> = {}): Wound => ({ region, type, cm: 0, deg: '', tbsa: 0, x: 0, y: 0, v: 'front', ...extra });
+
+describe('交接註解：連接詞敘述', () => {
+  it('使用者範例（紅牌）', () => {
+    const trauma: TraumaEntry[] = [
+      { id: 'r-head', name: '重度頭部外傷', acts: ['耳鼻流出血/腦脊髓液', '已抽吸', '已放i-gel', '已上頸圈', '頭部抬高30度'] },
+      { id: 'r-face', name: '顏面嚴重創傷', acts: ['口鼻大量出血', '已行環甲膜切開'] },
+      { id: 'r-neckpen', name: '頸部穿刺/血腫', acts: ['血腫擴大', '氣道受阻風險', '局部加壓止血', '已打大口徑IV'] },
+      { id: 'r-ptx', name: '氣胸/血胸', acts: ['呼吸音減弱(左)', '氣管偏移'], sides: ['左'] },
       { id: 'r-pelvis', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '已上長背板/鏟式擔架', '已打骨針IO', '已給Transamin', '已輸血'] },
     ];
-    expect(
-      injuryText({ trauma, wounds: [{ region: '額頭', type: '撕裂傷', cm: 0, deg: '', tbsa: 0, x: 0, y: 0, v: 'face' }] }),
-    ).toBe(
-      '重度頭部外傷、顏面嚴重創傷、頸部穿刺/血腫、氣胸/血胸、不穩定骨盆骨折；額頭 撕裂傷。' +
-        '評估：耳鼻流出血/腦脊髓液、氣道受阻風險、口鼻大量出血、血腫擴大、呼吸音減弱(左)、氣管偏移、疑內出血/休克。' +
-        '處置：已抽吸、已放聲門上呼吸道(i-gel)、已上頸圈、頭部抬高30度、已行環甲膜切開、局部加壓止血、已打大口徑IV、已針刺減壓(左)、已上長背板/鏟式擔架、已打骨針IO、已給Transamin、已輸血。',
+    const wounds = [W('額頭', '撕裂傷'), W('頸部', '挫傷'), W('上唇', '撕裂傷'), W('右前臂', '疑似骨折/脫臼')];
+    expect(narrative(trauma, wounds, undefined, 'R')).toBe(
+      '重度頭外傷併耳鼻漏、顏面嚴重創傷併口鼻大出血、頸穿刺併血腫擴大及氣道疑似阻塞、左側氣血胸併呼吸音減弱及氣管偏移、不穩定骨盆骨折併疑內出血休克、右前臂疑骨折脫臼；' +
+        '處置予抽吸、置i-gel、環甲膜切開、局部加壓止血、頸圈及長背板固定並頭抬高30度、建立大口徑IV及IO、給Transamin及輸血。',
     );
-    expect(keyFlags(trauma)).toEqual(['環甲膜切開', '針刺減壓(左)', '輸血']);
-    expect(hasAdvAirway(trauma)).toBe(true);
   });
-  it('同一處置在多個傷勢只算一次', () => {
-    const t = [
-      { id: 'r-head', name: '重度頭部外傷', acts: ['已抽吸'] },
-      { id: 'r-face', name: '顏面嚴重創傷', acts: ['已抽吸'] },
-    ];
-    expect(patientActs(t)).toEqual(['已抽吸']);
-    expect(combinedText(t)).toBe('重度頭部外傷、顏面嚴重創傷。處置：已抽吸。');
+  it('黃綠牌保留輕微傷，相同傷勢合併部位', () => {
+    expect(woundPhrases([W('額頭', '撕裂傷'), W('上唇', '撕裂傷'), W('頸部', '挫傷')], 'Y')).toEqual(['額頭及上唇撕裂傷', '頸部挫傷']);
+    expect(woundPhrases([W('左大腿', '撕裂傷', { cm: 3 }), W('胸部', '燙傷', { deg: 'II', tbsa: 5 })], 'G')).toEqual(['左大腿3cm撕裂傷', '胸部II度燙傷(TBSA 5%)']);
+    expect(woundPhrases([W('額頭', '撕裂傷'), W('胸部', '擦傷')], 'R')).toEqual([]);
   });
-  it('止血帶自動帶入時間', () => {
+  it('股骨骨折可單側並分開放性／閉鎖性', () => {
+    expect(injuryPhrase({ id: 'r-femur', name: '股骨骨折', acts: [], sides: ['右'], subtype: '開放性' })).toBe('右側開放性股骨骨折');
+    expect(injuryPhrase({ id: 'r-femur', name: '股骨骨折', acts: ['遠端脈搏消失'], sides: ['右', '左'], subtype: '閉鎖性' })).toBe('雙側閉鎖性股骨骨折併遠端脈搏消失');
+  });
+  it('四肢側別、止血帶時間', () => {
     const at = new Date(2026, 10, 21, 14, 25).getTime();
-    expect(actText(TQ, at)).toBe('已上止血帶(14:25)');
-    expect(keyFlags([{ id: 'r-art', name: '動脈大出血', acts: [actText(TQ, at)] }])).toEqual(['止血帶 14:25']);
+    const t: TraumaEntry = { id: 'r-art', name: '動脈大出血', acts: [actText(TQ, at), '已填塞止血紗布'], sides: ['左下肢'] };
+    expect(narrative([t])).toBe('左下肢動脈大出血；處置予止血帶(14:25)、止血紗布填塞。');
+    expect(keyFlags([t])).toEqual(['止血帶 14:25']);
   });
-  it('綠牌「可搭坐車」接在處置最後', () => {
-    expect(combinedText([{ id: 'g-abr', name: '表淺擦傷/挫傷', acts: ['NS清洗傷口', '已貼敷料/紗布', '可搭坐車'] }])).toBe(
-      '表淺擦傷/挫傷。處置：NS清洗傷口、已貼敷料/紗布，可搭坐車。',
-    );
+  it('綠牌可搭坐車；只有傷勢；其他註解', () => {
+    expect(narrative([{ id: 'g-abr', name: '表淺擦傷/挫傷', acts: ['NS清洗傷口', '已貼敷料/紗布', '可搭坐車'] }])).toBe('表淺擦挫傷；處置予NS清洗傷口、貼敷料/紗布，可搭坐車。');
+    expect(narrative([{ id: 'r-pelvis', name: '不穩定骨盆骨折', acts: [] }], [], '酒味')).toBe('不穩定骨盆骨折。酒味');
   });
-  it('只點創傷；加上其他註解', () => {
-    expect(injuryText({ trauma: [{ id: 'r-pelvis', name: '不穩定骨盆骨折', acts: [] }], note: '酒味' })).toBe('不穩定骨盆骨折。酒味');
+  it('處置分組：給藥與輸血、固定合併', () => {
+    expect(procedurePhrase(['已輸血'])).toBe('輸血');
+    expect(procedurePhrase(['已上頸圈及頭部固定', '已上骨盆固定帶', '已給Nalbuphine'])).toBe('頸圈及頭部及骨盆帶固定、給Nalbuphine');
   });
 });

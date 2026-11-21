@@ -24,7 +24,7 @@ const RIDE = '可搭坐車';
 
 export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
   R: [
-    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放聲門上呼吸道(i-gel)', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
+    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放i-gel', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
     { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片', '已抽吸', '已放口咽/鼻咽呼吸道', ETT, '已行環甲膜切開', BVM, NRM, '加壓止血'] },
     { id: 'r-inhal', region: '頸部', name: '吸入性灼傷', acts: ['聲音沙啞/喘鳴', '口鼻焦黑/鼻毛燒焦', '血氧<90%', '預防性插管完成', ETT, NRM, BVM] },
     { id: 'r-neckpen', region: '頸部', name: '頸部穿刺/血腫', acts: ['血腫擴大', '皮下氣腫', '氣道受阻風險', '局部加壓止血', '已貼封閉敷料', ETT, '已行環甲膜切開', '已打大口徑IV', NRM] },
@@ -36,7 +36,7 @@ export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
     { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', '已上骨盆固定帶', '已上長背板/鏟式擔架', IV2, IO, TXA, BLOOD, NALB] },
     { id: 'r-art', region: '四肢', name: '動脈大出血', acts: ['出血性休克', TQ, '已填塞止血紗布', '已加壓包紮', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
     { id: 'r-amp', region: '四肢', name: '創傷性截肢/壓砸', acts: ['出血性休克', '壓砸症候群風險', TQ, '斷肢低溫保存隨行', NALB, '已打IV', IV2, TXA, BLOOD] },
-    { id: 'r-femur', region: '四肢', name: '雙側股骨骨折', acts: ['出血性休克', '遠端脈搏消失', '已上牽引固定器', IV2, IO, NALB, TXA, BLOOD] },
+    { id: 'r-femur', region: '四肢', name: '股骨骨折', acts: ['出血性休克', '遠端脈搏消失', '已上牽引固定器', IV2, IO, NALB, TXA, BLOOD] },
     { id: 'r-burn', region: '全身', name: '大面積燒燙傷(>20%)', acts: ['吸入性灼傷疑慮', '環狀燒傷', '無菌乾紗/燒傷敷料覆蓋', '已保溫防失溫', '已打IV/IO輸液', NALB, NRM, BVM, ETT] },
     { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['意識改變', '血壓<90', '心跳>120', '皮膚濕冷', '全身脊椎固定完成', IV2, IO, TXA, BLOOD, '已保溫防失溫', NRM] },
   ],
@@ -71,15 +71,21 @@ export interface TraumaEntry {
   id: string;
   name: string;
   acts: string[];
-  /** 側別：四肢為「右上肢」等，胸部為「左」「右」 */
+  /** 側別：四肢為「右上肢」等，胸部／股骨為「左」「右」 */
   sides?: string[];
+  /** 型態：股骨骨折的開放性／閉鎖性 */
+  subtype?: string;
 }
+
+/** 需選型態的傷勢（單選） */
+export const SUBTYPES: Record<string, string[]> = { 'r-femur': ['閉鎖性', '開放性'] };
 
 // ---------- 側別 ----------
 export const LIMB_SIDES = ['右上肢', '左上肢', '右下肢', '左下肢'];
 export const CHEST_SIDES = ['右', '左'];
 /** 需選側別的傷勢 */
-export const SIDE_KIND: Record<string, 'limb' | 'chest'> = {
+export const SIDE_KIND: Record<string, 'limb' | 'chest' | 'femur'> = {
+  'r-femur': 'femur',
   'r-art': 'limb',
   'r-amp': 'limb',
   'y-fx': 'limb',
@@ -92,8 +98,8 @@ export const SIDE_KIND: Record<string, 'limb' | 'chest'> = {
 /** 含側別的傷勢名稱：動脈大出血(右下肢)、氣胸/血胸(左)、雙側為(雙側) */
 export function entryName(t: TraumaEntry): string {
   const s = t.sides ?? [];
-  if (!s.length) return t.name;
-  if (SIDE_KIND[t.id] === 'chest') return `${t.name}(${s.length > 1 ? '雙側' : s[0]})`;
+  if (!s.length) return t.subtype ? `${t.name}(${t.subtype})` : t.name;
+  if (SIDE_KIND[t.id] === 'chest' || SIDE_KIND[t.id] === 'femur') return `${t.name}(${s.length > 1 ? '雙側' : s[0]}${t.subtype ? '、' + t.subtype : ''})`;
   const order = LIMB_SIDES.filter((x) => s.includes(x));
   return `${t.name}(${order.join('、')})`;
 }
@@ -194,7 +200,7 @@ export const STATUS = new Set([
 ]);
 
 /** 進階呼吸道：選了就不再給 NRM／Mask 等氧氣面罩（BVM 仍可經管路給氧） */
-export const ADV_AIRWAY = ['已插氣管內管', '已放聲門上呼吸道(i-gel)', '已行環甲膜切開', '預防性插管完成'];
+export const ADV_AIRWAY = ['已插氣管內管', '已放i-gel', '已行環甲膜切開', '預防性插管完成'];
 export const MASK_O2 = ['NRM給氧', 'Mask給氧'];
 
 /** 已點選的評估／處置以「病人」為單位：任一傷勢點過，其他傷勢的同一按鈕也顯示已選 */
@@ -208,57 +214,10 @@ export function hasAdvAirway(list: TraumaEntry[] | undefined): boolean {
   return patientActs(list).some((a) => ADV_AIRWAY.includes(a));
 }
 
-/** 依傷勢與按鈕順序排列 */
-function orderedActs(list: TraumaEntry[]): string[] {
-  const acts = patientActs(list);
-  const rank = (a: string) => {
-    let base = 0;
-    for (const t of list) {
-      const def = TRAUMA_BY_ID[t.id];
-      const i = def ? def.acts.findIndex((d) => actMatches(a, d)) : -1;
-      if (i >= 0 && t.acts.includes(a)) return base + i;
-      base += 100;
-    }
-    return 1e6;
-  };
-  return [...acts].sort((x, y) => rank(x) - rank(y));
-}
-
-/** 拆成三段：傷勢、評估、處置（各自去重） */
-export function traumaParts(list: TraumaEntry[] | undefined): { injuries: string[]; status: string[]; procs: string[]; ride: boolean } {
-  const l = list ?? [];
-  const acts = orderedActs(l);
-  return {
-    injuries: l.map(entryName),
-    status: acts.filter((a) => STATUS.has(a)),
-    procs: acts.filter((a) => !STATUS.has(a) && a !== RIDE),
-    ride: acts.includes(RIDE),
-  };
-}
-
-/**
- * 整合註解：先寫傷勢、再寫評估、再寫處置。
- * 例：重度頭部外傷、氣胸/血胸；額頭 撕裂傷。評估：意識不清、氣管偏移。處置：已插氣管內管、已針刺減壓(左)。
- */
-export function combinedText(list: TraumaEntry[] | undefined, wounds: string[] = [], note?: string): string {
-  const { injuries, status, procs, ride } = traumaParts(list);
-  const inj = [injuries.join('、'), wounds.join('、')].filter(Boolean).join('；');
-  const out: string[] = [];
-  if (inj) out.push(`${inj}。`);
-  if (status.length) out.push(`評估：${status.join('、')}。`);
-  if (procs.length || ride) out.push(`處置：${[procs.join('、'), ride ? '可搭坐車' : ''].filter(Boolean).join('，')}。`);
-  if (note?.trim()) out.push(note.trim());
-  return out.join('');
-}
-
-/** 僅創傷部分 */
-export function traumaText(list: TraumaEntry[] | undefined): string {
-  return combinedText(list);
-}
-
 /** 交接關鍵處置：醒目標示 */
 const KEY_ACTS: [RegExp, string][] = [
   [/^已插氣管內管$|^預防性插管完成$/, '插管'],
+  [/^已放i-gel$/, 'i-gel'],
   [/^已行環甲膜切開$/, '環甲膜切開'],
   [/^已針刺減壓/, '針刺減壓'],
   [/^已上止血帶\((\d\d:\d\d)\)$/, '止血帶'],

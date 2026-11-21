@@ -323,7 +323,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
           {(p.trauma?.length || p.wounds?.length) ? (
             <div className="wound-text span3">
               <KeyFlags flags={keyFlags(p.trauma)} />
-              {injuryText({ trauma: p.trauma, wounds: p.wounds })}
+              {injuryText({ trauma: p.trauma, wounds: p.wounds, color: p.color })}
               <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds)} />
             </div>
           ) : null}

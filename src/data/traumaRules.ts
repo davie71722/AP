@@ -1,10 +1,9 @@
 // 創傷與處置的防呆規則：互斥、取代、停用、側別、提醒
 import type { Wound } from '../types';
-import { actMatches, actText, ADV_AIRWAY, CHEST_SIDES, entryName, limbOf, MASK_O2, patientActs, SIDE_KIND, TRAUMA_BY_ID, type TraumaEntry } from './trauma';
+import { actMatches, actText, ADV_AIRWAY, CHEST_SIDES, entryName, limbOf, patientActs, SIDE_KIND, SUBTYPES, TRAUMA_BY_ID, type TraumaEntry } from './trauma';
 
 /** 給氧裝置：一次只能一種 */
 export const O2_DEVICES = ['NRM給氧', 'Mask給氧', 'BVM給氧'];
-const BVM = 'BVM給氧';
 /** 建立進階呼吸道後不再使用 */
 const BASIC_AIRWAY = ['已放口咽/鼻咽呼吸道'];
 const IV_BASIC = '已打IV';
@@ -19,7 +18,7 @@ const ACCESS = /IV|IO|輸液/;
 
 /** 移除時需再按一次確認的關鍵處置 */
 export function isKeyAct(stored: string): boolean {
-  return /^已插氣管內管$|^預防性插管完成$|^已放聲門上呼吸道|^已行環甲膜切開$|^已針刺減壓|^已上止血帶|^已上骨盆固定帶$|^已輸血$/.test(stored);
+  return /^已插氣管內管$|^預防性插管完成$|^已放i-gel$|^已行環甲膜切開$|^已針刺減壓|^已上止血帶|^已上骨盆固定帶$|^已輸血$/.test(stored);
 }
 
 const sideOf = (a: string) => a.match(/\((左|右)\)$/)?.[1] ?? null;
@@ -45,7 +44,7 @@ export function actState(list: TraumaEntry[], act: string): ActState {
   const stored = all.find((x) => actMatches(x, act));
   if (stored) return { stored, disabled: false };
   const adv = all.find((a) => ADV_AIRWAY.includes(a));
-  if (adv && MASK_O2.includes(act)) return { disabled: true, reason: `已建立進階呼吸道（${adv.replace(/^已/, '')}），以 BVM 給氧` };
+  if (adv && O2_DEVICES.includes(act)) return { disabled: true, reason: `已建立進階呼吸道（${adv.replace(/^已/, '')}），不再選給氧方式` };
   if (adv && BASIC_AIRWAY.includes(act)) return { disabled: true, reason: '已建立進階呼吸道' };
   if (act === IV_BASIC && all.some((a) => IV_BIG.includes(a))) return { disabled: true, reason: '已記錄大口徑／雙線 IV' };
   if (act === COLLAR && all.includes(COLLAR_FULL)) return { disabled: true, reason: '已記錄頸圈及頭部固定' };
@@ -60,7 +59,7 @@ export function actState(list: TraumaEntry[], act: string): ActState {
 /**
  * 點選處置（加入）：互斥、取代、連帶。
  * - 給氧裝置一次一種；進階呼吸道一次一種
- * - 建立進階呼吸道：移除 NRM／Mask 與口咽／鼻咽呼吸道，自動加 BVM 給氧
+ * - 建立進階呼吸道：移除所有給氧方式（NRM／Mask／BVM）與口咽／鼻咽呼吸道
  * - 大口徑／雙線 IV 取代「已打IV」；頸圈及頭部固定取代「已上頸圈」
  * - 胸部左右處置：自動補上胸部傷勢側別
  */
@@ -68,40 +67,24 @@ export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: 
   if (actState(list, act).disabled) return list;
   const text = actText(act, now);
   const remove = new Set<string>();
-  const extra: string[] = [];
   if (O2_DEVICES.includes(text)) O2_DEVICES.filter((x) => x !== text).forEach((x) => remove.add(x));
   if (ADV_AIRWAY.includes(text)) {
     ADV_AIRWAY.filter((x) => x !== text).forEach((x) => remove.add(x));
-    MASK_O2.forEach((x) => remove.add(x));
+    O2_DEVICES.forEach((x) => remove.add(x));
     BASIC_AIRWAY.forEach((x) => remove.add(x));
-    extra.push(BVM);
   }
   if (IV_BIG.includes(text)) remove.add(IV_BASIC);
   if (text === COLLAR_FULL) remove.add(COLLAR);
   const side = sideOf(text);
   const chest = side && /^(呼吸音減弱|已針刺減壓)/.test(text);
 
-  const all = patientActs(list);
   let out = list.map((t) => ({ ...t, acts: t.acts.filter((a) => !remove.has(a)) }));
   out = out.map((t) => {
     if (t.id !== traumaId) return t;
     const acts = [...t.acts, text];
-    for (const x of extra) if (!all.includes(x) && !acts.includes(x)) acts.push(x);
     const sides = chest && SIDE_KIND[t.id] === 'chest' && !(t.sides ?? []).includes(side!) ? [...(t.sides ?? []), side!] : t.sides;
     return { ...t, acts, sides };
   });
-  // BVM 若已在其他傷勢下，不重複
-  if (extra.includes(BVM) && out.filter((t) => t.acts.includes(BVM)).length > 1) {
-    let kept = false;
-    out = out.map((t) => {
-      if (!t.acts.includes(BVM)) return t;
-      if (!kept) {
-        kept = true;
-        return t;
-      }
-      return { ...t, acts: t.acts.filter((a) => a !== BVM) };
-    });
-  }
   return out;
 }
 
@@ -147,6 +130,7 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
   for (const t of l) {
     const kind = SIDE_KIND[t.id];
     if (kind && !(t.sides ?? []).length) w.push(`${t.name}：尚未選${kind === 'limb' ? '肢體側別' : '左右側'}`);
+    if (SUBTYPES[t.id] && !t.subtype) w.push(`${t.name}：尚未選${SUBTYPES[t.id].join('／')}`);
   }
   // 胸部：減壓側與呼吸音側不一致
   for (const s of CHEST_SIDES) {
@@ -170,9 +154,8 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
   if (all.some((a) => a.startsWith('已上止血帶(')) && !l.some((t) => t.id === 'r-art' || t.id === 'r-amp')) w.push('已上止血帶，但未記錄動脈大出血或截肢');
   // 呼吸道與給氧
   const adv = all.find((a) => ADV_AIRWAY.includes(a));
-  if (adv && !all.includes(BVM)) w.push(`已建立進階呼吸道（${adv.replace(/^已/, '')}），未記錄 BVM 給氧`);
   if (has(NEED_AIRWAY) && !adv) w.push('意識不清／GCS≤8，尚未建立進階呼吸道，請確認呼吸道處置');
-  if (all.includes('血氧<90%') && !all.some((a) => O2_DEVICES.includes(a))) w.push('血氧<90%，尚未記錄給氧');
+  if (all.includes('血氧<90%') && !adv && !all.some((a) => O2_DEVICES.includes(a))) w.push('血氧<90%，尚未記錄給氧');
   // 藥物
   if (all.includes('已給Nalbuphine') && has([...SHOCK, ...ALOC])) w.push('休克或意識改變時給予 Nalbuphine（鴉片類止痛），請再確認');
   // 休克未建立管路
@@ -189,4 +172,14 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
   // 傷勢定義中不存在的處置（資料異常）
   for (const t of l) if (!TRAUMA_BY_ID[t.id]) w.push(`未知傷勢：${t.name}`);
   return [...new Set(w)];
+}
+
+/** 設定型態（單選；再按取消） */
+export function setSubtype(list: TraumaEntry[], traumaId: string, subtype: string): TraumaEntry[] {
+  return list.map((t) => (t.id === traumaId ? { ...t, subtype: t.subtype === subtype ? undefined : subtype } : t));
+}
+
+/** 此處置記錄在哪個傷勢下（只能在該處取消） */
+export function ownerOf(list: TraumaEntry[], act: string): TraumaEntry | undefined {
+  return list.find((t) => t.acts.some((a) => actMatches(a, act)));
 }

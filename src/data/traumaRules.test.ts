@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { combinedText, entryName, keepForColor, limbOf, regionGroups, traumaForRegion, type TraumaEntry } from './trauma';
-import { actState, addAct, removeAct, sideLock, toggleSide, traumaWarnings } from './traumaRules';
+import { entryName, keepForColor, limbOf, regionGroups, traumaForRegion, type TraumaEntry } from './trauma';
+import { actState, addAct, ownerOf, setSubtype, sideLock, toggleSide, traumaWarnings } from './traumaRules';
 import type { Wound } from '../types';
+import { narrative } from './narrative';
 
 const T = (id: string, name: string, acts: string[] = [], sides?: string[]): TraumaEntry => ({ id, name, acts, ...(sides ? { sides } : {}) });
 const now = new Date(2026, 10, 21, 14, 25).getTime();
@@ -14,31 +15,24 @@ describe('防呆：氧氣與呼吸道', () => {
     l = addAct(l, 'r-head', 'BVM給氧', now);
     expect(acts(l)).toEqual(['BVM給氧']);
   });
-  it('建立進階呼吸道：移除 NRM、口咽呼吸道，自動加 BVM；NRM 停用', () => {
-    let l = addAct(base, 'r-head', 'NRM給氧', now);
+  it('建立進階呼吸道：移除並停用所有給氧（含 BVM）與口咽呼吸道', () => {
+    let l = addAct(base, 'r-head', 'BVM給氧', now);
     l = addAct(l, 'r-face', '已放口咽/鼻咽呼吸道', now);
-    l = addAct(l, 'r-head', '已放聲門上呼吸道(i-gel)', now);
-    expect(acts(l).sort()).toEqual(['BVM給氧', '已放聲門上呼吸道(i-gel)'].sort());
-    expect(actState(l, 'NRM給氧').disabled).toBe(true);
+    l = addAct(l, 'r-head', '已放i-gel', now);
+    expect(acts(l)).toEqual(['已放i-gel']);
+    for (const o of ['NRM給氧', 'Mask給氧', 'BVM給氧']) expect(actState(l, o).disabled).toBe(true);
     expect(actState(l, '已放口咽/鼻咽呼吸道').disabled).toBe(true);
-    expect(actState(l, 'BVM給氧').stored).toBe('BVM給氧');
     // 停用的按鈕點了不會加入
     expect(addAct(l, 'r-head', 'NRM給氧', now)).toBe(l);
   });
   it('進階呼吸道一次一種：i-gel 換成環甲膜切開', () => {
-    let l = addAct(base, 'r-head', '已放聲門上呼吸道(i-gel)', now);
+    let l = addAct(base, 'r-head', '已放i-gel', now);
     l = addAct(l, 'r-face', '已行環甲膜切開', now);
-    expect(acts(l).sort()).toEqual(['BVM給氧', '已行環甲膜切開'].sort());
+    expect(acts(l)).toEqual(['已行環甲膜切開']);
   });
-  it('BVM 不重複', () => {
-    let l = addAct(base, 'r-head', 'BVM給氧', now);
-    l = addAct(l, 'r-face', '已插氣管內管', now);
-    expect(l.flatMap((t) => t.acts).filter((a) => a === 'BVM給氧')).toHaveLength(1);
-  });
-  it('取消 BVM 後提醒', () => {
-    let l = addAct(base, 'r-head', '已插氣管內管', now);
-    l = removeAct(l, 'BVM給氧');
-    expect(traumaWarnings(l).join()).toContain('未記錄 BVM 給氧');
+  it('處置只能在第一次點選的傷勢下取消', () => {
+    const l = addAct(base, 'r-head', '已抽吸', now);
+    expect(ownerOf(l, '已抽吸')?.id).toBe('r-head');
   });
   it('GCS≤8 未建立進階呼吸道提醒；血氧<90% 未給氧提醒', () => {
     const w = traumaWarnings([T('r-head', '重度頭部外傷', ['GCS≤8']), T('r-inhal', '吸入性灼傷', ['血氧<90%'])]).join();
@@ -87,7 +81,7 @@ describe('防呆：左右側', () => {
     // 加右側後右側可用（雙側）
     l = toggleSide(l, 'r-ptx', '右');
     expect(actState(l, '已針刺減壓(右)').disabled).toBe(false);
-    expect(combinedText(l)).toBe('氣胸/血胸(雙側)。處置：已針刺減壓(左)。');
+    expect(narrative(l)).toBe('雙側氣血胸；處置予左側針刺減壓。');
   });
   it('胸部改側時移除矛盾的呼吸音記錄', () => {
     let l = [T('r-ptx', '氣胸/血胸', ['呼吸音減弱(右)'])];
@@ -107,7 +101,16 @@ describe('防呆：左右側', () => {
     expect(limbOf('胸部')).toBeNull();
   });
   it('止血帶沒有出血／截肢傷勢：提醒', () => {
-    expect(traumaWarnings([T('r-femur', '雙側股骨骨折', ['已上止血帶(14:25)'])]).join()).toContain('已上止血帶，但未記錄');
+    expect(traumaWarnings([T('r-pelvis', '不穩定骨盆骨折', ['已上止血帶(14:25)'])]).join()).toContain('已上止血帶，但未記錄');
+  });
+  it('股骨骨折：未選側別、型態提醒', () => {
+    let l = [T('r-femur', '股骨骨折')];
+    const w = traumaWarnings(l).join();
+    expect(w).toContain('尚未選左右側');
+    expect(w).toContain('閉鎖性／開放性');
+    l = setSubtype(toggleSide(l, 'r-femur', '右'), 'r-femur', '開放性');
+    expect(traumaWarnings(l)).toEqual([]);
+    expect(entryName(l[0])).toBe('股骨骨折(右、開放性)');
   });
 });
 

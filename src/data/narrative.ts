@@ -1,0 +1,202 @@
+// 交接註解：以連接詞組成完整敘述（傷勢併評估；處置予…）
+// 例：重度頭外傷併耳鼻漏、左側氣血胸併呼吸音減弱及氣管偏移、右前臂疑骨折脫臼；處置予抽吸、置i-gel、NRM給氧、頸圈及長背板固定並頭抬高30度、建立大口徑IV及IO、給Transamin及輸血。
+import type { Color, Wound } from '../types';
+import { LIMB_SIDES, SIDE_KIND, STATUS, type TraumaEntry } from './trauma';
+
+/** 傷勢簡稱 */
+const INJURY_SHORT: Record<string, string> = {
+  'r-head': '重度頭外傷',
+  'r-face': '顏面嚴重創傷',
+  'r-inhal': '吸入性灼傷',
+  'r-neckpen': '頸穿刺',
+  'r-cspine': '疑頸椎損傷',
+  'r-ptx': '氣血胸',
+  'r-flail': '連枷胸或胸穿刺傷',
+  'r-abd': '腹部嚴重創傷',
+  'r-evisc': '臟器外露',
+  'r-pelvis': '不穩定骨盆骨折',
+  'r-art': '動脈大出血',
+  'r-amp': '創傷性截肢壓砸',
+  'r-femur': '股骨骨折',
+  'r-burn': '大面積燒燙傷(>20%)',
+  'r-shock': '高能量創傷併休克',
+  'y-fx': '肢體骨折脫臼',
+  'y-openfx': '開放性骨折(已止血)',
+  'y-burn': '中度燒燙傷(10-20%)',
+  'y-lac': '較大撕裂穿刺傷',
+  'y-spine': '背頸痛(無癱瘓)',
+  'y-head': '頭部撞擊(意識清楚)',
+  'g-abr': '表淺擦挫傷',
+  'g-lac': '小撕裂傷(已止血)',
+  'g-sprain': '輕微扭傷疼痛',
+  'g-burn': '小面積二度燒傷(<10%)',
+};
+
+/** 評估簡稱 */
+const STATUS_SHORT: Record<string, string> = {
+  '耳鼻流出血/腦脊髓液': '耳鼻漏',
+  氣道受阻風險: '氣道疑似阻塞',
+  口鼻大量出血: '口鼻大出血',
+  '牙齒/骨折碎片': '口內碎片',
+  '聲音沙啞/喘鳴': '聲啞喘鳴',
+  '口鼻焦黑/鼻毛燒焦': '口鼻焦黑',
+  '四肢癱瘓/無力': '四肢無力',
+  '神經性休克(低血壓/心跳慢)': '神經性休克',
+  '疑內出血/休克': '疑內出血休克',
+  '腹部膨脹/僵硬': '腹脹僵硬',
+  '下肢長度不等/外旋': '下肢短縮外旋',
+  吸入性灼傷疑慮: '疑吸入性灼傷',
+};
+
+/** 處置分組與簡稱：[組別, 簡稱] */
+const PROC: Record<string, [string, string]> = {
+  已抽吸: ['airway', '抽吸'],
+  '已放口咽/鼻咽呼吸道': ['airway', '置口咽或鼻咽呼吸道'],
+  '已放i-gel': ['airway', '置i-gel'],
+  '已放聲門上呼吸道(i-gel)': ['airway', '置i-gel'],
+  已插氣管內管: ['airway', '插管'],
+  預防性插管完成: ['airway', '預防性插管'],
+  已行環甲膜切開: ['airway', '環甲膜切開'],
+  NRM給氧: ['o2', 'NRM給氧'],
+  Mask給氧: ['o2', 'Mask給氧'],
+  BVM給氧: ['o2', 'BVM給氧'],
+  加壓止血: ['bleed', '加壓止血'],
+  局部加壓止血: ['bleed', '局部加壓止血'],
+  彈性繃帶加壓止血: ['bleed', '彈性繃帶加壓止血'],
+  已加壓止血包紮: ['bleed', '加壓止血包紮'],
+  已填塞止血紗布: ['bleed', '止血紗布填塞'],
+  已加壓包紮: ['bleed', '加壓包紮'],
+  傷口加壓包紮: ['bleed', '傷口加壓包紮'],
+  '已針刺減壓(左)': ['chest', '左側針刺減壓'],
+  '已針刺減壓(右)': ['chest', '右側針刺減壓'],
+  已貼胸部封閉敷料: ['chest', '胸部封閉敷料'],
+  已貼封閉敷料: ['chest', '封閉敷料'],
+  已上頸圈: ['fix', '頸圈'],
+  已上頸圈及頭部固定: ['fix', '頸圈及頭部'],
+  '已上長背板/鏟式擔架': ['fix', '長背板'],
+  '已上長背板/真空墊': ['fix', '長背板或真空墊'],
+  全身脊椎固定完成: ['fix', '全身脊椎'],
+  已上骨盆固定帶: ['fix', '骨盆帶'],
+  已上牽引固定器: ['fix', '牽引器'],
+  '已副木/夾板固定': ['fix', '副木'],
+  已副木固定: ['fix', '副木'],
+  三角巾懸吊: ['fixplus', '三角巾懸吊'],
+  頭部抬高30度: ['fixplus', '頭抬高30度'],
+  '患肢抬高/冰敷': ['fixplus', '患肢抬高冰敷'],
+  已打大口徑IV: ['access', '大口徑IV'],
+  已打雙線IV: ['access', '雙線IV'],
+  已打IV: ['access', 'IV'],
+  已打骨針IO: ['access', 'IO'],
+  '已打IV/IO輸液': ['access', 'IV或IO輸液'],
+  已給Transamin: ['med', 'Transamin'],
+  已給Nalbuphine: ['med', 'Nalbuphine'],
+  已輸血: ['blood', '輸血'],
+};
+
+/** A、B及C */
+export function joinAnd(xs: string[], last = '及'): string {
+  if (xs.length <= 1) return xs[0] ?? '';
+  return `${xs.slice(0, -1).join('、')}${last}${xs[xs.length - 1]}`;
+}
+
+function sidePrefix(t: TraumaEntry): string {
+  const s = t.sides ?? [];
+  if (!s.length) return '';
+  const kind = SIDE_KIND[t.id];
+  if (kind === 'chest' || kind === 'femur') return s.length > 1 ? '雙側' : `${s[0]}側`;
+  return joinAnd(LIMB_SIDES.filter((x) => s.includes(x)));
+}
+
+function statusShort(a: string, t: TraumaEntry): string {
+  const m = a.match(/^呼吸音減弱\((左|右)\)$/);
+  // 胸部傷勢已有側別時省略重複的左右
+  if (m) return (t.sides ?? []).length === 1 && t.sides![0] === m[1] ? '呼吸音減弱' : `${m[1]}側呼吸音減弱`;
+  return STATUS_SHORT[a] ?? a;
+}
+
+/** 單一傷勢敘述：左側氣血胸併呼吸音減弱及氣管偏移 */
+export function injuryPhrase(t: TraumaEntry, withStatus = true): string {
+  let name = INJURY_SHORT[t.id] ?? t.name;
+  if (t.id === 'r-femur') name = `${t.subtype ?? ''}${name}`;
+  const base = `${sidePrefix(t)}${name}`;
+  if (!withStatus) return base;
+  const st = t.acts.filter((a) => STATUS.has(a)).map((a) => statusShort(a, t));
+  return st.length ? `${base}併${joinAnd(st)}` : base;
+}
+
+const MINOR = ['擦傷', '挫傷', '撕裂傷'];
+const WOUND_SHORT: Record<string, string> = { '疑似骨折/脫臼': '疑骨折脫臼', 感染: '感染' };
+
+/** 人形圖傷口敘述：相同傷勢合併部位（額及上唇撕裂傷）；紅牌省略擦挫撕裂等輕微傷 */
+export function woundPhrases(wounds: Wound[], color?: Color): string[] {
+  const list = color === 'R' ? wounds.filter((w) => !MINOR.includes(w.type)) : wounds;
+  const out: string[] = [];
+  const groups = new Map<string, string[]>();
+  for (const w of list) {
+    const type = WOUND_SHORT[w.type] ?? w.type;
+    const detail = w.type === '撕裂傷' && w.cm > 0 ? `${w.cm}cm` : w.type === '燙傷' && w.deg ? `${w.deg}度` : '';
+    const tbsa = w.type === '燙傷' && w.tbsa > 0 ? `(TBSA ${w.tbsa}%)` : '';
+    if (detail || tbsa) {
+      out.push(`${w.region}${detail}${type}${tbsa}`);
+      continue;
+    }
+    if (!groups.has(type)) {
+      groups.set(type, []);
+      out.push(`\u0000${type}`);
+    }
+    if (!groups.get(type)!.includes(w.region)) groups.get(type)!.push(w.region);
+  }
+  return out.map((x) => (x.startsWith('\u0000') ? `${joinAnd(groups.get(x.slice(1))!)}${x.slice(1)}` : x));
+}
+
+/** 處置敘述：抽吸、置i-gel、NRM給氧、頸圈及長背板固定並頭抬高30度、建立大口徑IV及IO、給Transamin及輸血 */
+export function procedurePhrase(acts: string[]): string {
+  const g: Record<string, string[]> = {};
+  const other: string[] = [];
+  let ride = false;
+  for (const a of acts) {
+    if (STATUS.has(a)) continue;
+    if (a === '可搭坐車') {
+      ride = true;
+      continue;
+    }
+    const tq = a.match(/^已上止血帶\((.+)\)$/);
+    if (tq) {
+      (g.bleed ??= []).push(`止血帶(${tq[1]})`);
+      continue;
+    }
+    const p = PROC[a];
+    if (p) (g[p[0]] ??= []).push(p[1]);
+    else other.push(a.replace(/^已/, ''));
+  }
+  const parts: string[] = [];
+  parts.push(...(g.airway ?? []), ...(g.o2 ?? []), ...(g.bleed ?? []), ...(g.chest ?? []));
+  if (g.fix?.length || g.fixplus?.length) {
+    const fix = g.fix?.length ? `${joinAnd(g.fix)}固定` : '';
+    const plus = g.fixplus ?? [];
+    parts.push(fix ? (plus.length ? `${fix}並${joinAnd(plus)}` : fix) : joinAnd(plus));
+  }
+  if (g.access?.length) parts.push(`建立${joinAnd(g.access)}`);
+  if (g.med?.length) parts.push(`給${joinAnd([...g.med, ...(g.blood ?? [])])}`);
+  else if (g.blood?.length) parts.push('輸血');
+  parts.push(...other);
+  const body = parts.join('、');
+  return [body, ride ? '可搭坐車' : ''].filter(Boolean).join('，');
+}
+
+/**
+ * 交接註解：傷勢（併評估）＋人形圖傷口；處置予…。其他註解。
+ * 紅牌不列擦傷、挫傷、撕裂傷等輕微傷。
+ */
+export function narrative(trauma: TraumaEntry[] | undefined, wounds: Wound[] = [], note?: string, color?: Color): string {
+  const t = trauma ?? [];
+  const injuries = [...t.map((x) => injuryPhrase(x)), ...woundPhrases(wounds, color)];
+  const acts: string[] = [];
+  for (const x of t) for (const a of x.acts) if (!acts.includes(a)) acts.push(a);
+  const proc = procedurePhrase(acts);
+  let s = injuries.join('、');
+  if (proc) s = s ? `${s}；處置予${proc}` : `處置予${proc}`;
+  if (s) s += '。';
+  if (note?.trim()) s += note.trim();
+  return s;
+}
