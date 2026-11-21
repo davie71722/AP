@@ -120,6 +120,8 @@ export interface Settings {
   yellowPlusGreen: boolean;
   /** 第 1 輛到場的救護車留在現場協助檢傷與指揮，不先載送（大傷 SOP） */
   firstVehicleHold: boolean;
+  /** 綠傷群送（巴士）提示；尚未實施，預設關閉 */
+  groupTransport: boolean;
   longHaulMin: number;
   reserveVehicles: number;
   nightMode: boolean;
@@ -170,6 +172,7 @@ export const DEFAULT_SETTINGS: Settings = {
   greensPerVehicle: 2,
   yellowPlusGreen: true,
   firstVehicleHold: true,
+  groupTransport: false,
   longHaulMin: 35,
   reserveVehicles: 0,
   nightMode: false,

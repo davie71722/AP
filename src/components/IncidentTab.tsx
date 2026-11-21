@@ -95,6 +95,16 @@ export function IncidentTab() {
         </button>
         {showSettings && (
         <div style={{ marginTop: 8 }}>
+        <SetRow label="綠傷群送（巴士）">
+          <div className="seg">
+            <button className={`btn sm ${!st.groupTransport ? 'on' : ''}`} onClick={() => update({ groupTransport: false })}>
+              關
+            </button>
+            <button className={`btn sm ${st.groupTransport ? 'on' : ''}`} onClick={() => update({ groupTransport: true })}>
+              開
+            </button>
+          </div>
+        </SetRow>
         <SetRow label="第 1 輛到場車留守">
           <div className="seg">
             <button className={`btn sm ${!st.firstVehicleHold ? 'on' : ''}`} onClick={() => update({ firstVehicleHold: false })}>

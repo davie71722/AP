@@ -8,6 +8,8 @@ interface Town {
 }
 
 export const TOWN_SHAPES: Town[] = data.towns as Town[];
+/** 有例外轄區的村里界線 */
+export const VILLAGE_SHAPES: (Town & { township: string })[] = (data.villages ?? []) as (Town & { township: string })[];
 export const HSINCHU_CITY_SHAPE: Ring[][] = data.hsinchuCity as Ring[][];
 export const BOUNDARY_SOURCE: string = data.source;
 
@@ -30,5 +32,11 @@ function inPolygon(lng: number, lat: number, poly: Ring[]): boolean {
 /** 座標所在的新竹縣鄉鎮（不在縣內回傳 null） */
 export function townshipAt(lat: number, lng: number): string | null {
   for (const t of TOWN_SHAPES) if (t.polygons.some((p) => inPolygon(lng, lat, p))) return t.name;
+  return null;
+}
+
+/** 座標所在的村里（僅限有例外轄區、已收錄界線的村里） */
+export function villageAt(lat: number, lng: number): { township: string; name: string } | null {
+  for (const v of VILLAGE_SHAPES) if (v.polygons.some((p) => inPolygon(lng, lat, p))) return { township: v.township, name: v.name };
   return null;
 }

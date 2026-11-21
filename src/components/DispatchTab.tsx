@@ -24,6 +24,7 @@ export function DispatchTab() {
   const [vehicleSheet, setVehicleSheet] = useState<string | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
+  const settings = useStore((s) => s.incident.settings);
   const redCrossCounty =
     plan.suggestions.some((s) => s.color === 'R' && s.warnings.some((w) => w.kind === 'crossCounty')) ||
     plan.unassigned.some((u) => u.color === 'R' && u.reason === 'noCapacity');
@@ -65,7 +66,7 @@ export function DispatchTab() {
 
       {redCrossCounty && <div className="alert red">縣市內紅傷量能已滿：報請指揮科啟動跨縣市支援</div>}
       {noVehicle && <div className="alert red">救護車不足：請求加派救護車或民間救護車</div>}
-      {greensWaiting >= 6 && (
+      {settings.groupTransport && greensWaiting >= 6 && (
         <button className="alert" onClick={() => setGroupOpen(true)}>
           綠傷 {greensWaiting} 位待送 ➔ 群送（巴士） ›
         </button>

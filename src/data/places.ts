@@ -1,4 +1,4 @@
-import { townshipAt } from './boundaries';
+import { townshipAt, villageAt } from './boundaries';
 // 地點與車輛基礎資料（規格書「八」）。座標皆為約略值。
 
 export const TOWNSHIPS: Record<string, [number, number]> = {
@@ -118,11 +118,22 @@ export function unitCoord(u: Unit): [number, number] {
 }
 
 /**
+ * 村里例外轄區：行政上屬某鄉鎮、實際由他鄉鎮分隊負責的村里。
+ * 新增時也要用 villages.py 把該村里界線加入 hsinchu-towns.json。
+ */
+export const VILLAGE_OVERRIDES: { township: string; village: string; unit: string }[] = [
+  { township: '橫山', village: '內灣村', unit: '尖石' },
+];
+
+/**
  * 事故現場的轄區分隊：先依鄉鎮界線判斷所在鄉鎮，再取該鄉鎮內最近的分隊
  * （竹北、新豐、湖口、竹東、五峰、尖石有多個分隊）；縣外（如新竹市）取全縣最近分隊。
  * 註：同鄉鎮多分隊的實際分界依消防局轄區劃分，此處以最近分隊近似。
  */
 export function jurisdiction(lat: number, lng: number): Unit {
+  const vil = villageAt(lat, lng);
+  const ov = vil && VILLAGE_OVERRIDES.find((o) => o.township === vil.township && o.village === vil.name);
+  if (ov) return FIRE_UNITS.find((u) => u.name === ov.unit)!;
   const tw = townshipAt(lat, lng);
   const candidates = tw ? FIRE_UNITS.filter((u) => u.township === tw) : [];
   const pool = candidates.length ? candidates : FIRE_UNITS;
