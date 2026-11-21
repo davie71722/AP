@@ -156,10 +156,13 @@ export function IncidentTab() {
             </button>
           </div>
         </SetRow>
-        <SetRow label="離線車程倍率">
+        <SetRow label="車程時段">
           <div className="seg">
+            <button className={`btn sm ${st.trafficAuto ? 'on' : ''}`} onClick={() => update({ trafficAuto: true })}>
+              自動
+            </button>
             {[1.0, 1.3, 1.6].map((f) => (
-              <button key={f} className={`btn sm ${st.trafficFactor === f ? 'on' : ''}`} onClick={() => update({ trafficFactor: f })}>
+              <button key={f} className={`btn sm ${!st.trafficAuto && st.trafficFactor === f ? 'on' : ''}`} onClick={() => update({ trafficAuto: false, trafficFactor: f })}>
                 ×{f.toFixed(1)}
               </button>
             ))}

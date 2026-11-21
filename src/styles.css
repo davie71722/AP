@@ -610,8 +610,15 @@ a.btn { color: inherit; text-decoration: none; }
 .trip-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .elapsed { font-size: 22px; font-weight: 900; color: var(--orange); font-variant-numeric: tabular-nums; }
 .load-btn { justify-content: space-between; font-size: 18px; margin-bottom: 10px; }
-.hosp-row { grid-template-columns: 5.4em 2.8em 1fr auto; }
+.hosp-row { grid-template-columns: 5.2em 2.4em 1fr auto; gap: 4px; }
 .hosp-row .hn { background: none; border: none; padding: 0; text-align: left; font-weight: 800; font-size: 16px; min-height: 40px; }
 .hosp-row.full { border-color: var(--red); background: var(--red-d); }
 .full-btn { min-height: 40px; min-width: 56px; }
 .full-btn.on { background: var(--red); border-color: var(--red); color: #fff; }
+
+.hosp-row .hcap { gap: 5px; font-size: 13px; flex-wrap: wrap; }
+.hbtns { display: flex; gap: 4px; }
+.hbtns .btn { min-height: 40px; min-width: 44px; padding: 0 6px; font-size: 14px; }
+.close-btn.on { background: var(--k-btn); border-color: var(--text); color: #fff; }
+.hosp-row.closed { opacity: 1; }
+.hosp-row.closed .hn, .hosp-row.closed .hgo, .hosp-row.closed .hcap { opacity: 0.4; text-decoration: line-through; }

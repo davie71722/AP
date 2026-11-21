@@ -61,7 +61,7 @@ export interface Unit {
   township: string;
   address: string;
   phone: string;
-  /** 分隊位置：依地址以 Google 地圖查得（2026-11）；山崎、五峰、花園、尖石、田埔僅對到村／街層級 */
+  /** 分隊位置：依地址以 Google 地圖查得（2026-11）；五峰、花園、尖石、田埔地址為村鄰，僅對到村層級 */
   lat: number;
   lng: number;
   /** 常送醫院分區（同鄉鎮但送醫習慣不同的分隊才設定） */
@@ -73,28 +73,36 @@ export const FIRE_HQ = { name: '新竹縣政府消防局', address: '新竹縣�
 
 export const BRIGADES = ['第一大隊', '第二大隊', '第三大隊', '第四大隊'] as const;
 
+/** 各大隊部 */
+export const BRIGADE_HQS: { name: string; address: string }[] = [
+  { name: '第一大隊', address: '竹北市福興路757號' },
+  { name: '第二大隊', address: '竹東鎮長安路77號' },
+  { name: '第三大隊', address: '新埔鎮田新路660號4樓' },
+  { name: '第四大隊', address: '寶山鄉雙園路一段6巷32號' },
+];
+
 export const FIRE_UNITS: Unit[] = [
-  { name: '竹北', brigade: '第一大隊', township: '竹北', address: '竹北市福興路 757 號', phone: '03-5552922', lat: 24.8219, lng: 121.0114 },
-  { name: '光明', brigade: '第一大隊', township: '竹北', address: '竹北市光明五街 295 號', phone: '03-5559119', lat: 24.8281, lng: 121.0111 },
-  { name: '高鐵', brigade: '第一大隊', township: '竹北', address: '竹北市隘口二路 189 號', phone: '03-6670314', lat: 24.8049, lng: 121.0387 },
-  { name: '豐田', brigade: '第一大隊', township: '竹北', address: '竹北市中正西路 2075 巷 6 號', phone: '03-5566119', lat: 24.8412, lng: 120.9538 },
-  { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉重興村建興路二段 788 之 1 號', phone: '03-5593340', lat: 24.9008, lng: 120.9871 },
-  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林村松林街 10 號', phone: '03-5576811', lat: 24.8698, lng: 120.9911, area: '山崎' },
-  { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮雞林里中正路 206 號', phone: '03-5962066', lat: 24.7354, lng: 121.0933 },
-  { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路 1 號', phone: '03-5921978', lat: 24.778, lng: 121.0765 },
-  { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興村新興街 120 號', phone: '03-5932475', lat: 24.717, lng: 121.1414 },
-  { name: '五峰', brigade: '第二大隊', township: '五峰', address: '五峰鄉桃山村 2 鄰 21 號', phone: '03-5856320', lat: 24.5674, lng: 121.0943 },
-  { name: '花園', brigade: '第二大隊', township: '五峰', address: '五峰鄉花園村 1 鄰 6-1 號', phone: '03-5851803', lat: 24.6461, lng: 121.1514 },
-  { name: '尖石', brigade: '第二大隊', township: '尖石', address: '尖石鄉嘉樂村 2 鄰麥樹仁 62 號', phone: '03-5841014', lat: 24.7119, lng: 121.2039 },
-  { name: '田埔', brigade: '第二大隊', township: '尖石', address: '尖石鄉秀巒村 2 鄰田埔 71 號', phone: '03-5847880', lat: 24.6403, lng: 121.28 },
-  { name: '新埔', brigade: '第三大隊', township: '新埔', address: '新埔鎮田新路 660 號', phone: '03-5882187', lat: 24.8259, lng: 121.0731 },
-  { name: '湖口', brigade: '第三大隊', township: '湖口', address: '湖口鄉信勢村成功路 109 號', phone: '03-5992454', lat: 24.9048, lng: 121.0435 },
-  { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉鳳凰村文化路 188 號', phone: '03-5981674', lat: 24.8719, lng: 121.0174, area: '新工' },
-  { name: '關西', brigade: '第三大隊', township: '關西', address: '關西鎮正義路 146 號', phone: '03-5872790', lat: 24.7951, lng: 121.1756 },
-  { name: '二重', brigade: '第四大隊', township: '竹東', address: '竹東鎮中興路四段 99 號', phone: '03-5829233', lat: 24.7729, lng: 121.0489, area: '二重' },
-  { name: '寶山', brigade: '第四大隊', township: '寶山', address: '寶山鄉雙園路二段 288 號', phone: '03-5204755', lat: 24.766, lng: 120.9911, area: '寶山' },
-  { name: '北埔', brigade: '第四大隊', township: '北埔', address: '北埔鄉南興村南興街 66 號', phone: '03-5804449', lat: 24.6989, lng: 121.0571 },
-  { name: '峨眉', brigade: '第四大隊', township: '峨眉', address: '峨眉鄉峨眉村峨眉街 1 號之 1', phone: '03-5800684', lat: 24.688, lng: 121.0217 },
+  { name: '竹北', brigade: '第一大隊', township: '竹北', address: '竹北市福興路757號', phone: '03-5552922', lat: 24.8219, lng: 121.0114 },
+  { name: '光明', brigade: '第一大隊', township: '竹北', address: '竹北市光明五街295號', phone: '03-5559119', lat: 24.8281, lng: 121.0111 },
+  { name: '高鐵', brigade: '第一大隊', township: '竹北', address: '竹北市隘口二路189號', phone: '03-6670314', lat: 24.8049, lng: 121.0387 },
+  { name: '豐田', brigade: '第一大隊', township: '竹北', address: '竹北市中正西路2075巷15弄6號', phone: '03-5566119', lat: 24.8412, lng: 120.9538 },
+  { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉建興路二段788之1號', phone: '03-5593340', lat: 24.9008, lng: 120.9871 },
+  { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林街10號', phone: '03-5576811', lat: 24.8684, lng: 120.9932, area: '山崎' },
+  { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮中正路206號', phone: '03-5962066', lat: 24.7354, lng: 121.0933 },
+  { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路1號', phone: '03-5921978', lat: 24.778, lng: 121.0765 },
+  { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興街120號', phone: '03-5932475', lat: 24.717, lng: 121.1414 },
+  { name: '五峰', brigade: '第二大隊', township: '五峰', address: '五峰鄉桃山村2鄰21號', phone: '03-5856320', lat: 24.5674, lng: 121.0943 },
+  { name: '花園', brigade: '第二大隊', township: '五峰', address: '五峰鄉花園村1鄰6之1號', phone: '03-5851803', lat: 24.6461, lng: 121.1514 },
+  { name: '尖石', brigade: '第二大隊', township: '尖石', address: '尖石鄉嘉樂村2鄰麥樹仁62號', phone: '03-5841014', lat: 24.7119, lng: 121.2039 },
+  { name: '田埔', brigade: '第二大隊', township: '尖石', address: '尖石鄉秀巒村2鄰田埔71號', phone: '03-5847880', lat: 24.6403, lng: 121.28 },
+  { name: '新埔', brigade: '第三大隊', township: '新埔', address: '新埔鎮田新路660號', phone: '03-5882187', lat: 24.8259, lng: 121.0731 },
+  { name: '湖口', brigade: '第三大隊', township: '湖口', address: '湖口鄉成功路109號', phone: '03-5992454', lat: 24.9048, lng: 121.0435 },
+  { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉文化路188號', phone: '03-5981674', lat: 24.8719, lng: 121.0174, area: '新工' },
+  { name: '關西', brigade: '第三大隊', township: '關西', address: '關西鎮正義路146號', phone: '03-5872790', lat: 24.7951, lng: 121.1756 },
+  { name: '二重', brigade: '第四大隊', township: '竹東', address: '竹東鎮中興路四段99號', phone: '03-5829233', lat: 24.7729, lng: 121.0489, area: '二重' },
+  { name: '寶山', brigade: '第四大隊', township: '寶山', address: '寶山鄉雙園路二段288號', phone: '03-5204755', lat: 24.766, lng: 120.9911, area: '寶山' },
+  { name: '北埔', brigade: '第四大隊', township: '北埔', address: '北埔鄉南興街66號', phone: '03-5804449', lat: 24.6989, lng: 121.0571 },
+  { name: '峨眉', brigade: '第四大隊', township: '峨眉', address: '峨眉鄉峨眉街1之1號', phone: '03-5800684', lat: 24.6881, lng: 121.0217 },
 ];
 
 export interface SupportSource {

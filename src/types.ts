@@ -120,6 +120,8 @@ export interface IncidentLocation {
 export interface Settings {
   loadMin: number;
   handoverMin: number;
+  /** 車程依時段自動調整（尖峰、夜間、救護車走路肩）；關閉時用 trafficFactor 手動倍率 */
+  trafficAuto: boolean;
   trafficFactor: number;
   greensPerVehicle: 1 | 2 | 3;
   /** 黃傷同車併載一位綠傷 */
@@ -154,9 +156,11 @@ export interface Incident {
 }
 
 export interface TravelEntry {
-  go: number; // 現場 → 醫院（分鐘，未含倍率與修正）
+  go: number; // 現場 → 醫院（分鐘；離線為未含時段係數的基準值，即時為已含路況）
   back: number; // 醫院 → 現場
   source: 'online' | 'offline';
+  /** 估計路程（公里），用於時段與走路肩判斷 */
+  km?: number;
 }
 
 export interface TravelState {
@@ -174,6 +178,7 @@ export interface TravelState {
 export const DEFAULT_SETTINGS: Settings = {
   loadMin: 5,
   handoverMin: 15,
+  trafficAuto: true,
   trafficFactor: 1.0,
   greensPerVehicle: 2,
   yellowPlusGreen: true,

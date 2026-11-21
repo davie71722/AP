@@ -4,6 +4,8 @@
 //  3. Cloudflare Worker（proxy/cloudflare-worker.js，Google Routes／Places API，需金鑰）
 // 一律以 text/plain 送 JSON，GAS 才不會因跨網域預檢而失敗。
 import type { TravelEntry } from '../types';
+import { haversineKm } from './offline';
+import { shoulderAdjust, timeFactor } from './traffic';
 
 export interface LatLng {
   lat: number;
@@ -14,6 +16,8 @@ export interface MatrixElement {
   originIndex: number;
   destinationIndex: number;
   durationSec: number | null;
+  /** 不含路況的車程（有路況資料時才有） */
+  staticSec?: number | null;
   distanceMeters?: number;
 }
 
@@ -89,6 +93,7 @@ export async function computeRouteMatrix(
       originIndex: (e.originIndex as number) ?? 0,
       destinationIndex: (e.destinationIndex as number) ?? 0,
       durationSec: parseDuration(e.duration),
+      staticSec: parseDuration(e.staticDuration),
       distanceMeters: e.distanceMeters as number | undefined,
     }));
 }
@@ -111,17 +116,28 @@ export async function fetchOnlineTravel(
       computeRouteMatrix([scene], hospitals, ctrl.signal),
       units.length ? computeRouteMatrix(units, [scene], ctrl.signal) : Promise.resolve([] as MatrixElement[]),
     ]);
+    const now = new Date();
+    /** 救護車車程（秒→分）：有路況時長程延誤只計部分（走路肩）；無路況資料時依時段估 */
+    const ambulanceMin = (e: MatrixElement, fallbackKm: number) => {
+      const km = e.distanceMeters ? e.distanceMeters / 1000 : fallbackKm;
+      if (e.durationSec == null) return null;
+      if (e.staticSec != null) return shoulderAdjust(e.durationSec, e.staticSec, km) / 60;
+      return (e.durationSec * timeFactor(km, now)) / 60;
+    };
     const byHospital: Record<string, TravelEntry> = {};
     hospitals.forEach((h, i) => {
-      const go = goEls.find((e) => e.destinationIndex === i)?.durationSec;
+      const el = goEls.find((e) => e.destinationIndex === i);
       const fb = fallback[h.id];
+      const go = el ? ambulanceMin(el, fb?.km ?? 15) : null;
+      const km = el?.distanceMeters ? el.distanceMeters / 1000 : fb?.km;
       byHospital[h.id] =
-        go != null ? { go: go / 60, back: go / 60, source: 'online' } : { go: fb?.go ?? 60, back: fb?.back ?? 60, source: 'offline' };
+        go != null ? { go, back: go, source: 'online', km } : { go: fb?.go ?? 60, back: fb?.back ?? 60, source: 'offline', km: fb?.km };
     });
     const unitEta: Record<string, number> = {};
     units.forEach((u, k) => {
-      const d = unitEls.find((e) => e.originIndex === k)?.durationSec;
-      if (d != null) unitEta[u.id] = d / 60;
+      const el = unitEls.find((e) => e.originIndex === k);
+      const d = el ? ambulanceMin(el, haversineKm(u.lat, u.lng, scene.lat, scene.lng) * 1.35) : null;
+      if (d != null) unitEta[u.id] = d;
     });
     return { byHospital, unitEta };
   } finally {

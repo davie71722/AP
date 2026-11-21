@@ -7,7 +7,7 @@
 //
 // 金鑰建議：以單位／專案帳號申請，只開放 Routes API，並在 Cloud Console 設每日上限與預算警示。
 
-const FIELD_MASK = 'originIndex,destinationIndex,duration,distanceMeters,status,condition';
+const FIELD_MASK = 'originIndex,destinationIndex,duration,staticDuration,distanceMeters,status,condition';
 const MAX_ELEMENTS = 625;
 
 export default {

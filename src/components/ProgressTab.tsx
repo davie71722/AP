@@ -5,6 +5,7 @@ import { capacityOf, effectiveTravel } from '../engine/plan';
 import { useStore } from '../store/store';
 import type { Hospital, Patient, TransportColor } from '../types';
 import { clockAfter } from './common';
+import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
 import { VehicleSheet } from './InputTab';
 
@@ -14,6 +15,7 @@ export function ProgressTab() {
   const [more, setMore] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
   const setStrain = useStore((s) => s.setStrain);
+  const toggleBypass = useStore((s) => s.toggleBypass);
   const [openH, setOpenH] = useState<string | null>(null);
   const [openV, setOpenV] = useState<string | null>(null);
   const runtime = useStore((s) => s.runtime);
@@ -39,6 +41,7 @@ export function ProgressTab() {
   }
   const tripList = [...trips.entries()].map(([key, ps]) => ({ key, ps, sentAt: ps[0].sentAt!, arriveAt: ps[0].arriveAt })).sort((a, b) => b.sentAt - a.sentAt);
 
+  const closedCount = HOSPITALS.filter((h) => runtime[h.id]?.bypass).length;
   const fullCount = HOSPITALS.filter((h) => (runtime[h.id]?.strain ?? 0) === 2).length;
   const row = (h: Hospital) => {
     const rt = runtime[h.id];
@@ -61,13 +64,18 @@ export function ProgressTab() {
             );
           })}
         </span>
-        {rt.bypass ? (
-          <span className="chip R">關閉</span>
-        ) : (
-          <button className={`btn sm full-btn ${(rt.strain ?? 0) === 2 ? 'on' : ''}`} onClick={() => setStrain(h.id, (rt.strain ?? 0) === 2 ? 0 : 2)}>
+        <span className="hbtns">
+          <button
+            className={`btn sm full-btn ${(rt.strain ?? 0) === 2 ? 'on' : ''}`}
+            disabled={rt.bypass}
+            onClick={() => setStrain(h.id, (rt.strain ?? 0) === 2 ? 0 : 2)}
+          >
             滿載
           </button>
-        )}
+          <button className={`btn sm close-btn ${rt.bypass ? 'on' : ''}`} onClick={() => toggleBypass(h.id)}>
+            關閉
+          </button>
+        </span>
       </div>
     );
   };
@@ -75,12 +83,17 @@ export function ProgressTab() {
   return (
     <>
       <button className={`btn full load-btn ${showLoad ? 'on' : ''}`} onClick={() => setShowLoad(!showLoad)}>
-        醫院負荷 {fullCount > 0 && <span className="chip R">滿載 {fullCount}</span>} {showLoad ? '▲' : '▼'}
+        醫院負荷
+        <span className="row" style={{ gap: 4 }}>
+          {fullCount > 0 && <span className="chip R">滿載 {fullCount}</span>}
+          {closedCount > 0 && <span className="chip K">關閉 {closedCount}</span>}
+        </span>
+        {showLoad ? '▲' : '▼'}
       </button>
       {showLoad && (
         <section className="section" style={{ marginTop: 8 }}>
           <div className="muted small" style={{ marginBottom: 6 }}>
-            車程（現場出發）｜已收／容量{travel.source !== 'online' ? '｜車程為估算' : ''}
+            車程（現場出發）{travel.source === 'online' ? '即時路況' : `估算・${trafficLabel(new Date())}`}｜已收／容量｜滿載仍可送、關閉不送
           </div>
           <div className="hosp-list">{featured.map(row)}</div>
           <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setMore(!more)}>

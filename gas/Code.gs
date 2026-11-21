@@ -17,7 +17,7 @@
  * 未帶正確 TOKEN 的請求一律拒絕（降低網址外流被濫用的機會）。
  */
 
-var ROUTE_CACHE_SEC = 600; // 車程暫存 10 分鐘
+var ROUTE_CACHE_SEC = 600; // 車程暫存 10 分鐘（v2：含距離與不含路況車程）
 var PLACE_CACHE_SEC = 21600; // 地點暫存 6 小時（CacheService 上限）
 var MAX_ELEMENTS = 60; // 單次車程查詢上限（現場→24 家醫院約 24 筆）
 // 搜尋範圍：新竹縣市及周邊（桃園南部、苗栗北部）
@@ -124,20 +124,22 @@ function matrix_(origins, destinations) {
     for (var j = 0; j < destinations.length; j++) {
       var o = origins[i];
       var d = destinations[j];
-      var key = 'r:' + o.lat.toFixed(3) + ',' + o.lng.toFixed(3) + '>' + d.lat.toFixed(3) + ',' + d.lng.toFixed(3);
+      var key = 'r2:' + o.lat.toFixed(3) + ',' + o.lng.toFixed(3) + '>' + d.lat.toFixed(3) + ',' + d.lng.toFixed(3);
       var c = cache.get(key);
-      var sec;
+      var r;
       if (c !== null) {
-        sec = c === '' ? null : Number(c);
+        r = c === '' ? null : JSON.parse(c);
       } else {
-        sec = route_(o, d);
-        cache.put(key, sec === null ? '' : String(sec), ROUTE_CACHE_SEC);
+        r = route_(o, d);
+        cache.put(key, r === null ? '' : JSON.stringify(r), ROUTE_CACHE_SEC);
       }
-      out.push(
-        sec === null
-          ? { originIndex: i, destinationIndex: j, condition: 'ROUTE_NOT_FOUND' }
-          : { originIndex: i, destinationIndex: j, duration: sec + 's', condition: 'ROUTE_EXISTS' },
-      );
+      if (r === null) {
+        out.push({ originIndex: i, destinationIndex: j, condition: 'ROUTE_NOT_FOUND' });
+      } else {
+        var el = { originIndex: i, destinationIndex: j, duration: r.sec + 's', distanceMeters: r.meters, condition: 'ROUTE_EXISTS' };
+        if (r.staticSec !== null) el.staticDuration = r.staticSec + 's';
+        out.push(el);
+      }
     }
   }
   return out;
@@ -153,9 +155,13 @@ function route_(o, d) {
     .setRegion('tw')
     .getDirections();
   var leg = r && r.routes && r.routes[0] && r.routes[0].legs && r.routes[0].legs[0];
-  if (!leg) return null;
-  var t = leg.duration_in_traffic || leg.duration;
-  return t ? t.value : null;
+  if (!leg || !leg.duration) return null;
+  var traffic = leg.duration_in_traffic ? leg.duration_in_traffic.value : null;
+  return {
+    sec: traffic !== null ? traffic : leg.duration.value, // 含路況（有的話）
+    staticSec: traffic !== null ? leg.duration.value : null, // 不含路況（有路況資料時才回傳）
+    meters: leg.distance ? leg.distance.value : null,
+  };
 }
 
 /** 部署前在編輯器執行一次：授權並確認地圖服務可用 */

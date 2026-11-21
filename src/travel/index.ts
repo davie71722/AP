@@ -2,7 +2,7 @@ import { townshipAt } from '../data/boundaries';
 import { HOSPITALS } from '../data/hospitals';
 import { nearestTownship, TOWNSHIPS, unitCoord, type Unit } from '../data/places';
 import type { IncidentLocation, TravelEntry, TravelState } from '../types';
-import { estimateMinutes } from './offline';
+import { estimateMinutes, haversineKm } from './offline';
 
 /** 山區加成依轄區分隊（無則用鄉鎮） */
 function sceneMountainKey(loc: IncidentLocation): string {
@@ -19,7 +19,8 @@ export function offlineTravel(loc: IncidentLocation): Record<string, TravelEntry
   const out: Record<string, TravelEntry> = {};
   for (const h of HOSPITALS) {
     const m = estimateMinutes(loc.lat, loc.lng, h.lat, h.lng, [tw]);
-    out[h.id] = { go: m, back: m, source: 'offline' };
+    const km = haversineKm(loc.lat, loc.lng, h.lat, h.lng) * 1.35;
+    out[h.id] = { go: m, back: m, source: 'offline', km };
   }
   return out;
 }

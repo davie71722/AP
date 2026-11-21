@@ -16,6 +16,8 @@ import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
 import { fetchOnlineTravel, routesEnabled } from '../travel/routes';
+import { timeFactor } from '../travel/traffic';
+import { haversineKm } from '../travel/offline';
 import {
   TRIAGE_NAMES,
   patientLabel,
@@ -143,12 +145,17 @@ function freshPersisted(): Persisted {
   };
 }
 
+/** 手動倍率（自動時為 0） */
+export function manualFactor(st: Settings): number {
+  return st.trafficAuto ? 0 : st.trafficFactor;
+}
+
 /** 現場座標鍵（地點變更即重查車程） */
 export function locKey(loc: IncidentLocation): string {
   return `${loc.lat.toFixed(5)},${loc.lng.toFixed(5)}`;
 }
 
-/** 分隊或支援來源到現場的分鐘數：已查到即時車程用即時，否則離線估算 × 倍率 */
+/** 分隊或支援來源到現場的分鐘數：已查到即時車程用即時，否則離線估算 × 時段係數（trafficFactor > 0 為手動倍率） */
 export function sourceEtaMin(
   name: string,
   loc: IncidentLocation | null,
@@ -158,9 +165,10 @@ export function sourceEtaMin(
   if (!loc) return null;
   if (travel.forKey === locKey(loc) && travel.unitEta?.[name] !== undefined) return { min: travel.unitEta[name], online: true };
   const u = FIRE_UNITS.find((x) => x.name === name);
-  if (u) return { min: etaFromUnit(u, loc) * trafficFactor, online: false };
+  const f = (lat: number, lng: number) => timeFactor(haversineKm(lat, lng, loc.lat, loc.lng) * 1.35, new Date(), trafficFactor);
+  if (u) return { min: etaFromUnit(u, loc) * f(u.lat, u.lng), online: false };
   const src = SUPPORT_SOURCES.find((x) => x.name === name);
-  if (src?.lat !== undefined && src.lng !== undefined) return { min: etaFromPoint(src.lat, src.lng, loc) * trafficFactor, online: false };
+  if (src?.lat !== undefined && src.lng !== undefined) return { min: etaFromPoint(src.lat, src.lng, loc) * f(src.lat, src.lng), online: false };
   return null;
 }
 
@@ -260,7 +268,7 @@ export const useStore = create<Store>((set, get) => {
       const travel = offlineTravelState(loc, now);
       const vehicles = s.vehicles.map((v) => {
         if (v.status !== 'enroute') return v;
-        const eta = sourceEtaMin(v.unit, loc, travel, s.incident.settings.trafficFactor);
+        const eta = sourceEtaMin(v.unit, loc, travel, manualFactor(s.incident.settings));
         return eta ? { ...v, etaToSceneMin: (now - v.addedAt) / 60000 + eta.min } : v;
       });
       set({ incident: { ...s.incident, location: loc }, travel, vehicles });
@@ -272,6 +280,12 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       if (s.incident.startAt) return;
       const now = Date.now();
+      // 事件發生當下估算車程（時段、路況）
+      if (s.incident.location) {
+        const loc = s.incident.location;
+        if (s.travel.source !== 'online') set({ travel: offlineTravelState(loc, now) });
+        setTimeout(() => void get().refreshTravel(true), 0);
+      }
       set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
       log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
@@ -485,7 +499,7 @@ export const useStore = create<Store>((set, get) => {
         originLng: lng,
         status: 'enroute',
         addedAt: now,
-        etaToSceneMin: sourceEtaMin(unit.name, loc, s.travel, s.incident.settings.trafficFactor)?.min ?? 15,
+        etaToSceneMin: sourceEtaMin(unit.name, loc, s.travel, manualFactor(s.incident.settings))?.min ?? 15,
         trips: 0,
         emt2: s.incident.settings.defaultEmt2,
         emtp: s.incident.settings.defaultEmtp,
@@ -502,7 +516,7 @@ export const useStore = create<Store>((set, get) => {
       const name = nextVehicleName(src.prefix, 1);
       const loc = s.incident.location;
       const now = Date.now();
-      const eta = sourceEtaMin(src.name, loc, s.travel, s.incident.settings.trafficFactor)?.min ?? src.defaultEtaMin ?? 20;
+      const eta = sourceEtaMin(src.name, loc, s.travel, manualFactor(s.incident.settings))?.min ?? src.defaultEtaMin ?? 20;
       const v: Vehicle = {
         id: uid(),
         name,

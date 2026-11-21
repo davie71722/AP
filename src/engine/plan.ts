@@ -10,6 +10,7 @@ import type {
   Vehicle,
 } from '../types';
 import { RED_CLASS_ORDER } from '../types';
+import { timeFactor } from '../travel/traffic';
 import { bonusApplies, missingRequirements, type CombinedRules } from './rules';
 import { WEIGHTS, type FitClass } from './weights';
 
@@ -153,7 +154,8 @@ export function effectiveTravel(
   settings: Settings,
 ): { go: number; back: number } | null {
   if (!t) return null;
-  const factor = t.source === 'online' ? 1 : settings.trafficFactor;
+  // 離線：依當下時段（尖峰、夜間、走路肩）或手動倍率；即時：已含路況
+  const factor = t.source === 'online' ? 1 : timeFactor(t.km ?? 15, new Date(), settings.trafficAuto ? 0 : settings.trafficFactor);
   const adj = rt?.travelAdjustMin ?? 0;
   return {
     go: Math.max(1, t.go * factor + adj),

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { capacityOf, computePlan } from '../engine/plan';
-import { sourceEtaMin, useStore } from '../store/store';
+import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules } from '../store/usePlan';
 import type { Patient, Vehicle } from '../types';
 import { Sheet } from './common';
@@ -118,7 +118,7 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
   const vehicles = useStore((s) => s.vehicles);
   const loc = useStore((s) => s.incident.location);
   const travel = useStore((s) => s.travel);
-  const factor = useStore((s) => s.incident.settings.trafficFactor);
+  const factor = useStore((s) => manualFactor(s.incident.settings));
   const [unit, setUnit] = useState<string | null>(null);
   const [num, setNum] = useState<number | null>(null);
   const [tp, setTp] = useState(0);

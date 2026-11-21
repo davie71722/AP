@@ -52,7 +52,7 @@ function input(over: Partial<Omit<PlanInput, 'settings'>> & { types?: string[]; 
     runtime: over.runtime ?? initialRuntimes(),
     travel: over.travel ?? offlineTravel(loc(over.at ?? '竹北')),
     // 預設關閉「第 1 輛到場車留守」，該規則另有測試
-    settings: { ...DEFAULT_SETTINGS, firstVehicleHold: false, ...over.settings },
+    settings: { ...DEFAULT_SETTINGS, firstVehicleHold: false, trafficAuto: false, trafficFactor: 1, ...over.settings },
     rules: combineRules(over.types ?? ['traffic']),
     area: over.area ?? over.at ?? '竹北',
   };
