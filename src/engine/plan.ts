@@ -24,6 +24,19 @@ export interface PlanInput {
   rules: CombinedRules;
   /** 事發轄區（在地常送醫院用） */
   area?: string;
+  /** 指定病人時只回傳醫院排序（後送官自選病人與車輛，系統建議醫院） */
+  rankFor?: string[];
+}
+
+export interface RankedHospital {
+  hospitalId: string;
+  score: number;
+  goMin: number;
+  backMin: number;
+  /** 縣市內、級別適合（第一層） */
+  preferred: boolean;
+  /** 剩餘量能足夠 */
+  fits: boolean;
 }
 
 export type WarningKind =
@@ -72,6 +85,8 @@ export interface Plan {
   unassigned: Unassigned[];
   /** 預計第 1 輛到場、到場後留守的車 */
   pendingHoldId: string | null;
+  /** rankFor 時的醫院建議排序（最適合在前） */
+  ranking?: RankedHospital[];
   /** 被保留（不可抽調）的車 */
   reservedVehicleIds: string[];
   availableNow: number;
@@ -359,6 +374,36 @@ export function computePlan(input: PlanInput): Plan {
     }
     return best;
   };
+
+  // 後送官自選病人：只排序醫院
+  if (input.rankFor) {
+    const chosen = patients.filter((p) => input.rankFor!.includes(p.id) && p.color !== 'K');
+    const ranking: RankedHospital[] = [];
+    if (chosen.length) {
+      const order = ['R', 'Y', 'G'] as TransportColor[];
+      const main = order.find((c) => chosen.some((p) => p.color === c))!;
+      const job = makeJob(main, chosen);
+      for (const h of hospitals) {
+        const rt = runtime[h.id];
+        if (rt?.bypass) continue;
+        const tr = effectiveTravel(travel[h.id], rt, settings);
+        if (!tr) continue;
+        if (capacityOf(h, rt, settings.nightMode)[main] <= 0) continue;
+        ranking.push({
+          hospitalId: h.id,
+          score: scoreHospital(h, job, tr.go, settings.loadMin),
+          goMin: tr.go,
+          backMin: tr.back,
+          preferred: inTier1(h, job),
+          fits: fits(h, job),
+        });
+      }
+      ranking.sort(
+        (a, b) => Number(b.fits && b.preferred) - Number(a.fits && a.preferred) || Number(b.fits) - Number(a.fits) || b.score - a.score,
+      );
+    }
+    return { pendingHoldId, suggestions: [], unassigned, reservedVehicleIds, availableNow, clearMin: null, needReinforcement: false, simulatedUse: simUsed, ranking };
+  }
 
   const suggestions: Suggestion[] = [];
   let needReinforcement = false;

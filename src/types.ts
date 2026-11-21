@@ -23,6 +23,8 @@ export interface Hospital {
   lng: number;
   capacity: Cap;
   capacityNight?: Cap;
+  /** 送醫進度頁優先顯示的順序（未設定者收在「更多醫院」） */
+  featured?: number;
 }
 
 export interface HospitalRuntime {
@@ -70,6 +72,8 @@ export interface Patient {
   /** 預估抵院時間（確認出發時計算，用於分散送醫） */
   arriveAt?: number;
   triageTagNo?: string;
+  /** 後送官註解 */
+  note?: string;
   history: { at: number; action: string }[];
 }
 

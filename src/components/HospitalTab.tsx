@@ -99,7 +99,7 @@ function HospitalRow({ h, planned, onOpen }: { h: Hospital; planned?: Record<Tra
   );
 }
 
-function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<TransportColor, number>; onClose: () => void }) {
+export function HospitalSheet({ id, planned, onClose }: { id: string; planned?: Record<TransportColor, number>; onClose: () => void }) {
   const h = HOSPITAL_BY_ID[id];
   const rt = useStore((s) => s.runtime[id]);
   const settings = useStore((s) => s.incident.settings);

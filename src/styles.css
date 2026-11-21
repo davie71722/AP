@@ -437,7 +437,7 @@ button {
   height: calc(var(--tabbar) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: var(--bar);
   border-top: 2px solid var(--line);
   z-index: 10;
@@ -576,3 +576,36 @@ a.btn { color: inherit; text-decoration: none; }
 
 .stat-btn { border: none; text-align: left; font: inherit; color: inherit; }
 .stat-btn:disabled { opacity: 1; }
+
+/* 現場：救護車列、選取病人、派車 */
+.vchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.vchip { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 8px; min-height: 64px; border-radius: 10px; border: 2px solid var(--line); border-left-width: 6px; background: var(--panel2); font-size: 13px; text-align: left; }
+.vchip b { font-size: 17px; }
+.vchip .st { font-weight: 800; }
+.vchip.standby { border-color: var(--green); } .vchip.standby .st { color: var(--green); }
+.vchip.held { border-color: var(--orange); } .vchip.held .st { color: var(--orange); }
+.vchip.transport { border-color: var(--blue); } .vchip.transport .st { color: var(--blue); }
+.vchip.enroute { border-color: var(--muted); }
+.vchip.decon { border-color: var(--purple); } .vchip.decon .st { color: var(--purple); }
+.vchip.offline { opacity: 0.5; }
+.selwrap { border-radius: 12px; padding: 2px; }
+.selwrap .ptag { width: 100%; }
+.selwrap.on { box-shadow: 0 0 0 3px var(--blue); }
+.dispatch-panel { border: 2px solid var(--blue); }
+.note-row { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+.note-row input { min-height: 44px; min-width: 0; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--well); color: var(--text); font: inherit; }
+.crew-btn { font-size: 20px; } .crew-btn b { font-size: 24px; margin-left: 6px; }
+
+/* 送醫進度 */
+.hosp-list { display: grid; gap: 4px; }
+.hosp-row { display: grid; grid-template-columns: 5.2em 3em 1fr auto; gap: 6px; align-items: center; min-height: 40px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); text-align: left; font-variant-numeric: tabular-nums; }
+.hosp-row.closed { opacity: 0.5; }
+.hosp-row .hn { font-weight: 800; font-size: 16px; }
+.hosp-row .hgo { font-weight: 800; color: var(--blue); }
+.hosp-row .hcap { display: flex; gap: 8px; font-size: 14px; font-weight: 700; }
+.hosp-row .hcap .c { display: inline-flex; align-items: center; gap: 2px; }
+.hosp-row .hcap .over { color: var(--red); }
+.trip { display: grid; gap: 4px; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); }
+.trip-top { display: flex; align-items: center; gap: 6px; font-size: 18px; }
+.trip-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.elapsed { font-size: 22px; font-weight: 900; color: var(--orange); font-variant-numeric: tabular-nums; }

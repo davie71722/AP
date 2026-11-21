@@ -84,7 +84,7 @@ export function IncidentTab() {
           </p>
         ) : (
           <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} onClick={() => start()}>
-            ▶ 開始
+            確認事件 ➔
           </button>
         )}
       </section>

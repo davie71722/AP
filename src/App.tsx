@@ -1,20 +1,15 @@
 import { useEffect } from 'react';
-import { DispatchTab } from './components/DispatchTab';
-import { FleetTab } from './components/FleetTab';
 import { Header } from './components/Header';
-import { HospitalTab } from './components/HospitalTab';
 import { IncidentTab } from './components/IncidentTab';
-import { InputTab } from './components/InputTab';
+import { ProgressTab } from './components/ProgressTab';
 import { ReportTab } from './components/ReportTab';
+import { SceneTab } from './components/SceneTab';
 import { useStore, type Tab } from './store/store';
-import { usePlan } from './store/usePlan';
 
 const TABS: { id: Tab; name: string; ic: string }[] = [
   { id: 'incident', name: '事件', ic: '⚑' },
-  { id: 'input', name: '檢傷', ic: '＋' },
-  { id: 'fleet', name: '現況', ic: '📊' },
-  { id: 'dispatch', name: '派遣', ic: '🚑' },
-  { id: 'hospital', name: '醫院', ic: '🏥' },
+  { id: 'scene', name: '現場', ic: '＋' },
+  { id: 'progress', name: '送醫進度', ic: '🚑' },
   { id: 'report', name: '回報', ic: '📋' },
 ];
 
@@ -24,8 +19,8 @@ export default function App() {
   const setTab = useStore((s) => s.setTab);
   const tick = useStore((s) => s.tick);
   const refreshTravel = useStore((s) => s.refreshTravel);
-  const plan = usePlan();
   const theme = useStore((s) => s.theme);
+  const enRoute = useStore((s) => s.vehicles.filter((v) => v.status === 'transport').length);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -55,17 +50,14 @@ export default function App() {
 
   if (!hydrated) return <div className="empty">載入中…</div>;
 
-  const confirmable = plan.suggestions.filter((s) => s.confirmable).length;
 
   return (
     <div className="app">
       <Header />
       <main className="main">
         {tab === 'incident' && <IncidentTab />}
-        {tab === 'input' && <InputTab />}
-        {tab === 'fleet' && <FleetTab />}
-        {tab === 'dispatch' && <DispatchTab />}
-        {tab === 'hospital' && <HospitalTab />}
+        {tab === 'scene' && <SceneTab />}
+        {tab === 'progress' && <ProgressTab />}
         {tab === 'report' && <ReportTab />}
       </main>
       <nav className="tabbar">
@@ -73,7 +65,7 @@ export default function App() {
           <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
             <span className="ic">{t.ic}</span>
             {t.name}
-            {t.id === 'dispatch' && confirmable > 0 && <span className="badge-n">{confirmable}</span>}
+            {t.id === 'progress' && enRoute > 0 && <span className="badge-n">{enRoute}</span>}
           </button>
         ))}
       </nav>

@@ -50,7 +50,7 @@ export function InputTab() {
   );
 }
 
-function TriagePad() {
+export function TriagePad() {
   const patients = useStore((s) => s.patients);
   const addPatient = useStore((s) => s.addPatient);
   const removeLast = useStore((s) => s.removeLastPatient);
@@ -162,7 +162,7 @@ function GreenActions({ id, onDone }: { id: string; onDone: () => void }) {
   );
 }
 
-function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
+export function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
   const tagNames = p.tags.map((t) => PATIENT_TAGS.find((x) => x.id === t)?.name ?? t);
   const sub =
     p.status === 'left'
@@ -178,7 +178,7 @@ function PatientChip({ p, onClick }: { p: Patient; onClick: () => void }) {
   );
 }
 
-function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
+export function PatientSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const p = useStore((s) => s.patients.find((x) => x.id === id));
   const toggleTag = useStore((s) => s.toggleTag);
   const retriage = useStore((s) => s.retriage);

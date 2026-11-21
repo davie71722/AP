@@ -44,7 +44,7 @@ describe('回報文字', () => {
     );
     expect(txt).toContain('事件：化災＋火災｜地點：湖口');
     expect(txt).toContain('經過時間：12 分');
-    expect(txt).toContain('東元 紅1');
+    expect(txt).toContain('東元醫院 紅1');
     expect(txt).toContain('待後送：紅0 黃0 綠1');
   });
 });

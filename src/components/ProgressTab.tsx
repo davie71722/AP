@@ -1,0 +1,124 @@
+// 送醫進度：上方醫院處置狀況（含現場到院車程），下方已出發車輛與經過時間
+import { useState } from 'react';
+import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { capacityOf, effectiveTravel } from '../engine/plan';
+import { useStore } from '../store/store';
+import type { Hospital, Patient, TransportColor } from '../types';
+import { clockAfter } from './common';
+import { HospitalSheet } from './HospitalTab';
+import { VehicleSheet } from './InputTab';
+
+const TC: TransportColor[] = ['R', 'Y', 'G'];
+
+export function ProgressTab() {
+  const [more, setMore] = useState(false);
+  const [openH, setOpenH] = useState<string | null>(null);
+  const [openV, setOpenV] = useState<string | null>(null);
+  const runtime = useStore((s) => s.runtime);
+  const travel = useStore((s) => s.travel);
+  const settings = useStore((s) => s.incident.settings);
+  const patients = useStore((s) => s.patients);
+  const vehicles = useStore((s) => s.vehicles);
+  const now = useStore((s) => s.now);
+  const undoStack = useStore((s) => s.undoStack);
+  const undo = useStore((s) => s.undo);
+
+  const go = (h: Hospital) => effectiveTravel(travel.byHospital[h.id], runtime[h.id], settings)?.go;
+  const byGo = (a: Hospital, b: Hospital) => (go(a) ?? 999) - (go(b) ?? 999);
+  const featured = HOSPITALS.filter((h) => h.featured).sort(byGo);
+  const others = HOSPITALS.filter((h) => !h.featured).sort(byGo);
+
+  // 已出發：依車輛與出發時間分組
+  const trips = new Map<string, Patient[]>();
+  for (const p of patients) {
+    if (p.status !== 'sent' || !p.sentAt) continue;
+    const key = `${p.vehicleId ?? 'duty'}@${p.sentAt}`;
+    trips.set(key, [...(trips.get(key) ?? []), p]);
+  }
+  const tripList = [...trips.entries()].map(([key, ps]) => ({ key, ps, sentAt: ps[0].sentAt!, arriveAt: ps[0].arriveAt })).sort((a, b) => b.sentAt - a.sentAt);
+
+  const row = (h: Hospital) => {
+    const rt = runtime[h.id];
+    const cap = capacityOf(h, rt, settings.nightMode);
+    const g = go(h);
+    return (
+      <button key={h.id} className={`hosp-row ${rt.bypass ? 'closed' : ''}`} onClick={() => setOpenH(h.id)}>
+        <span className="hn">{h.short}</span>
+        <span className="hgo">{g !== undefined ? `${Math.round(g)}′` : '—'}</span>
+        <span className="hcap">
+          {TC.map((c) => {
+            const used = rt.used[c] + rt.selfPresented[c];
+            return (
+              <span key={c} className={`c ${used >= cap[c] && cap[c] > 0 ? 'over' : ''}`}>
+                <i className={`dot ${c}`} />
+                {used}/{cap[c]}
+              </span>
+            );
+          })}
+        </span>
+        <span className="hst">
+          {rt.bypass ? <span className="chip R">關閉</span> : (rt.strain ?? 0) > 0 ? <span className={`chip ${rt.strain === 2 ? 'R' : 'Y'}`}>{rt.strain === 2 ? '爆量' : '吃緊'}</span> : null}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <>
+      <section className="section">
+        <h2>
+          醫院 <span className="muted small">車程（現場出發）｜已收／容量</span>
+          {travel.source !== 'online' && <span className="chip dim">估算</span>}
+        </h2>
+        <div className="hosp-list">{featured.map(row)}</div>
+        <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setMore(!more)}>
+          更多醫院 {more ? '▲' : '▼'}
+        </button>
+        {more && <div className="hosp-list" style={{ marginTop: 8 }}>{others.map(row)}</div>}
+      </section>
+
+      <section className="section">
+        <h2>
+          已出發 <span className="muted small">{tripList.length} 趟</span>
+        </h2>
+        {tripList.length === 0 && <div className="empty">尚未有車出發</div>}
+        {tripList.map((t) => {
+          const v = vehicles.find((x) => x.id === t.ps[0].vehicleId);
+          const h = t.ps[0].hospitalId ? HOSPITAL_BY_ID[t.ps[0].hospitalId] : undefined;
+          const elapsed = Math.max(0, Math.floor((now - t.sentAt) / 60000));
+          const arrived = t.arriveAt ? now >= t.arriveAt : false;
+          return (
+            <button key={t.key} className="trip" onClick={() => v && setOpenV(v.id)}>
+              <div className="trip-top">
+                <b>{v ? v.name : t.ps[0].byDuty ? '勤務車' : '—'}</b>
+                <span className="arrow">➔</span>
+                <b>{h ? h.short : '未定'}</b>
+                <span className="spacer" />
+                <span className="elapsed">{elapsed}′</span>
+              </div>
+              <div className="trip-sub">
+                {t.ps.map((p) => (
+                  <span key={p.id} className={`chip ${p.color}`}>
+                    {p.label}
+                  </span>
+                ))}
+                <span className="muted small">
+                  出發 {clockAfter(t.sentAt, 0)}
+                  {t.arriveAt ? `｜${arrived ? '已抵院' : `預估抵院 ${clockAfter(t.arriveAt, 0)}`}` : ''}
+                </span>
+              </div>
+              {t.ps.some((p) => p.note) && <div className="muted small">{t.ps.map((p) => p.note).filter(Boolean).join('；')}</div>}
+            </button>
+          );
+        })}
+        {undoStack.length > 0 && (
+          <button className="btn warn full" style={{ marginTop: 8 }} onClick={undo}>
+            ↶ 撤銷上一筆（{undoStack[undoStack.length - 1].label}）
+          </button>
+        )}
+      </section>
+      {openH && <HospitalSheet id={openH} onClose={() => setOpenH(null)} />}
+      {openV && <VehicleSheet id={openV} onClose={() => setOpenV(null)} />}
+    </>
+  );
+}

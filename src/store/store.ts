@@ -36,7 +36,7 @@ import {
 } from '../types';
 import { loadSettingsPref, loadSnapshot, saveSettingsPref, saveSnapshot } from './db';
 
-export type Tab = 'incident' | 'input' | 'fleet' | 'dispatch' | 'hospital' | 'report';
+export type Tab = 'incident' | 'scene' | 'progress' | 'report';
 export type Theme = 'day' | 'night';
 
 const THEME_KEY = 'zhuxian-mci-theme';
@@ -85,6 +85,11 @@ interface Store extends Persisted {
   retriage(id: string, c: Color, redClass?: RedClass): void;
   setRedClass(id: string, cls: RedClass): void;
   setTriageTagNo(id: string, no: string): void;
+  setPatientNote(id: string, note: string): void;
+  /** 加入已到場的救護車：分隊、車號、TP／T2 人數 */
+  addVehicle(unit: string, num: number, tp: number, t2: number): void;
+  /** 後送官自選：病人、車輛、醫院 → 出發 */
+  dispatchManual(patientIds: string[], vehicleId: string, hospitalId: string): void;
   deletePatient(id: string): void;
 
   addUnitVehicle(unit: string): void;
@@ -225,7 +230,7 @@ export const useStore = create<Store>((set, get) => {
           (snap.patients ?? []).map((p) => (p.num ? p : { ...p, num: (counters[p.color] = (counters[p.color] ?? 0) + 1) })),
           incident.settings.triageSystem,
         );
-        set({ ...freshPersisted(), ...snap, incident, vehicles, patients, counters, runtime, hydrated: true, tab: snap.incident.startAt ? 'input' : 'incident' });
+        set({ ...freshPersisted(), ...snap, incident, vehicles, patients, counters, runtime, hydrated: true, tab: snap.incident.startAt ? 'scene' : 'incident' });
       } else set({ hydrated: true });
     },
 
@@ -267,7 +272,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       if (s.incident.startAt) return;
       const now = Date.now();
-      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'input' as Tab } : {}) });
+      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
       log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
     },
@@ -382,6 +387,72 @@ export const useStore = create<Store>((set, get) => {
         ),
       });
       log(`紅傷分類：${p.label} → ${label}`);
+    },
+
+    setPatientNote: (id, note) =>
+      set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, note: note.slice(0, 200) } : p)) })),
+
+    addVehicle: (unitName, num, tp, t2) => {
+      if (!get().incident.startAt) get().startIncident(false);
+      const s = get();
+      const unit = FIRE_UNITS.find((u) => u.name === unitName);
+      const src = SUPPORT_SOURCES.find((x) => x.name === unitName);
+      if (!unit && !src) return;
+      const name = `${unit ? unit.name : src!.prefix}${num}`;
+      if (s.vehicles.some((v) => v.name === name)) return;
+      const now = Date.now();
+      // 第 1 輛到場車留守（大傷 SOP）
+      const hold = s.incident.settings.firstVehicleHold && !s.vehicles.some((v) => v.wasHeld);
+      const [lat, lng] = unit ? unitCoord(unit) : [src!.lat ?? 0, src!.lng ?? 0];
+      const v: Vehicle = {
+        id: uid(),
+        name,
+        unit: unit ? unit.name : src!.name,
+        source: unit ? 'county' : 'support',
+        originLat: lat,
+        originLng: lng,
+        status: 'standby',
+        addedAt: now,
+        etaToSceneMin: 0,
+        trips: 0,
+        emt2: t2,
+        emtp: tp,
+        ...(hold ? { held: true, wasHeld: true } : {}),
+      };
+      set({ vehicles: [...s.vehicles, v] });
+      log(`${name} 到場（TP ${tp}、T2 ${t2}）${hold ? '｜第 1 輛到場：留守現場' : ''}`);
+    },
+
+    dispatchManual: (patientIds, vehicleId, hospitalId) => {
+      const s = get();
+      const ps = s.patients.filter((p) => patientIds.includes(p.id) && p.status === 'waiting');
+      const v = s.vehicles.find((x) => x.id === vehicleId);
+      if (!ps.length || !v) return;
+      const tr = effectiveTravel(s.travel.byHospital[hospitalId], s.runtime[hospitalId], s.incident.settings);
+      const color = (['R', 'Y', 'G'] as const).find((c) => ps.some((p) => p.color === c)) ?? 'G';
+      const sug: Suggestion = {
+        key: `manual-${Date.now()}`,
+        color,
+        patientIds: ps.map((p) => p.id),
+        vehicleId,
+        tripNo: v.trips + 1,
+        hospitalId,
+        idealHospitalId: hospitalId,
+        availableMin: 0,
+        departMin: 0,
+        arriveMin: tr?.go ?? 0,
+        returnMin: (tr?.go ?? 0) + s.incident.settings.handoverMin + (tr?.back ?? 0),
+        goMin: tr?.go ?? 20,
+        backMin: tr?.back ?? 20,
+        score: 0,
+        confirmable: true,
+        needsArrivalMark: false,
+        warnings: [],
+      };
+      // 留守車由後送官選定出發時，視為解除留守
+      if (v.held) set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === v.id ? { ...x, held: false } : x)) }));
+      if (v.status === 'enroute') applyDomain(setVehicleStatus(domain(), v.id, 'standby', Date.now(), false));
+      get().confirm(sug);
     },
 
     setTriageTagNo: (id, no) =>
