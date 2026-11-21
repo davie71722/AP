@@ -38,7 +38,7 @@ import {
   type VehicleStatus,
   type Wound,
 } from '../types';
-import type { TraumaEntry } from '../data/trauma';
+import { keepForColor, type TraumaEntry } from '../data/trauma';
 import { loadSettingsPref, loadSnapshot, saveSettingsPref, saveSnapshot } from './db';
 
 export type Tab = 'incident' | 'scene' | 'progress' | 'report';
@@ -395,6 +395,8 @@ export const useStore = create<Store>((set, get) => {
                 redClass: cls,
                 label,
                 prevLabels: [...x.prevLabels, x.label],
+                // 降級（如紅→黃）移除較高等級的傷勢
+                trauma: keepForColor(x.trauma, c),
                 history: [...x.history, { at: now, action: `${upgrade ? '升級紅傷' : '再檢傷'}：${x.label} → ${label}` }],
               }
             : x,

@@ -8,7 +8,8 @@ import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
 import { injuryText, type Patient, type Vehicle } from '../types';
 import { keyFlags } from '../data/trauma';
-import { KeyFlags } from './TraumaPicker';
+import { KeyFlags, TraumaWarnings } from './TraumaPicker';
+import { traumaWarnings } from '../data/traumaRules';
 import { DoubleTapButton, SentCounts, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
@@ -323,6 +324,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
             <div className="wound-text span3">
               <KeyFlags flags={keyFlags(p.trauma)} />
               {injuryText({ trauma: p.trauma, wounds: p.wounds })}
+              <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds)} />
             </div>
           ) : null}
         </div>

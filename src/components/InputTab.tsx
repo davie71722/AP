@@ -9,7 +9,8 @@ import { usePlan, useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
-import { KeyFlags, TraumaPicker } from './TraumaPicker';
+import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
+import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
 
 export function InputTab() {
@@ -244,7 +245,13 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       </button>
       {showMap && (
         <Suspense fallback={<div className="empty">載入人形圖…</div>}>
-          <BodyMap wounds={p.wounds ?? []} onChange={(w) => setWounds(p.id, w)} />
+          <BodyMap
+            wounds={p.wounds ?? []}
+            onChange={(w) => setWounds(p.id, w)}
+            color={p.color}
+            trauma={p.trauma ?? []}
+            onTrauma={(t) => setTrauma(p.id, t)}
+          />
         </Suspense>
       )}
 
@@ -256,6 +263,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       />
       {injuryText(p) && (
         <div className="tr-out">
+          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds)} />
           <div className="tr-sub">交接註解</div>
           <KeyFlags flags={keyFlags(p.trauma)} />
           {injuryText(p)}

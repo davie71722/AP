@@ -71,6 +71,103 @@ export interface TraumaEntry {
   id: string;
   name: string;
   acts: string[];
+  /** 側別：四肢為「右上肢」等，胸部為「左」「右」 */
+  sides?: string[];
+}
+
+// ---------- 側別 ----------
+export const LIMB_SIDES = ['右上肢', '左上肢', '右下肢', '左下肢'];
+export const CHEST_SIDES = ['右', '左'];
+/** 需選側別的傷勢 */
+export const SIDE_KIND: Record<string, 'limb' | 'chest'> = {
+  'r-art': 'limb',
+  'r-amp': 'limb',
+  'y-fx': 'limb',
+  'y-openfx': 'limb',
+  'g-sprain': 'limb',
+  'r-ptx': 'chest',
+  'r-flail': 'chest',
+};
+
+/** 含側別的傷勢名稱：動脈大出血(右下肢)、氣胸/血胸(左)、雙側為(雙側) */
+export function entryName(t: TraumaEntry): string {
+  const s = t.sides ?? [];
+  if (!s.length) return t.name;
+  if (SIDE_KIND[t.id] === 'chest') return `${t.name}(${s.length > 1 ? '雙側' : s[0]})`;
+  const order = LIMB_SIDES.filter((x) => s.includes(x));
+  return `${t.name}(${order.join('、')})`;
+}
+
+// ---------- 人形圖部位 ↔ 傷勢 ----------
+/** 傷勢對應的人形圖部位群組；any＝任何部位、burn＝任何部位的燒燙傷 */
+export const GROUPS: Record<string, string[]> = {
+  'r-head': ['head'],
+  'r-face': ['face'],
+  'r-inhal': ['face', 'neck'],
+  'r-neckpen': ['neck'],
+  'r-cspine': ['neck', 'back'],
+  'r-ptx': ['chest'],
+  'r-flail': ['chest'],
+  'r-abd': ['abd'],
+  'r-evisc': ['abd'],
+  'r-pelvis': ['pelvis'],
+  'r-art': ['arm', 'leg', 'neck'],
+  'r-amp': ['arm', 'leg'],
+  'r-femur': ['leg'],
+  'r-burn': ['burn'],
+  'r-shock': ['any'],
+  'y-fx': ['arm', 'leg'],
+  'y-openfx': ['arm', 'leg'],
+  'y-burn': ['burn'],
+  'y-lac': ['any'],
+  'y-spine': ['neck', 'back'],
+  'y-head': ['head', 'face'],
+  'g-abr': ['any'],
+  'g-lac': ['any'],
+  'g-sprain': ['arm', 'leg'],
+  'g-burn': ['burn'],
+};
+
+const UPPER = /^(clav|sh|arm|el|fa|wr|hd)[RL]$/;
+const LOWER = /^(hip|th|kn|lg|an|ft)[RL]$/;
+
+/** 人形圖部位 → 群組 */
+export function regionGroups(key: string, view: string): string[] {
+  if (view === 'hand') return ['arm'];
+  if (view === 'foot') return ['leg'];
+  if (view === 'face') return key === 'fneck' ? ['neck'] : key === 'fscalp' || key === 'fhead' ? ['head', 'face'] : ['face'];
+  const back = view === 'back';
+  if (key === 'head') return ['head', 'face'];
+  if (key === 'neck') return back ? ['neck', 'back'] : ['neck'];
+  if (key === 'chest') return back ? ['chest', 'back'] : ['chest'];
+  if (key === 'abd') return back ? ['abd', 'back'] : ['abd'];
+  if (key === 'pelv') return ['pelvis'];
+  if (/^clav[RL]$/.test(key)) return ['chest', 'arm'];
+  if (/^hip[RL]$/.test(key)) return ['pelvis', 'leg'];
+  if (UPPER.test(key)) return ['arm'];
+  if (LOWER.test(key)) return ['leg'];
+  return [];
+}
+
+/** 部位名稱（含左右）→ 肢體側別，如「右前臂」→「右上肢」 */
+export function limbOf(regionName: string): string | null {
+  const side = regionName[0];
+  if (side !== '左' && side !== '右') return null;
+  if (/上臂|前臂|手肘|手腕|手掌|手背|手$|肩|鎖骨|指/.test(regionName)) return `${side}上肢`;
+  if (/大腿|膝|小腿|踝|足|趾|腳|髖/.test(regionName)) return `${side}下肢`;
+  return null;
+}
+
+/** 此顏色在某部位可選的傷勢 */
+export function traumaForRegion(c: Color, groups: string[]): TraumaDef[] {
+  return traumaListFor(c).filter((d) => (GROUPS[d.id] ?? []).some((g) => g === 'any' || g === 'burn' || groups.includes(g)));
+}
+
+/** 牌色等級：降級時移除較高等級的傷勢（黃綠不需要紅牌傷勢） */
+const TIER: Record<string, number> = { r: 3, y: 2, g: 1 };
+export function keepForColor(list: TraumaEntry[] | undefined, c: Color): TraumaEntry[] {
+  const max = c === 'R' ? 3 : c === 'Y' ? 2 : c === 'G' ? 1 : 0;
+  return (list ?? []).filter((t) => (TIER[t.id[0]] ?? 0) <= max);
 }
 
 /** 處置按鈕 → 實際寫入的文字 */
@@ -132,7 +229,7 @@ export function traumaParts(list: TraumaEntry[] | undefined): { injuries: string
   const l = list ?? [];
   const acts = orderedActs(l);
   return {
-    injuries: l.map((t) => t.name),
+    injuries: l.map(entryName),
     status: acts.filter((a) => STATUS.has(a)),
     procs: acts.filter((a) => !STATUS.has(a) && a !== RIDE),
     ride: acts.includes(RIDE),

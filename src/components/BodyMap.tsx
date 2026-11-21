@@ -1,7 +1,9 @@
 // 外傷人形圖：點部位 → 點傷勢，產生傷口描述（資料與規則沿用「外傷人形圖傷口紀錄」模組）
 import { useState } from 'react';
 import BM from '../data/bodymap.json';
-import { woundText, type Wound } from '../types';
+import { woundText, type Color, type Wound } from '../types';
+import { limbOf, regionGroups, traumaForRegion, type TraumaEntry } from '../data/trauma';
+import { TraumaPicker } from './TraumaPicker';
 
 type View = Wound['v'];
 interface Region {
@@ -56,7 +58,19 @@ export function regionName(s: Region, view: View): string {
   return (patientLeft ? '左' : '右') + n;
 }
 
-export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: Wound[]) => void }) {
+export function BodyMap({
+  wounds,
+  onChange,
+  color,
+  trauma,
+  onTrauma,
+}: {
+  wounds: Wound[];
+  onChange: (w: Wound[]) => void;
+  color?: Color;
+  trauma?: TraumaEntry[];
+  onTrauma?: (t: TraumaEntry[]) => void;
+}) {
   const [view, setView] = useState<View>('front');
   const [sel, setSel] = useState<Region | null>(null);
   const [msg, setMsg] = useState('');
@@ -83,6 +97,7 @@ export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: W
   const update = (i: number, p: Partial<Wound>) => onChange(wounds.map((w, j) => (j === i ? { ...w, ...p } : w)));
 
   const img = VIMG[view];
+  const related = sel && color && color !== 'K' ? traumaForRegion(color, regionGroups(sel.key, view)) : [];
   return (
     <div className="bodymap">
       <div className="bm-tabs">
@@ -142,6 +157,14 @@ export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: W
         ))}
       </div>
       </div>
+      {sel && color && trauma && onTrauma && related.length > 0 && (
+        <div className="bm-related">
+          <div className="tr-sub">
+            {regionName(sel, view)}：相關{color === 'R' ? '紅牌' : color === 'Y' ? '黃牌' : '綠牌'}傷勢與處置
+          </div>
+          <TraumaPicker color={color} value={trauma} onChange={onTrauma} only={related.map((d) => d.id)} ctxSide={limbOf(regionName(sel, view))} />
+        </div>
+      )}
       {wounds.length > 0 && (
         <div className="bm-list">
           {wounds.map((w, i) => (
