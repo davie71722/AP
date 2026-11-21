@@ -146,7 +146,12 @@ export interface TravelEntry {
 }
 
 export interface TravelState {
+  /** 現場 → 各醫院 */
   byHospital: Record<string, TravelEntry>;
+  /** 各分隊／支援來源 → 現場（分鐘，即時查詢結果） */
+  unitEta?: Record<string, number>;
+  /** 查詢時的現場座標（地點變更即重查） */
+  forKey?: string;
   updatedAt: number | null;
   source: 'online' | 'offline';
   error?: string;

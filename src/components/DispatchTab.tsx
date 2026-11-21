@@ -3,6 +3,7 @@ import { HOSPITAL_BY_ID } from '../data/hospitals';
 import { hazmatNotifyList } from '../engine/actions';
 import type { Suggestion } from '../engine/plan';
 import { useStore } from '../store/store';
+import { routesEnabled } from '../travel/routes';
 import { usePlan, useRules } from '../store/usePlan';
 import { clockAfter, fmtMin } from './common';
 import { crewText, VehicleSheet } from './InputTab';
@@ -18,6 +19,7 @@ export function DispatchTab() {
   const location = useStore((s) => s.incident.location);
   const undoStack = useStore((s) => s.undoStack);
   const undo = useStore((s) => s.undo);
+  const refreshTravel = useStore((s) => s.refreshTravel);
   const [vehicleSheet, setVehicleSheet] = useState<string | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
 
@@ -65,15 +67,15 @@ export function DispatchTab() {
             v={plan.clearMin === null ? '—' : clockAfter(now, plan.clearMin)}
             sub={plan.clearMin === null ? '' : `約 ${Math.round(plan.clearMin)} 分後`}
           />
-          <Stat
-            k="車程"
-            v={travel.source === 'online' ? '即時' : '離線估算'}
-            sub={
-              travel.updatedAt
-                ? `更新 ${new Date(travel.updatedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })}${travel.error ? '｜即時查詢失敗' : ''}`
-                : ''
-            }
-          />
+          <button className="stat stat-btn" disabled={!location || !routesEnabled()} onClick={() => void refreshTravel(true)}>
+            <div className="k">車程 {routesEnabled() && location ? '↻' : ''}</div>
+            <div className="v">{travel.source === 'online' ? '即時' : '離線估算'}</div>
+            <div className="small muted">
+              {travel.updatedAt
+                ? `${new Date(travel.updatedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })}${travel.error ? '｜查詢失敗' : ''}`
+                : ''}
+            </div>
+          </button>
         </div>
         {plan.reservedVehicleIds.length > 0 && (
           <p className="muted small">保留：{plan.reservedVehicleIds.map((id) => vehicles.find((v) => v.id === id)?.name).join('、')}</p>

@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { capacityOf, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
-import { useStore } from '../store/store';
-import { etaFromUnit } from '../travel';
+import { sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
@@ -333,9 +332,10 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
   const last = vehicles[vehicles.length - 1];
   const loc = useStore((s) => s.incident.location);
   const factor = useStore((s) => s.incident.settings.trafficFactor);
+  const travel = useStore((s) => s.travel);
   // 依到場時間排序的鄰近分隊（轄區分隊排第一）
   const near = loc
-    ? FIRE_UNITS.map((u) => ({ u, eta: etaFromUnit(u, loc) * factor }))
+    ? FIRE_UNITS.map((u) => ({ u, eta: sourceEtaMin(u.name, loc, travel, factor)?.min ?? 99 }))
         .sort((a, b) => Number(b.u.name === loc.unit) - Number(a.u.name === loc.unit) || a.eta - b.eta)
         .slice(0, 6)
     : [];

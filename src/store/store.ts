@@ -14,7 +14,7 @@ import { effectiveTravel } from '../engine/plan';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
-import { fetchOnlineTravel, isGasBackend, routesEnabled } from '../travel/routes';
+import { fetchOnlineTravel, routesEnabled } from '../travel/routes';
 import {
   TRIAGE_NAMES,
   patientLabel,
@@ -134,6 +134,27 @@ function freshPersisted(): Persisted {
   };
 }
 
+/** 現場座標鍵（地點變更即重查車程） */
+export function locKey(loc: IncidentLocation): string {
+  return `${loc.lat.toFixed(5)},${loc.lng.toFixed(5)}`;
+}
+
+/** 分隊或支援來源到現場的分鐘數：已查到即時車程用即時，否則離線估算 × 倍率 */
+export function sourceEtaMin(
+  name: string,
+  loc: IncidentLocation | null,
+  travel: TravelState,
+  trafficFactor: number,
+): { min: number; online: boolean } | null {
+  if (!loc) return null;
+  if (travel.forKey === locKey(loc) && travel.unitEta?.[name] !== undefined) return { min: travel.unitEta[name], online: true };
+  const u = FIRE_UNITS.find((x) => x.name === name);
+  if (u) return { min: etaFromUnit(u, loc) * trafficFactor, online: false };
+  const src = SUPPORT_SOURCES.find((x) => x.name === name);
+  if (src?.lat !== undefined && src.lng !== undefined) return { min: etaFromPoint(src.lat, src.lng, loc) * trafficFactor, online: false };
+  return null;
+}
+
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export const useStore = create<Store>((set, get) => {
@@ -226,19 +247,14 @@ export const useStore = create<Store>((set, get) => {
       loc = { ...loc, township: loc.township ?? j.township, area: j.area, unit: j.unit };
       const s = get();
       const now = Date.now();
-      // 趕赴中車輛依新地點重估 ETA（自加入起算）
+      // 趕赴中車輛依新地點重估 ETA（自加入起算；即時車程查到後再更新）
+      const travel = offlineTravelState(loc, now);
       const vehicles = s.vehicles.map((v) => {
         if (v.status !== 'enroute') return v;
-        const unit = FIRE_UNITS.find((u) => u.name === v.unit);
-        const f = s.incident.settings.trafficFactor;
-        const eta = unit
-          ? etaFromUnit(unit, loc) * f
-          : v.originLat
-            ? etaFromPoint(v.originLat, v.originLng, loc) * f
-            : undefined;
-        return eta === undefined ? v : { ...v, etaToSceneMin: (now - v.addedAt) / 60000 + eta };
+        const eta = sourceEtaMin(v.unit, loc, travel, s.incident.settings.trafficFactor);
+        return eta ? { ...v, etaToSceneMin: (now - v.addedAt) / 60000 + eta.min } : v;
       });
-      set({ incident: { ...s.incident, location: loc }, travel: offlineTravelState(loc, now), vehicles });
+      set({ incident: { ...s.incident, location: loc }, travel, vehicles });
       if (s.incident.startAt) log(`事發地點變更：${loc.label}`);
       void get().refreshTravel(true);
     },
@@ -392,7 +408,7 @@ export const useStore = create<Store>((set, get) => {
         originLng: lng,
         status: 'enroute',
         addedAt: now,
-        etaToSceneMin: loc ? etaFromUnit(unit, loc) * s.incident.settings.trafficFactor : 15,
+        etaToSceneMin: sourceEtaMin(unit.name, loc, s.travel, s.incident.settings.trafficFactor)?.min ?? 15,
         trips: 0,
         emt2: s.incident.settings.defaultEmt2,
         emtp: s.incident.settings.defaultEmtp,
@@ -408,10 +424,7 @@ export const useStore = create<Store>((set, get) => {
       const name = nextVehicleName(src.prefix, 1);
       const loc = s.incident.location;
       const now = Date.now();
-      const eta =
-        src.lat !== undefined && loc
-          ? etaFromPoint(src.lat, src.lng!, loc) * s.incident.settings.trafficFactor
-          : src.defaultEtaMin ?? 20;
+      const eta = sourceEtaMin(src.name, loc, s.travel, s.incident.settings.trafficFactor)?.min ?? src.defaultEtaMin ?? 20;
       const v: Vehicle = {
         id: uid(),
         name,
@@ -523,40 +536,32 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const loc = s.incident.location;
       if (!loc || !routesEnabled()) return;
-      // 即時車程每 5 分鐘更新；GAS 有每日額度，改為 30 分鐘
-      const every = (isGasBackend() ? 30 : 5) * 60000;
-      if (!force && s.travel.source === 'online' && s.travel.updatedAt && Date.now() - s.travel.updatedAt < every) return;
-      const enroute = s.vehicles
-        .filter((v) => v.status === 'enroute')
-        .map((v) => {
-          const u = FIRE_UNITS.find((x) => x.name === v.unit);
-          return { v, u };
-        });
-      const origins = enroute
-        .map(({ v, u }) => {
-          const c = u ? unitCoord(u) : v.originLat ? [v.originLat, v.originLng] : null;
-          return c ? { id: v.id, lat: c[0], lng: c[1] } : null;
-        })
-        .filter((x): x is { id: string; lat: number; lng: number } => !!x);
+      const key = locKey(loc);
+      // 事故地點確定後只查一次；地點變更或手動重查才再查
+      if (!force && s.travel.source === 'online' && s.travel.forKey === key) return;
+      const units = [
+        ...FIRE_UNITS.map((u) => ({ id: u.name, lat: u.lat, lng: u.lng })),
+        ...SUPPORT_SOURCES.filter((x) => x.lat !== undefined && x.lng !== undefined).map((x) => ({ id: x.name, lat: x.lat!, lng: x.lng! })),
+      ];
       try {
         const fallback = offlineTravelState(loc, Date.now()).byHospital;
         const res = await fetchOnlineTravel(
           { lat: loc.lat, lng: loc.lng },
           HOSPITALS.map((h) => ({ id: h.id, lat: h.lat, lng: h.lng })),
-          origins,
+          units,
           fallback,
         );
         const now = Date.now();
         // 地點在查詢期間被變更 → 丟棄結果
         if (get().incident.location !== loc) return;
         set((st) => ({
-          travel: { byHospital: res.byHospital, updatedAt: now, source: 'online' },
+          travel: { byHospital: res.byHospital, unitEta: res.unitEta, forKey: key, updatedAt: now, source: 'online' },
+          // 趕赴中車輛改用即時到場時間（自出發起算）
           vehicles: st.vehicles.map((v) =>
-            v.status === 'enroute' && res.vehicleEta[v.id] !== undefined
-              ? { ...v, etaToSceneMin: (now - v.addedAt) / 60000 + res.vehicleEta[v.id] }
-              : v,
+            v.status === 'enroute' && res.unitEta[v.unit] !== undefined ? { ...v, etaToSceneMin: res.unitEta[v.unit] } : v,
           ),
         }));
+        log(`即時車程查詢完成：${Object.keys(res.byHospital).length} 家醫院、${Object.keys(res.unitEta).length} 個分隊`);
       } catch (e) {
         set((st) => ({ travel: { ...st.travel, error: String((e as Error).message ?? e) } }));
       }

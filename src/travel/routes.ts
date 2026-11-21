@@ -94,47 +94,36 @@ export async function computeRouteMatrix(
 }
 
 /**
- * 雙向查詢：現場→各醫院、各醫院與趕赴中車輛所在地→現場。
- * 失敗時丟出例外，由呼叫端退回離線估算。
+ * 事故地點確定後查一次：現場 → 各醫院（回程沿用同一時間）、各分隊 → 現場。
+ * 失敗時丟出例外，由呼叫端改用離線估算。
  */
 export async function fetchOnlineTravel(
   scene: LatLng,
   hospitals: { id: string; lat: number; lng: number }[],
-  vehicleOrigins: { id: string; lat: number; lng: number }[],
+  units: { id: string; lat: number; lng: number }[],
   fallback: Record<string, TravelEntry>,
-): Promise<{ byHospital: Record<string, TravelEntry>; vehicleEta: Record<string, number> }> {
-  // GAS：只查去程（回程沿用），省一半額度；冷啟動加逐筆查詢較慢，等候較久
-  const economy = isGasBackend();
+): Promise<{ byHospital: Record<string, TravelEntry>; unitEta: Record<string, number> }> {
+  // GAS 逐筆查詢、可能冷啟動，等候較久
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), economy ? 60000 : 15000);
+  const timer = setTimeout(() => ctrl.abort(), isGasBackend() ? 90000 : 20000);
   try {
-    const [goEls, backEls] = await Promise.all([
+    const [goEls, unitEls] = await Promise.all([
       computeRouteMatrix([scene], hospitals, ctrl.signal),
-      economy
-        ? vehicleOrigins.length
-          ? computeRouteMatrix(vehicleOrigins, [scene], ctrl.signal).then((els) =>
-              els.map((e) => ({ ...e, originIndex: e.originIndex + hospitals.length })),
-            )
-          : Promise.resolve([] as MatrixElement[])
-        : computeRouteMatrix([...hospitals, ...vehicleOrigins], [scene], ctrl.signal),
+      units.length ? computeRouteMatrix(units, [scene], ctrl.signal) : Promise.resolve([] as MatrixElement[]),
     ]);
     const byHospital: Record<string, TravelEntry> = {};
     hospitals.forEach((h, i) => {
       const go = goEls.find((e) => e.destinationIndex === i)?.durationSec;
-      const back = backEls.find((e) => e.originIndex === i)?.durationSec;
       const fb = fallback[h.id];
-      byHospital[h.id] = {
-        go: go != null ? go / 60 : fb?.go ?? 60,
-        back: back != null ? back / 60 : go != null ? go / 60 : fb?.back ?? 60,
-        source: go != null ? 'online' : 'offline',
-      };
+      byHospital[h.id] =
+        go != null ? { go: go / 60, back: go / 60, source: 'online' } : { go: fb?.go ?? 60, back: fb?.back ?? 60, source: 'offline' };
     });
-    const vehicleEta: Record<string, number> = {};
-    vehicleOrigins.forEach((v, j) => {
-      const d = backEls.find((e) => e.originIndex === hospitals.length + j)?.durationSec;
-      if (d != null) vehicleEta[v.id] = d / 60;
+    const unitEta: Record<string, number> = {};
+    units.forEach((u, k) => {
+      const d = unitEls.find((e) => e.originIndex === k)?.durationSec;
+      if (d != null) unitEta[u.id] = d / 60;
     });
-    return { byHospital, vehicleEta };
+    return { byHospital, unitEta };
   } finally {
     clearTimeout(timer);
   }

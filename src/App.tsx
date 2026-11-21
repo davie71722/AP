@@ -35,17 +35,15 @@ export default function App() {
   useEffect(() => {
     void useStore.getState().hydrate();
     const t = setInterval(tick, 1000);
-    // 每 5 分鐘更新即時車程
-    const r = setInterval(() => void refreshTravel(), 60000);
+    // 恢復連線時補查（同一地點已查過則略過）
     const onNet = () => {
       tick();
-      void refreshTravel(true);
+      void refreshTravel();
     };
     window.addEventListener('online', onNet);
     window.addEventListener('offline', tick);
     return () => {
       clearInterval(t);
-      clearInterval(r);
       window.removeEventListener('online', onNet);
       window.removeEventListener('offline', tick);
     };
