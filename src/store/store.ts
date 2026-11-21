@@ -14,7 +14,7 @@ import { effectiveTravel } from '../engine/plan';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
 import { etaFromPoint, etaFromUnit, offlineTravelState } from '../travel';
-import { fetchOnlineTravel, routesEnabled } from '../travel/routes';
+import { fetchOnlineTravel, isGasBackend, routesEnabled } from '../travel/routes';
 import {
   TRIAGE_NAMES,
   patientLabel,
@@ -523,7 +523,9 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const loc = s.incident.location;
       if (!loc || !routesEnabled()) return;
-      if (!force && s.travel.source === 'online' && s.travel.updatedAt && Date.now() - s.travel.updatedAt < 5 * 60000) return;
+      // 即時車程每 5 分鐘更新；GAS 有每日額度，改為 30 分鐘
+      const every = (isGasBackend() ? 30 : 5) * 60000;
+      if (!force && s.travel.source === 'online' && s.travel.updatedAt && Date.now() - s.travel.updatedAt < every) return;
       const enroute = s.vehicles
         .filter((v) => v.status === 'enroute')
         .map((v) => {

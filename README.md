@@ -104,6 +104,10 @@ score = 級別適配 − 車程權重 × 去程分鐘 − 25 × 已用量/總量
 - 已取消「紅傷等候過久」警示；只有紅傷完全無車可派時才提示請求增援。
 - 化災：預設**不需**每趟除污，可在「事件 → 設定 → 化災：車輛每趟需除污」開啟。
 
+## 免費部署：Google Apps Script（GAS）
+
+不需要 Google 地圖金鑰與信用卡：GAS 內建地圖服務可查地標、地址、車程與展開短網址。可整個 App 放在 GAS 上（最簡單），或網頁放靜態網站、GAS 只當地圖服務（可離線、可 GPS）。步驟見 [`gas/README.md`](gas/README.md)。GAS 單檔版以 `npm run build:gas` 產生 `gas/index.html`。
+
 ## 即時車程（Google Routes API）
 
 前端**不持有金鑰**，只呼叫代理端點：

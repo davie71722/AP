@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:gas": "tsc --noEmit && vite build --config vite.gas.config.ts && cp dist-gas/index.html gas/index.html"
   },
   "dependencies": {
     "dexie": "^4.4.7",
@@ -26,6 +27,7 @@
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vite-plugin-pwa": "^0.20.5",
+    "vite-plugin-singlefile": "^2.0.3",
     "vitest": "^2.1.9"
   }
 }

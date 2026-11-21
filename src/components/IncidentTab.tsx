@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
 import { googleMapsUrl, mapsShortLink, parseCoords, pinLocation, shareName } from '../data/geo';
 import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
-import { resolveShortLink, ROUTES_PROXY_URL, searchPlaces, type PlaceHit } from '../travel/routes';
+import { mapServiceConfigured, resolveShortLink, searchPlaces, type PlaceHit } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
 import { DoubleTapButton, Stepper } from './common';
@@ -227,7 +227,7 @@ function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
     const name = shareName(t);
     const c = parseCoords(t);
     if (c) return done(pinLocation(c.lat, c.lng, name && !parseCoords(name) ? name : undefined));
-    if (!ROUTES_PROXY_URL) return setMsg('地標搜尋未啟用：請貼座標（Google 地圖長按取得）');
+    if (!mapServiceConfigured()) return setMsg('地標搜尋未啟用：請貼座標（Google 地圖長按取得）');
     if (!online) return setMsg('離線：請貼座標');
     setBusy(true);
     try {
