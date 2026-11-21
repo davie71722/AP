@@ -97,6 +97,8 @@ export interface Wound {
   deg: string;
   /** 燙傷面積 %（0＝未填） */
   tbsa: number;
+  /** 骨折型態：閉鎖性／開放性（可不填） */
+  fx?: string;
   /** 標記點位置與分頁 */
   x: number;
   y: number;
@@ -106,6 +108,7 @@ export interface Wound {
 /** 傷口 → 描述文字 */
 export function woundText(w: Wound): string {
   if (w.type === '撕裂傷') return `${w.region} ${w.cm > 0 ? w.cm + 'cm ' : ''}撕裂傷`;
+  if (w.type === '疑似骨折/脫臼' && w.fx) return `${w.region} ${w.fx}骨折`;
   if (w.type === '燙傷') return `${w.region} ${w.deg ? w.deg + '度 ' : ''}燙傷${w.tbsa > 0 ? ` (TBSA ${w.tbsa}%)` : ''}`;
   return `${w.region} ${w.type}`;
 }

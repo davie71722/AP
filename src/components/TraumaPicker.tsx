@@ -70,21 +70,21 @@ export function TraumaPicker({
   };
 
   const tapAct = (id: string, act: string) => {
-    const st = actState(value, act);
+    const st = actState(value, act, id);
     if (st.disabled) return flash(st.reason ?? '目前不可選');
     if (!st.stored) {
       setArmed(null);
       return onChange(addAct(value, id, act, now));
     }
     // 只能在第一次點選的傷勢下取消；其他傷勢的同一按鈕僅顯示已選
-    const owner = ownerOf(value, act);
+    const owner = ownerOf(value, act, id);
     if (owner && owner.id !== id) return flash(`「${st.stored}」記錄在「${owner.name}」，請在該處取消`);
     if (isKeyAct(st.stored) && armed !== `a:${act}`) {
       setArmed(`a:${act}`);
       return flash(`再按一次取消「${st.stored}」`);
     }
     setArmed(null);
-    onChange(removeAct(value, act));
+    onChange(removeAct(value, act, id));
   };
 
   const tapSide = (id: string, side: string) => {
@@ -142,8 +142,8 @@ export function TraumaPicker({
                   <div className="tr-sub">{label}</div>
                   <div className="tr-acts">
                     {acts.map((a) => {
-                      const st = actState(value, a);
-                      const shared = !!st.stored && ownerOf(value, a)?.id !== id;
+                      const st = actState(value, a, id);
+                      const shared = !!st.stored && ownerOf(value, a, id)?.id !== id;
                       return (
                         <button
                           key={a}

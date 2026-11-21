@@ -1,6 +1,6 @@
 // 創傷與處置的防呆規則：互斥、取代、停用、側別、提醒
 import type { Wound } from '../types';
-import { actMatches, actText, ADV_AIRWAY, CHEST_SIDES, entryName, limbOf, patientActs, SIDE_KIND, SUBTYPES, TRAUMA_BY_ID, type TraumaEntry } from './trauma';
+import { actMatches, actText, ADV_AIRWAY, perTrauma, CHEST_SIDES, entryName, limbOf, patientActs, SIDE_KIND, SUBTYPES, TRAUMA_BY_ID, type TraumaEntry } from './trauma';
 
 /** 給氧裝置：一次只能一種 */
 export const O2_DEVICES = ['NRM給氧', 'Mask給氧', 'BVM給氧'];
@@ -18,7 +18,7 @@ const ACCESS = /IV|IO|輸液/;
 
 /** 移除時需再按一次確認的關鍵處置 */
 export function isKeyAct(stored: string): boolean {
-  return /^已插氣管內管$|^預防性插管完成$|^已放i-gel$|^已行環甲膜切開$|^已針刺減壓|^已上止血帶|^已上骨盆固定帶$|^已輸血$/.test(stored);
+  return /^已插氣管內管$|^預防性插管完成$|^已放i-gel$|^通報醫導後環甲切$|^已行環甲膜切開$|^已針刺減壓|^已上止血帶|^已上骨盆固定帶$|^已輸血$/.test(stored);
 }
 
 const sideOf = (a: string) => a.match(/\((左|右)\)$/)?.[1] ?? null;
@@ -39,9 +39,10 @@ export interface ActState {
 }
 
 /** 按鈕狀態 */
-export function actState(list: TraumaEntry[], act: string): ActState {
+export function actState(list: TraumaEntry[], act: string, traumaId?: string): ActState {
   const all = patientActs(list);
-  const stored = all.find((x) => actMatches(x, act));
+  // 止血帶每個肢體各自記錄
+  const stored = perTrauma(act) && traumaId ? list.find((t) => t.id === traumaId)?.acts.find((x) => actMatches(x, act)) : all.find((x) => actMatches(x, act));
   if (stored) return { stored, disabled: false };
   const adv = all.find((a) => ADV_AIRWAY.includes(a));
   if (adv && O2_DEVICES.includes(act)) return { disabled: true, reason: `已建立進階呼吸道（${adv.replace(/^已/, '')}），不再選給氧方式` };
@@ -64,7 +65,8 @@ export function actState(list: TraumaEntry[], act: string): ActState {
  * - 胸部左右處置：自動補上胸部傷勢側別
  */
 export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: number): TraumaEntry[] {
-  if (actState(list, act).disabled) return list;
+  const st = actState(list, act, traumaId);
+  if (st.disabled || st.stored) return list;
   const text = actText(act, now);
   const remove = new Set<string>();
   if (O2_DEVICES.includes(text)) O2_DEVICES.filter((x) => x !== text).forEach((x) => remove.add(x));
@@ -89,8 +91,8 @@ export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: 
 }
 
 /** 取消處置（全病人移除） */
-export function removeAct(list: TraumaEntry[], act: string): TraumaEntry[] {
-  return list.map((t) => ({ ...t, acts: t.acts.filter((a) => !actMatches(a, act)) }));
+export function removeAct(list: TraumaEntry[], act: string, traumaId?: string): TraumaEntry[] {
+  return list.map((t) => (perTrauma(act) && traumaId && t.id !== traumaId ? t : { ...t, acts: t.acts.filter((a) => !actMatches(a, act)) }));
 }
 
 /** 側別不可取消的原因（該側已有針刺減壓） */
@@ -143,12 +145,14 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
     const s = sideOf(a);
     if (s && /^(呼吸音減弱|已針刺減壓)/.test(a) && cs.length && !cs.includes(s)) w.push(`「${a}」與胸部傷勢側別（${cs.join('、')}）不一致`);
   }
-  // 人形圖側別與肢體傷勢側別
-  const limbWounds = wounds.map((x) => ({ x, limb: limbOf(x.region) })).filter((x) => x.limb);
+  // 人形圖側別與肢體傷勢側別（只比對同類傷口：骨折↔疑似骨折、截肢↔截肢）
+  const SAME: Record<string, string> = { 'y-fx': '疑似骨折/脫臼', 'y-openfx': '疑似骨折/脫臼', 'g-sprain': '疑似骨折/脫臼', 'r-amp': '截肢' };
   for (const t of l) {
-    if (SIDE_KIND[t.id] !== 'limb' || !(t.sides ?? []).length || !limbWounds.length) continue;
-    if (!limbWounds.some((x) => t.sides!.includes(x.limb!)))
-      w.push(`${entryName(t)} 與人形圖傷口側別（${[...new Set(limbWounds.map((x) => x.x.region))].join('、')}）不同，請確認`);
+    const type = SAME[t.id];
+    if (!type || !(t.sides ?? []).length) continue;
+    const ws = wounds.filter((x) => x.type === type && limbOf(x.region));
+    if (ws.length && !ws.some((x) => t.sides!.includes(limbOf(x.region)!)))
+      w.push(`${entryName(t)} 與人形圖${type === '截肢' ? '截肢' : '骨折'}部位（${[...new Set(ws.map((x) => x.region))].join('、')}）側別不同，請確認`);
   }
   // 止血帶：需有四肢出血／截肢傷勢
   if (all.some((a) => a.startsWith('已上止血帶(')) && !l.some((t) => t.id === 'r-art' || t.id === 'r-amp')) w.push('已上止血帶，但未記錄動脈大出血或截肢');
@@ -180,6 +184,7 @@ export function setSubtype(list: TraumaEntry[], traumaId: string, subtype: strin
 }
 
 /** 此處置記錄在哪個傷勢下（只能在該處取消） */
-export function ownerOf(list: TraumaEntry[], act: string): TraumaEntry | undefined {
+export function ownerOf(list: TraumaEntry[], act: string, traumaId?: string): TraumaEntry | undefined {
+  if (perTrauma(act) && traumaId) return list.find((t) => t.id === traumaId && t.acts.some((a) => actMatches(a, act)));
   return list.find((t) => t.acts.some((a) => actMatches(a, act)));
 }

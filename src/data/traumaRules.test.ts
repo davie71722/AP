@@ -27,8 +27,8 @@ describe('防呆：氧氣與呼吸道', () => {
   });
   it('進階呼吸道一次一種：i-gel 換成環甲膜切開', () => {
     let l = addAct(base, 'r-head', '已放i-gel', now);
-    l = addAct(l, 'r-face', '已行環甲膜切開', now);
-    expect(acts(l)).toEqual(['已行環甲膜切開']);
+    l = addAct(l, 'r-face', '通報醫導後環甲切', now);
+    expect(acts(l)).toEqual(['通報醫導後環甲切']);
   });
   it('處置只能在第一次點選的傷勢下取消', () => {
     const l = addAct(base, 'r-head', '已抽吸', now);
@@ -88,10 +88,12 @@ describe('防呆：左右側', () => {
     l = toggleSide(l, 'r-ptx', '左');
     expect(acts(l)).toEqual([]);
   });
-  it('人形圖肢體側別與傷勢不同：提醒', () => {
-    const wounds: Wound[] = [{ region: '左小腿', type: '撕裂傷', cm: 0, deg: '', tbsa: 0, x: 0, y: 0, v: 'front' }];
-    expect(traumaWarnings([T('r-art', '動脈大出血', [], ['右下肢'])], wounds).join()).toContain('側別（左小腿）不同');
-    expect(traumaWarnings([T('r-art', '動脈大出血', [], ['左下肢'])], wounds)).toEqual([]);
+  it('人形圖側別與同類傷勢不同才提醒（不同肢體的不同傷勢不誤報）', () => {
+    const fx: Wound[] = [{ region: '左前臂', type: '疑似骨折/脫臼', cm: 0, deg: '', tbsa: 0, x: 0, y: 0, v: 'front' }];
+    expect(traumaWarnings([T('y-fx', '單一肢體骨折/脫臼', [], ['右上肢'])], fx).join()).toContain('骨折部位（左前臂）側別不同');
+    expect(traumaWarnings([T('y-fx', '單一肢體骨折/脫臼', [], ['左上肢'])], fx)).toEqual([]);
+    const amp: Wound[] = [{ region: '右小腿', type: '截肢', cm: 0, deg: '', tbsa: 0, x: 0, y: 0, v: 'front' }];
+    expect(traumaWarnings([T('r-amp', '創傷性截肢/壓砸', [], ['右下肢']), T('r-art', '動脈大出血', [], ['左上肢'])], amp)).toEqual([]);
   });
   it('部位名稱 → 肢體側別', () => {
     expect(limbOf('右前臂')).toBe('右上肢');
@@ -99,6 +101,13 @@ describe('防呆：左右側', () => {
     expect(limbOf('左大拇趾')).toBe('左下肢');
     expect(limbOf('右膝窩')).toBe('右下肢');
     expect(limbOf('胸部')).toBeNull();
+  });
+  it('兩個肢體各自上止血帶（不共用），註解標示肢體', () => {
+    let l = [T('r-amp', '創傷性截肢/壓砸', [], ['右下肢']), T('r-art', '動脈大出血', [], ['左上肢'])];
+    l = addAct(l, 'r-amp', '已上止血帶(自動帶入時間)', now);
+    l = addAct(l, 'r-art', '已上止血帶(自動帶入時間)', now + 120000);
+    expect(l.map((t) => t.acts.length)).toEqual([1, 1]);
+    expect(narrative(l)).toBe('右下肢創傷性截肢壓砸、左上肢動脈大出血；處置予右下肢止血帶(14:25)、左上肢止血帶(14:27)。');
   });
   it('止血帶沒有出血／截肢傷勢：提醒', () => {
     expect(traumaWarnings([T('r-pelvis', '不穩定骨盆骨折', ['已上止血帶(14:25)'])]).join()).toContain('已上止血帶，但未記錄');

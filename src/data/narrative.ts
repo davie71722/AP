@@ -1,7 +1,7 @@
 // 交接註解：以連接詞組成完整敘述（傷勢併評估；處置予…）
 // 例：重度頭外傷併耳鼻漏、左側氣血胸併呼吸音減弱及氣管偏移、右前臂疑骨折脫臼；處置予抽吸、置i-gel、NRM給氧、頸圈及長背板固定並頭抬高30度、建立大口徑IV及IO、給Transamin及輸血。
 import type { Color, Wound } from '../types';
-import { LIMB_SIDES, SIDE_KIND, STATUS, type TraumaEntry } from './trauma';
+import { limbOf, LIMB_SIDES, SIDE_KIND, STATUS, type TraumaEntry } from './trauma';
 
 /** 傷勢簡稱 */
 const INJURY_SHORT: Record<string, string> = {
@@ -56,7 +56,8 @@ const PROC: Record<string, [string, string]> = {
   '已放聲門上呼吸道(i-gel)': ['airway', '置i-gel'],
   已插氣管內管: ['airway', '插管'],
   預防性插管完成: ['airway', '預防性插管'],
-  已行環甲膜切開: ['airway', '環甲膜切開'],
+  已行環甲膜切開: ['airway', '通報醫導後環甲切'],
+  通報醫導後環甲切: ['airway', '通報醫導後環甲切'],
   NRM給氧: ['o2', 'NRM給氧'],
   Mask給氧: ['o2', 'Mask給氧'],
   BVM給氧: ['o2', 'BVM給氧'],
@@ -72,7 +73,7 @@ const PROC: Record<string, [string, string]> = {
   已貼胸部封閉敷料: ['chest', '胸部封閉敷料'],
   已貼封閉敷料: ['chest', '封閉敷料'],
   已上頸圈: ['fix', '頸圈'],
-  已上頸圈及頭部固定: ['fix', '頸圈及頭部'],
+  已上頸圈及頭部固定: ['fix', '頭頸'],
   '已上長背板/鏟式擔架': ['fix', '長背板'],
   '已上長背板/真空墊': ['fix', '長背板或真空墊'],
   全身脊椎固定完成: ['fix', '全身脊椎'],
@@ -114,28 +115,53 @@ function statusShort(a: string, t: TraumaEntry): string {
   return STATUS_SHORT[a] ?? a;
 }
 
+/** 評估串接不用「、」（避免與傷勢之間的「、」混淆）：A及B、A與B及C */
+export function joinFindings(xs: string[]): string {
+  if (xs.length <= 1) return xs[0] ?? '';
+  return `${xs.slice(0, -1).join('與')}及${xs[xs.length - 1]}`;
+}
+
+/** 與人形圖傷口合併的傷勢：用實際部位取代肢體側別 */
+export interface Merge {
+  regions: string[];
+  fx?: string;
+  tbsa?: number;
+}
+
 /** 單一傷勢敘述：左側氣血胸併呼吸音減弱及氣管偏移 */
-export function injuryPhrase(t: TraumaEntry, withStatus = true): string {
+export function injuryPhrase(t: TraumaEntry, withStatus = true, merge?: Merge): string {
   let name = INJURY_SHORT[t.id] ?? t.name;
   if (t.id === 'r-femur') name = `${t.subtype ?? ''}${name}`;
-  const base = `${sidePrefix(t)}${name}`;
+  if (t.id === 'y-fx' && merge?.fx) name = `${merge.fx}骨折`;
+  else if (t.id === 'y-fx' && (t.sides ?? []).length) name = '骨折脫臼';
+  if (merge?.tbsa) name = name.replace(/\(.*\)$/, '') + `(TBSA合計${merge.tbsa}%)`;
+  let prefix = sidePrefix(t);
+  if (merge?.regions.length) {
+    // 已由人形圖部位說明的側別不再重複
+    const covered = new Set(merge.regions.map((r) => limbOf(r)).filter(Boolean));
+    const rest = (t.sides ?? []).filter((x) => !covered.has(x));
+    prefix = joinAnd([...merge.regions, ...rest]);
+  }
+  const base = `${prefix}${name}`;
   if (!withStatus) return base;
   const st = t.acts.filter((a) => STATUS.has(a)).map((a) => statusShort(a, t));
-  return st.length ? `${base}併${joinAnd(st)}` : base;
+  return st.length ? `${base}${/併/.test(name) ? '且' : '併'}${joinFindings(st)}` : base;
 }
 
 const MINOR = ['擦傷', '挫傷', '撕裂傷'];
 const WOUND_SHORT: Record<string, string> = { '疑似骨折/脫臼': '疑骨折脫臼', 感染: '感染' };
 
 /** 人形圖傷口敘述：相同傷勢合併部位（額及上唇撕裂傷）；紅牌省略擦挫撕裂等輕微傷 */
-export function woundPhrases(wounds: Wound[], color?: Color): string[] {
+export function woundPhrases(wounds: Wound[], color?: Color, burnTotal = false): string[] {
   const list = color === 'R' ? wounds.filter((w) => !MINOR.includes(w.type)) : wounds;
   const out: string[] = [];
   const groups = new Map<string, string[]>();
   for (const w of list) {
-    const type = WOUND_SHORT[w.type] ?? w.type;
-    const detail = w.type === '撕裂傷' && w.cm > 0 ? `${w.cm}cm` : w.type === '燙傷' && w.deg ? `${w.deg}度` : '';
-    const tbsa = w.type === '燙傷' && w.tbsa > 0 ? `(TBSA ${w.tbsa}%)` : '';
+    let type = w.type === '疑似骨折/脫臼' && w.fx ? `${w.fx}骨折` : (WOUND_SHORT[w.type] ?? w.type);
+    // 燒燙傷已在傷勢寫明 TBSA 合計：依度數合併部位
+    if (w.type === '燙傷' && (burnTotal || !w.tbsa)) type = `${w.deg ? w.deg + '度' : ''}燙傷`;
+    const detail = w.type === '撕裂傷' && w.cm > 0 ? `${w.cm}cm` : w.type === '燙傷' && !burnTotal && w.tbsa > 0 && w.deg ? `${w.deg}度` : '';
+    const tbsa = w.type === '燙傷' && !burnTotal && w.tbsa > 0 ? `(TBSA ${w.tbsa}%)` : '';
     if (detail || tbsa) {
       out.push(`${w.region}${detail}${type}${tbsa}`);
       continue;
@@ -160,9 +186,9 @@ export function procedurePhrase(acts: string[]): string {
       ride = true;
       continue;
     }
-    const tq = a.match(/^已上止血帶\((.+)\)$/);
+    const tq = a.match(/^已上止血帶(?:\[(.*)\])?\((.+)\)$/);
     if (tq) {
-      (g.bleed ??= []).push(`止血帶(${tq[1]})`);
+      (g.bleed ??= []).push(`${tq[1] ?? ''}止血帶(${tq[2]})`);
       continue;
     }
     const p = PROC[a];
@@ -188,11 +214,47 @@ export function procedurePhrase(acts: string[]): string {
  * 交接註解：傷勢（併評估）＋人形圖傷口；處置予…。其他註解。
  * 紅牌不列擦傷、挫傷、撕裂傷等輕微傷。
  */
+const MERGE_TYPE: Record<string, string> = { 'y-fx': '疑似骨折/脫臼', 'y-openfx': '疑似骨折/脫臼', 'r-amp': '截肢' };
+const BURN = ['r-burn', 'y-burn', 'g-burn'];
+
+const TIER: Record<string, number> = { r: 0, y: 1, g: 2 };
+
 export function narrative(trauma: TraumaEntry[] | undefined, wounds: Wound[] = [], note?: string, color?: Color): string {
-  const t = trauma ?? [];
-  const injuries = [...t.map((x) => injuryPhrase(x)), ...woundPhrases(wounds, color)];
+  // 嚴重度高者先寫（紅牌傷勢 → 黃 → 綠）
+  const t = [...(trauma ?? [])].sort((a, b) => (TIER[a.id[0]] ?? 9) - (TIER[b.id[0]] ?? 9));
+  // 人形圖傷口與四肢傷勢重複時合併（如「右上肢骨折脫臼」＋「右前臂閉鎖性骨折」→「右前臂閉鎖性骨折」）
+  const used = new Set<Wound>();
+  const merges = new Map<string, Merge>();
+  for (const x of t) {
+    const type = MERGE_TYPE[x.id];
+    if (!type || !(x.sides ?? []).length) continue;
+    const ws = wounds.filter((w) => !used.has(w) && w.type === type && x.sides!.includes(limbOf(w.region) ?? '') && (x.id !== 'y-openfx' || w.fx !== '閉鎖性'));
+    if (!ws.length) continue;
+    ws.forEach((w) => used.add(w));
+    const fxs = [...new Set(ws.map((w) => w.fx).filter(Boolean))];
+    merges.set(x.id, { regions: [...new Set(ws.map((w) => w.region))], fx: fxs.length === 1 ? fxs[0] : undefined });
+  }
+  // 燒燙傷：傷勢寫 TBSA 合計，部位依度數列出
+  const burnTbsa = wounds.filter((w) => w.type === '燙傷').reduce((n, w) => n + (w.tbsa || 0), 0);
+  const hasBurn = t.some((x) => BURN.includes(x.id));
+  if (hasBurn && burnTbsa > 0) for (const x of t) if (BURN.includes(x.id)) merges.set(x.id, { regions: [], tbsa: burnTbsa });
+
+  const injuries = [
+    ...t.map((x) => injuryPhrase(x, true, merges.get(x.id))),
+    ...woundPhrases(
+      wounds.filter((w) => !used.has(w)),
+      color,
+      hasBurn && burnTbsa > 0,
+    ),
+  ];
+  // 止血帶依肢體標示
   const acts: string[] = [];
-  for (const x of t) for (const a of x.acts) if (!acts.includes(a)) acts.push(a);
+  for (const x of t)
+    for (const a of x.acts) {
+      const tq = a.match(/^已上止血帶\((.+)\)$/);
+      const v = tq ? `已上止血帶[${sidePrefix(x)}](${tq[1]})` : a;
+      if (!acts.includes(v)) acts.push(v);
+    }
   const proc = procedurePhrase(acts);
   let s = injuries.join('、');
   if (proc) s = s ? `${s}；處置予${proc}` : `處置予${proc}`;

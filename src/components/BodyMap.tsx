@@ -191,6 +191,15 @@ export function BodyMap({
                   %
                 </span>
               )}
+              {w.type === '疑似骨折/脫臼' && (
+                <span className="bm-cm">
+                  {['閉鎖性', '開放性'].map((x) => (
+                    <button key={x} className={`btn sm deg ${w.fx === x ? 'on' : ''}`} onClick={() => update(i, { fx: w.fx === x ? undefined : x })}>
+                      {x}
+                    </button>
+                  ))}
+                </span>
+              )}
               {w.type === '撕裂傷' && (
                 <span className="bm-cm">
                   <input
