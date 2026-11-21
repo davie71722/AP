@@ -72,9 +72,11 @@ export function ProgressTab() {
           >
             滿載
           </button>
-          <button className={`btn sm close-btn ${rt.bypass ? 'on' : ''}`} onClick={() => toggleBypass(h.id)}>
-            關閉
-          </button>
+          {((rt.strain ?? 0) === 2 || rt.bypass) && (
+            <button className={`btn sm close-btn ${rt.bypass ? 'on' : ''}`} onClick={() => toggleBypass(h.id)}>
+              關閉
+            </button>
+          )}
         </span>
       </div>
     );
@@ -93,7 +95,7 @@ export function ProgressTab() {
       {showLoad && (
         <section className="section" style={{ marginTop: 8 }}>
           <div className="muted small" style={{ marginBottom: 6 }}>
-            車程（現場出發）{travel.source === 'online' ? '即時路況' : `估算・${trafficLabel(new Date())}`}｜已收／容量｜滿載仍可送、關閉不送
+            車程（現場出發）{travel.source === 'online' ? '即時路況' : `估算・${trafficLabel(new Date())}`}｜已收／容量｜滿載仍可送；滿載後可再按關閉（不送）
           </div>
           <div className="hosp-list">{featured.map(row)}</div>
           <button className="btn sm full" style={{ marginTop: 8 }} onClick={() => setMore(!more)}>
