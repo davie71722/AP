@@ -146,6 +146,8 @@ export interface PlaceHit {
   address: string;
   lat: number;
   lng: number;
+  /** 只對到鄉鎮等概略位置（未找到該地標本身） */
+  approximate?: boolean;
 }
 
 /** 店家、地標、地址搜尋（經代理呼叫 Google Places Text Search），回傳最多 5 個候選 */

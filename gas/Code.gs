@@ -82,12 +82,20 @@ function search_(q) {
   var places = results.slice(0, 5).map(function (x) {
     var types = x.types || [];
     var poi = types.indexOf('point_of_interest') >= 0 || types.indexOf('establishment') >= 0;
-    var name = poi && x.address_components && x.address_components[0] ? x.address_components[0].long_name : results.length === 1 ? q : x.formatted_address;
+    // 只對到鄉鎮、村里等行政區或概略位置（沒有真的找到該地標）
+    var area =
+      types.indexOf('political') >= 0 ||
+      types.indexOf('locality') >= 0 ||
+      types.indexOf('administrative_area_level_3') >= 0 ||
+      types.indexOf('administrative_area_level_4') >= 0;
+    var approximate = area || (x.geometry && x.geometry.location_type === 'APPROXIMATE');
+    var name = poi && x.address_components && x.address_components[0] ? x.address_components[0].long_name : q;
     return {
       name: name,
       address: x.formatted_address || '',
       lat: x.geometry.location.lat,
       lng: x.geometry.location.lng,
+      approximate: !!approximate,
     };
   });
   cache.put(key, JSON.stringify(places), PLACE_CACHE_SEC);

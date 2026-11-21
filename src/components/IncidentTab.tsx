@@ -266,7 +266,7 @@ function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
       }
       const q = short ? name : t;
       const found = await searchPlaces(q);
-      if (found.length === 1) return done(pinLocation(found[0].lat, found[0].lng, found[0].name));
+      if (found.length === 1 && !found[0].approximate) return done(pinLocation(found[0].lat, found[0].lng, found[0].name));
       if (found.length === 0) return setMsg('找不到地點');
       setHits(found);
     } catch {
@@ -322,6 +322,7 @@ function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
             <button key={`${h.lat},${h.lng}`} className="btn sm hit" onClick={() => done(pinLocation(h.lat, h.lng, h.name))}>
               <b>{h.name}</b>
               <span className="muted small">{h.address.replace(/^\d{3,6}/, '').replace(/^台灣/, '')}</span>
+              {h.approximate && <span className="small" style={{ color: 'var(--orange)' }}>概略位置：建議在 Google 地圖長按取座標</span>}
             </button>
           ))}
         </div>
