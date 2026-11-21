@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { HospitalRuntime } from '../types';
+import { beginEdit, cancelEdit, commitEdit } from '../store/store';
 
 /** 連按兩次確認（不使用瀏覽器 confirm） */
 export function DoubleTapButton({
@@ -66,14 +67,42 @@ export function Stepper({
   );
 }
 
+/**
+ * 彈出視窗：左「返回（不存檔）」還原開啟前的資料，右「確認」保留；點視窗外等同確認。
+ * 視窗內直接完成的動作（如出發、刪除）呼叫 onClose 視同確認。
+ */
 export function Sheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const token = useRef<number | null>(null);
+  useEffect(() => {
+    token.current = beginEdit();
+    return () => {
+      // 未明確返回者一律視為確認
+      if (token.current !== null) commitEdit(token.current);
+      token.current = null;
+    };
+  }, []);
+  const confirm = () => {
+    if (token.current !== null) commitEdit(token.current);
+    token.current = null;
+    onClose();
+  };
+  const cancel = () => {
+    if (token.current !== null) cancelEdit(token.current);
+    token.current = null;
+    onClose();
+  };
   return (
-    <div className="sheet-bg" onClick={onClose}>
+    <div className="sheet-bg" onClick={confirm}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         {children}
-        <button className="btn" style={{ width: '100%', marginTop: 12 }} onClick={onClose}>
-          關閉
-        </button>
+        <div className="sheet-actions">
+          <button className="btn" onClick={cancel}>
+            ← 返回（不存檔）
+          </button>
+          <button className="btn primary" onClick={confirm}>
+            ✔ 確認
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { callMapService, mapServiceConfigured } from '../travel/routes';
 import { offlineTravelState } from '../travel';
-import { locKey, setReadOnly, useStore } from '../store/store';
+import { isEditing, locKey, noteRemote, setReadOnly, useStore } from '../store/store';
 import { patientLabel } from '../types';
 import { applyChanges, dedupeLabels, emptyWire, hasChanges, Tracker, type Changes, type Shared, type Wire } from './wire';
 
@@ -80,6 +80,7 @@ function applyLocal(sh: Shared) {
   }
   const locChanged =
     sh.incident.location && (!before.incident.location || locKey(sh.incident.location) !== locKey(before.incident.location));
+  noteRemote(before, { ...sh, patients, counters });
   useStore.setState({
     incident: sh.incident,
     patients,
@@ -129,7 +130,8 @@ async function tick() {
   useSync.setState({ busy: true });
   try {
     const c = tracker.collect(shared(), Date.now());
-    if (st.role === 'edit' && hasChanges(c)) {
+    // 視窗開啟中（可能按返回不存檔）：先不送出本機修改，只接收他人的修改
+    if (st.role === 'edit' && hasChanges(c) && !isEditing()) {
       for (let attempt = 0; attempt < 4; attempt++) {
         const next = applyChanges(server, c);
         const r = await call<{ rev: number; conflict?: boolean; state?: Wire }>({ sync: 'put', room: st.room, key: st.key, rev, state: next });
@@ -158,6 +160,11 @@ async function tick() {
         rev = r.rev;
         applyLocal(tracker.adopt(shared(), server, noChanges()));
       }
+    }
+    // 視窗關閉後盡快送出
+    if (st.role === 'edit' && isEditing()) {
+      if (kick) clearTimeout(kick);
+      kick = setTimeout(() => void tick(), 1500);
     }
     useSync.setState({ lastOk: Date.now(), error: null });
   } catch (e) {

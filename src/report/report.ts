@@ -18,48 +18,63 @@ export function buildReport(
   const N = TRIAGE_NAMES[incident.settings.triageSystem ?? 'START'];
   // TST 名稱以數字結尾（P1），與人數間加空格避免誤讀
   const f = (name: string, n: number) => `${name}${/\d$/.test(name) ? ' ' : ''}${n}`;
+  /** 只列出人數 > 0 的顏色 */
+  const colors = (pred: (p: Patient) => boolean, cs: readonly ('R' | 'Y' | 'G' | 'K')[] = ['R', 'Y', 'G', 'K']) =>
+    cs
+      .map((c) => [c, patients.filter((p) => p.color === c && pred(p)).length] as const)
+      .filter(([, n]) => n > 0)
+      .map(([c, n]) => f(N[c], n))
+      .join(' ');
+  const join = (xs: (string | number | false | null | undefined)[], sep = '、') => xs.filter(Boolean).join(sep);
+  const d = new Date(now);
+  const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+
+  const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋');
   const redW = patients.filter((p) => p.color === 'R' && p.status === 'waiting');
-  const count = (pred: (p: Patient) => boolean) => patients.filter(pred).length;
-  const by = (c: string, st?: Patient['status']) => count((p) => p.color === c && (!st || p.status === st));
-  const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
-  const vs = (st: Vehicle['status']) => vehicles.filter((v) => v.status === st).length;
-  const crew = (k: 'emtp' | 'emt2') =>
-    vehicles.filter((v) => v.status !== 'offline').reduce((n, v) => n + (v[k] ?? 0), 0);
+  const upgraded = incident.log.filter((l) => l.text.includes('檢傷升級為紅傷')).map((l) => l.text.split('：').pop());
+  const vs = (st: Vehicle['status'], name: string) => {
+    const n = vehicles.filter((v) => v.status === st && !v.held).length;
+    return n ? `${name} ${n}` : '';
+  };
+  const held = vehicles.filter((v) => v.held).length;
+  const crew = (k: 'emtp' | 'emt2') => vehicles.filter((v) => v.status !== 'offline').reduce((n, v) => n + (v[k] ?? 0), 0);
 
   const perHospital = HOSPITALS.map((h) => {
     const sent = patients.filter((p) => p.status === 'sent' && p.hospitalId === h.id);
     if (!sent.length) return null;
-    const parts = (['R', 'Y', 'G'] as const)
-      .map((c) => [c, sent.filter((p) => p.color === c).length] as const)
-      .filter(([, n]) => n > 0)
-      .map(([c, n]) => f(N[c], n));
-    return `${h.short} ${parts.join('')}`;
+    return `${h.short} ${colors((p) => p.status === 'sent' && p.hospitalId === h.id, ['R', 'Y', 'G'])}`;
   }).filter(Boolean);
-
+  const full = HOSPITALS.filter((h) => (runtime[h.id]?.strain ?? 0) === 2 && !runtime[h.id]?.bypass).map((h) => h.short);
   const closed = HOSPITALS.filter((h) => runtime[h.id]?.bypass).map((h) => h.short);
   const self = HOSPITALS.filter((h) => {
     const s = runtime[h.id]?.selfPresented;
     return s && s.R + s.Y + s.G > 0;
   }).map((h) => {
     const s = runtime[h.id].selfPresented;
-    return `${h.short} 紅${s.R}黃${s.Y}綠${s.G}`;
+    return `${h.short} ${join([s.R && f(N.R, s.R), s.Y && f(N.Y, s.Y), s.G && f(N.G, s.G)], ' ')}`;
   });
 
-  const lines = [
-    `【新竹縣MCI後送回報】${fmtClock(now)}`,
-    `事件：${types}｜地點：${incident.location?.label ?? '未指定'}`,
-    `經過時間：${elapsedMin(incident, now)} 分${incident.milestones?.['大隊抵達'] ? `｜大隊抵達 ${fmtClock(incident.milestones['大隊抵達'])}` : ''}`,
-    `傷患總數 ${patients.length}：${f(N.R, by('R'))} ${f(N.Y, by('Y'))} ${f(N.G, by('G'))} ${f(N.K, by('K'))}`,
-    `已後送：${f(N.R, by('R', 'sent'))} ${f(N.Y, by('Y', 'sent'))} ${f(N.G, by('G', 'sent'))}；待後送：${f(N.R, by('R', 'waiting'))} ${f(N.Y, by('Y', 'waiting'))} ${f(N.G, by('G', 'waiting'))}`,
-    `勤務車／群送 ${patients.filter((p) => p.byDuty).length}、自行離開 ${patients.filter((p) => p.status === 'left').length}`,
-    `待送${N.R}分類：${RED_CLASSES.map((rc) => `${rc.id}${redW.filter((p) => p.color === 'R' && p.redClass === rc.id).length}`).join(' ')}`,
-    `車輛：現場待命${vs('standby')}、運送中${vs('transport')}、趕赴中${vs('enroute')}、待除污${vs('decon')}`,
-    `人力：EMTP ${crew('emtp')}、EMT-2 ${crew('emt2')}（不含離線）`,
-    `各院收治：${perHospital.length ? perHospital.join('；') : '無'}`,
-    `關閉醫院：${closed.length ? closed.join('、') : '無'}`,
+  const items: [string, string][] = [
+    ['回報時間', `${date} ${fmtClock(now)}`],
+    ['事件經過', incident.startAt ? `${elapsedMin(incident, now)} 分（${fmtClock(incident.startAt)} 開始）` : ''],
+    ['事件類型', types],
+    ['地點', incident.location?.label ?? ''],
+    ['大隊抵達', incident.milestones?.['大隊抵達'] ? fmtClock(incident.milestones['大隊抵達']) : ''],
+    ['傷患總數', patients.length ? `${patients.length}（${colors(() => true)}）` : ''],
+    ['已後送', colors((p) => p.status === 'sent', ['R', 'Y', 'G'])],
+    ['待後送', colors((p) => p.status === 'waiting', ['R', 'Y', 'G'])],
+    [`待送${N.R}分類`, join(RED_CLASSES.map((rc) => { const n = redW.filter((p) => p.redClass === rc.id).length; return n ? `${rc.id}${n}` : ''; }), ' ')],
+    ['檢傷升級為紅傷', upgraded.length ? `${upgraded.length} 位（${upgraded.join('、')}）` : ''],
+    ['勤務車／群送', String(patients.filter((p) => p.byDuty).length || '')],
+    ['自行離開', String(patients.filter((p) => p.status === 'left').length || '')],
+    ['車輛', join([vs('standby', '現場待命'), held ? `留守 ${held}` : '', vs('transport', '運送中'), vs('enroute', '趕赴中'), vs('decon', '待除污')])],
+    ['人力', join([crew('emtp') ? `EMTP ${crew('emtp')}` : '', crew('emt2') ? `EMT-2 ${crew('emt2')}` : ''])],
+    ['各院收治', perHospital.join('；')],
+    ['滿載醫院', full.join('、')],
+    ['關閉醫院', closed.join('、')],
+    ['自行到院', self.join('；')],
   ];
-  if (self.length) lines.push(`自行到院：${self.join('；')}`);
-  return lines.join('\n');
+  return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
 }
 
 function csvCell(v: unknown): string {

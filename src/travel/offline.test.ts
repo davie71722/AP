@@ -42,9 +42,15 @@ describe('回報文字', () => {
       {},
       now,
     );
-    expect(txt).toContain('事件：化災＋火災｜地點：湖口');
-    expect(txt).toContain('經過時間：12 分');
-    expect(txt).toContain('東元醫院 紅1');
-    expect(txt).toContain('待後送：紅0 黃0 綠1');
+    expect(txt).toContain('• 回報時間：');
+    expect(txt).toContain('• 事件類型：化災＋火災');
+    expect(txt).toContain('• 地點：湖口');
+    expect(txt).toContain('• 事件經過：12 分');
+    expect(txt).toContain('• 各院收治：東元醫院 紅1');
+    expect(txt).toContain('• 待後送：綠1');
+    // 沒有的事情不寫
+    expect(txt).not.toContain('黃0');
+    expect(txt).not.toContain('關閉醫院');
+    expect(txt).not.toContain('自行離開');
   });
 });

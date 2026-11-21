@@ -72,10 +72,7 @@ interface Store extends Persisted {
   tab: Tab;
   now: number;
   online: boolean;
-  /** 上一頁用的頁籤紀錄 */
-  tabHistory: Tab[];
   setTab(t: Tab): void;
-  back(): void;
   /** 指揮節點：大隊抵達等時間戳記 */
   markMilestone(name: string): void;
   tick(): void;
@@ -230,14 +227,7 @@ export const useStore = create<Store>((set, get) => {
     now: Date.now(),
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
 
-    tabHistory: [],
-    setTab: (tab) =>
-      set((s) => (s.tab === tab ? {} : { tab, tabHistory: [...s.tabHistory.slice(-19), s.tab] })),
-    back: () =>
-      set((s) => {
-        const prev = s.tabHistory[s.tabHistory.length - 1];
-        return prev ? { tab: prev, tabHistory: s.tabHistory.slice(0, -1) } : {};
-      }),
+    setTab: (tab) => set({ tab }),
     markMilestone: (name) => {
       if (!get().incident.startAt) get().startIncident(false);
       const at = Date.now();
@@ -306,7 +296,7 @@ export const useStore = create<Store>((set, get) => {
         if (s.travel.source !== 'online') set({ travel: offlineTravelState(loc, now) });
         setTimeout(() => void get().refreshTravel(true), 0);
       }
-      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab, tabHistory: [...s.tabHistory, s.tab] } : {}) });
+      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
       log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
     },
@@ -324,7 +314,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     clearIncident: () => {
-      set({ ...freshPersisted(), tab: 'incident', tabHistory: [] });
+      set({ ...freshPersisted(), tab: 'incident' });
     },
 
     // ---------- 傷患 ----------
@@ -389,6 +379,7 @@ export const useStore = create<Store>((set, get) => {
       const num = s.counters[c] + 1;
       const cls = c === 'R' ? redClass : undefined;
       const label = patientLabel(c, num, cls, s.incident.settings.triageSystem);
+      const upgrade = c === 'R' && (p.color === 'Y' || p.color === 'G');
       set({
         counters: { ...s.counters, [c]: num },
         patients: s.patients.map((x) =>
@@ -400,12 +391,12 @@ export const useStore = create<Store>((set, get) => {
                 redClass: cls,
                 label,
                 prevLabels: [...x.prevLabels, x.label],
-                history: [...x.history, { at: now, action: `再檢傷：${x.label} → ${label}` }],
+                history: [...x.history, { at: now, action: `${upgrade ? '升級紅傷' : '再檢傷'}：${x.label} → ${label}` }],
               }
             : x,
         ),
       });
-      log(`再檢傷：${p.label} → ${label}`);
+      log(upgrade ? `⚠ 特殊事件｜檢傷升級為紅傷：${p.label} → ${label}` : `再檢傷：${p.label} → ${label}`);
     },
 
     setRedClass: (id, cls) => {
@@ -748,7 +739,7 @@ useStore.subscribe((s, prev) => {
 });
 
 // ---------- 唯讀（交接檢視模式） ----------
-const READ_SAFE = new Set(['setTheme', 'setTab', 'back', 'tick', 'hydrate', 'refreshTravel']);
+const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel']);
 let readOnly = false;
 export function setReadOnly(v: boolean) {
   readOnly = v;
@@ -764,4 +755,76 @@ export function isReadOnly() {
     wrapped[k] = (...a: unknown[]) => (readOnly ? undefined : (f as (...x: unknown[]) => unknown)(...a));
   }
   useStore.setState(wrapped as Partial<ReturnType<typeof useStore.getState>>);
+}
+
+// ---------- 視窗編輯：確認／返回（不存檔） ----------
+type EditSnap = Pick<Persisted, 'incident' | 'patients' | 'vehicles' | 'runtime' | 'counters' | 'seq' | 'undoStack'>;
+const editSnaps = new Map<number, EditSnap>();
+let editSeq = 0;
+/** 開啟視窗：記下目前資料 */
+export function beginEdit(): number {
+  const s = useStore.getState();
+  const id = ++editSeq;
+  editSnaps.set(id, { incident: s.incident, patients: s.patients, vehicles: s.vehicles, runtime: s.runtime, counters: s.counters, seq: s.seq, undoStack: s.undoStack });
+  return id;
+}
+/** 確認：保留修改 */
+export function commitEdit(id: number) {
+  editSnaps.delete(id);
+}
+/** 返回：還原為開啟視窗時的資料 */
+export function cancelEdit(id: number) {
+  const snap = editSnaps.get(id);
+  editSnaps.delete(id);
+  if (!snap || readOnly) return;
+  useStore.setState({ ...snap });
+}
+/** 是否有視窗正在編輯（同步時暫不送出） */
+export function isEditing(): boolean {
+  return editSnaps.size > 0;
+}
+/** 視窗開啟期間收到他人的修改：一併記入，返回時不會蓋掉他人的修改 */
+export function noteRemote(
+  prev: Pick<EditSnap, 'incident' | 'patients' | 'vehicles' | 'runtime'>,
+  next: Pick<EditSnap, 'incident' | 'patients' | 'vehicles' | 'runtime' | 'counters' | 'seq'>,
+) {
+  if (!editSnaps.size) return;
+  const changedIds = <T extends { id: string }>(a: T[], b: T[]) => {
+    const pm = new Map(a.map((x) => [x.id, x]));
+    const nm = new Map(b.map((x) => [x.id, x]));
+    const ids = new Set([...pm.keys(), ...nm.keys()]);
+    return [...ids].filter((id) => pm.get(id) !== nm.get(id)).map((id) => ({ id, v: nm.get(id) }));
+  };
+  const rebase = <T extends { id: string }>(snap: T[], ch: { id: string; v: T | undefined }[]) => {
+    let out = snap;
+    for (const { id, v } of ch) {
+      const i = out.findIndex((x) => x.id === id);
+      if (v && i >= 0) out = out.map((x, j) => (j === i ? v : x));
+      else if (v) out = [...out, v];
+      else if (i >= 0) out = out.filter((x) => x.id !== id);
+    }
+    return out;
+  };
+  const pc = changedIds(prev.patients, next.patients);
+  const vc = changedIds(prev.vehicles, next.vehicles);
+  const prevLog = new Set(prev.incident.log.map((l) => `${l.at}|${l.text}`));
+  const newLog = next.incident.log.filter((l) => !prevLog.has(`${l.at}|${l.text}`));
+  for (const [id, snap] of editSnaps) {
+    const runtime = { ...snap.runtime };
+    for (const hid of Object.keys(next.runtime)) if (prev.runtime[hid] !== next.runtime[hid]) runtime[hid] = next.runtime[hid];
+    const incident = { ...snap.incident };
+    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones'] as const) {
+      if (prev.incident[f] !== next.incident[f]) (incident as unknown as Record<string, unknown>)[f] = next.incident[f];
+    }
+    incident.log = [...snap.incident.log, ...newLog].sort((a, b) => a.at - b.at);
+    editSnaps.set(id, {
+      ...snap,
+      incident,
+      patients: rebase(snap.patients, pc),
+      vehicles: rebase(snap.vehicles, vc),
+      runtime,
+      counters: { R: Math.max(snap.counters.R, next.counters.R), Y: Math.max(snap.counters.Y, next.counters.Y), G: Math.max(snap.counters.G, next.counters.G), K: Math.max(snap.counters.K, next.counters.K) },
+      seq: Math.max(snap.seq, next.seq),
+    });
+  }
 }
