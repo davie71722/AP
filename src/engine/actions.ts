@@ -64,7 +64,7 @@ export function confirmDispatch(
     ...s.log,
     {
       at: now,
-      text: `確認出發：${labels} ➔ ${vehicle.name}（第${vehicle.trips + 1}趟）➔ ${h.short}｜預估抵院 ${fmtClock(
+      text: `派車 ${fmtClock(now)}：${vehicle.name}（第${vehicle.trips + 1}趟）載 ${labels} ➔ ${h.short}｜預估抵院 ${fmtClock(
         now + (settings.loadMin + sug.goMin) * 60000,
       )}、返場 ${fmtClock(now + totalMin * 60000)}${contaminate ? '｜返場後待除污' : ''}`,
     },

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { HospitalRuntime } from '../types';
 
 /** 連按兩次確認（不使用瀏覽器 confirm） */
 export function DoubleTapButton({
@@ -85,4 +86,22 @@ export function fmtMin(m: number): string {
 export function clockAfter(now: number, min: number): string {
   const d = new Date(now + min * 60000);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** 即時已後送牌數：2紅 1黃 2綠（含自行到院） */
+export function SentCounts({ rt, names }: { rt: HospitalRuntime; names: Record<'R' | 'Y' | 'G', string> }) {
+  return (
+    <span className="sent-counts">
+      {(['R', 'Y', 'G'] as const).map((c) => {
+        const n = rt.used[c] + rt.selfPresented[c];
+        return (
+          <b key={c} className={`sc ${c} ${n === 0 ? 'zero' : ''}`}>
+            {n}
+            {/\d$/.test(names[c]) ? ' ' : ''}
+            {names[c]}
+          </b>
+        );
+      })}
+    </span>
+  );
 }

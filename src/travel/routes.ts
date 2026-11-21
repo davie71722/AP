@@ -50,7 +50,7 @@ export function routesEnabled(): boolean {
 }
 
 /** 呼叫地圖服務 */
-async function callMapService<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+export async function callMapService<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const req = JSON.stringify(MAP_TOKEN ? { ...body, token: MAP_TOKEN } : body);
   const run = gasRun();
   if (run) {

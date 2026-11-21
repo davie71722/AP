@@ -5,6 +5,7 @@ import { ProgressTab } from './components/ProgressTab';
 import { ReportTab } from './components/ReportTab';
 import { SceneTab } from './components/SceneTab';
 import { useStore, type Tab } from './store/store';
+import { bootSync, useSync } from './sync/client';
 
 const TABS: { id: Tab; name: string; ic: string }[] = [
   { id: 'incident', name: '事件', ic: '⚑' },
@@ -20,6 +21,7 @@ export default function App() {
   const tick = useStore((s) => s.tick);
   const refreshTravel = useStore((s) => s.refreshTravel);
   const theme = useStore((s) => s.theme);
+  const role = useSync((s) => s.role);
   const enRoute = useStore((s) => s.vehicles.filter((v) => v.status === 'transport').length);
 
   useEffect(() => {
@@ -45,16 +47,19 @@ export default function App() {
   }, [tick, refreshTravel]);
 
   useEffect(() => {
-    if (hydrated) void refreshTravel();
+    if (!hydrated) return;
+    void refreshTravel();
+    void bootSync(() => window.confirm('加入交接的案件，會取代本機目前的資料。確定加入？'));
   }, [hydrated, refreshTravel]);
 
   if (!hydrated) return <div className="empty">載入中…</div>;
 
 
   return (
-    <div className="app">
+    <div className={`app ${role === 'view' ? 'readonly' : ''}`}>
       <Header />
       <main className="main">
+        {role === 'view' && <div className="readonly-bar">👁 唯讀模式：即時觀看，無法操作</div>}
         {tab === 'incident' && <IncidentTab />}
         {tab === 'scene' && <SceneTab />}
         {tab === 'progress' && <ProgressTab />}

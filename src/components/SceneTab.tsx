@@ -2,17 +2,20 @@
 import { useMemo, useState } from 'react';
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
-import { capacityOf, computePlan } from '../engine/plan';
+import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
-import { useRules } from '../store/usePlan';
+import { useRules, useTriage } from '../store/usePlan';
+import { useSync } from '../sync/client';
 import type { Patient, Vehicle } from '../types';
-import { Sheet } from './common';
+import { DoubleTapButton, SentCounts, Sheet } from './common';
+import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
 
 export function SceneTab() {
   const rules = useRules();
   const [selected, setSelected] = useState<string[]>([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const viewOnly = useSync((s) => s.role === 'view');
   const patients = useStore((s) => s.patients);
   const waiting = patients.filter((p) => p.status === 'waiting' && p.color !== 'K');
   const sel = selected.filter((id) => waiting.some((p) => p.id === id));
@@ -32,8 +35,9 @@ export function SceneTab() {
           )}
         </button>
       )}
+      <Milestones />
       <VehicleBar />
-      <TriagePad />
+      {!viewOnly && <TriagePad />}
       <section className="section">
         <h2>
           待送 <span className="muted small">點選病人派車</span>
@@ -44,8 +48,33 @@ export function SceneTab() {
           ))}
         </div>
       </section>
-      {sel.length > 0 && <DispatchPanel ids={sel} onDone={() => setSelected([])} />}
+      {sel.length > 0 && !viewOnly && <DispatchPanel ids={sel} onDone={() => setSelected([])} />}
     </>
+  );
+}
+
+/** 指揮節點時間戳記 */
+function Milestones() {
+  const ms = useStore((s) => s.incident.milestones ?? {});
+  const mark = useStore((s) => s.markMilestone);
+  const at = ms['大隊抵達'];
+  const viewOnly = useSync((s) => s.role === 'view');
+  if (viewOnly) return at ? <div className="milestones"><span className="ms-done">🚒 大隊抵達 {fmtClock(at)}</span></div> : null;
+  return (
+    <div className="milestones">
+      {at ? (
+        <>
+          <span className="ms-done">🚒 大隊抵達 {fmtClock(at)}</span>
+          <DoubleTapButton className="sm" armedText="再按一次更新時間" onConfirm={() => mark('大隊抵達')}>
+            重記
+          </DoubleTapButton>
+        </>
+      ) : (
+        <button className="btn primary full" onClick={() => mark('大隊抵達')}>
+          🚒 大隊抵達（記錄時間）
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -62,6 +91,7 @@ function VehicleBar() {
   const vehicles = useStore((s) => s.vehicles);
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const viewOnly = useSync((s) => s.role === 'view');
   const active = vehicles.filter((v) => v.status !== 'offline');
   const tp = active.reduce((n, v) => n + (v.emtp ?? 0), 0);
   const t2 = active.reduce((n, v) => n + (v.emt2 ?? 0), 0);
@@ -70,9 +100,11 @@ function VehicleBar() {
       <h2>
         救護車 <span className="muted small">{vehicles.length} 台｜TP {tp}｜T2 {t2}</span>
         <span className="spacer" />
-        <button className="btn sm primary" onClick={() => setAdding(true)}>
-          ＋救護車
-        </button>
+        {!viewOnly && (
+          <button className="btn sm primary" onClick={() => setAdding(true)}>
+            ＋救護車
+          </button>
+        )}
       </h2>
       <div className="vchips">
         {vehicles.map((v) => (
@@ -229,6 +261,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const setNote = useStore((s) => s.setPatientNote);
   const dispatch = useStore((s) => s.dispatchManual);
   const rules = useRules();
+  const { names } = useTriage();
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -249,22 +282,21 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const held = vehicles.filter((v) => v.held);
   const vid = vehicleId ?? ready[0]?.id ?? null;
   const top = ranking.slice(0, 3);
-  const rest = ranking.slice(3);
+  // 其他醫院：依當下預估車程由短至長
+  const rest = ranking.slice(3).sort((a, b) => a.goMin - b.goMin);
 
   const hospBtn = (r: (typeof ranking)[number]) => {
     const h = HOSPITAL_BY_ID[r.hospitalId];
     const rt = runtime[h.id];
-    const cap = capacityOf(h, rt, settings.nightMode);
-    const left = (c: 'R' | 'Y' | 'G') => cap[c] - rt.used[c] - rt.selfPresented[c];
     return (
       <button key={h.id} className={`btn hit ${hid === h.id ? 'on' : ''}`} disabled={!r.fits} onClick={() => setHospitalId(h.id)}>
         <b>
           {h.short} <span className="muted">{Math.round(r.goMin)}′</span>
           {r.hospitalId === best && <span className="chip G" style={{ marginLeft: 6, fontSize: 12 }}>建議</span>}
         </b>
-        <span className="muted small">
-          剩 紅{left('R')} 黃{left('Y')} 綠{left('G')}
-          {(rt.strain ?? 0) > 0 ? `｜${rt.strain === 2 ? '滿載' : '吃緊'}` : ''}
+        <span className="small">
+          <SentCounts rt={rt} names={names} />
+          {(rt.strain ?? 0) > 0 && <span className="chip R" style={{ marginLeft: 6, fontSize: 12 }}>{rt.strain === 2 ? '滿載' : '吃緊'}</span>}
         </span>
       </button>
     );

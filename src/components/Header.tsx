@@ -1,5 +1,6 @@
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { useStore } from '../store/store';
+import { SyncBadge } from './ShareSection';
 import { useTriage } from '../store/usePlan';
 import type { Color } from '../types';
 
@@ -11,6 +12,8 @@ export function Header() {
   const theme = useStore((s) => s.theme);
   const { names } = useTriage();
   const setTheme = useStore((s) => s.setTheme);
+  const canBack = useStore((s) => s.tabHistory.length > 0);
+  const back = useStore((s) => s.back);
 
   const elapsed = incident.startAt ? Math.max(0, now - incident.startAt) : 0;
   const mm = Math.floor(elapsed / 60000);
@@ -37,6 +40,9 @@ export function Header() {
   return (
     <header className="topbar">
       <div className="r1">
+        <button className="back-btn" aria-label="上一頁" disabled={!canBack} onClick={back}>
+          ‹ 上一頁
+        </button>
         <span className="clock">{incident.startAt ? clock : '--:--'}</span>
         <span className="meta">
           {types || '未選類型'}｜{incident.location?.label ?? '未選地點'}
@@ -44,6 +50,7 @@ export function Header() {
         <button className="theme-btn" aria-label="切換日間／夜間模式" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}>
           {theme === 'day' ? '☾' : '☀'}
         </button>
+        <SyncBadge />
         <span className="online">
           <i style={{ background: online ? 'var(--green)' : 'var(--red)' }} />
           {online ? '連線' : '離線'}

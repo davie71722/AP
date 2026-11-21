@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { leave } from '../sync/client';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
 import { googleMapsUrl, mapsShortLink, parseCoords, pinLocation, shareName } from '../data/geo';
 import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
@@ -187,22 +188,12 @@ export function IncidentTab() {
         <SetRow label="畫面">
           <ThemeToggle />
         </SetRow>
-        <SetRow label="醫院容量">
-          <div className="seg">
-            <button className={`btn sm ${!st.nightMode ? 'on' : ''}`} onClick={() => update({ nightMode: false })}>
-              日間
-            </button>
-            <button className={`btn sm ${st.nightMode ? 'on' : ''}`} onClick={() => update({ nightMode: true })}>
-              夜間
-            </button>
-          </div>
-        </SetRow>
         </div>
         )}
       </section>
 
       <section className="section">
-        <DoubleTapButton className="full" onConfirm={clear} armedText="⚠ 再按一次確認清除">
+        <DoubleTapButton className="full" onConfirm={() => (leave(), clear())} armedText="⚠ 再按一次確認清除">
           清除事件
         </DoubleTapButton>
       </section>

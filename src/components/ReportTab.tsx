@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { buildReport, download, logToCsv, patientsToCsv } from '../report/report';
+import { buildReport, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
+import { fmtClock } from '../engine/actions';
 import { useStore } from '../store/store';
+import { ShareSection } from './ShareSection';
 
 export function ReportTab() {
   const incident = useStore((s) => s.incident);
@@ -11,6 +13,7 @@ export function ReportTab() {
   const [copied, setCopied] = useState(false);
   const text = buildReport(incident, patients, vehicles, runtime, now);
   const stamp = new Date(now).toISOString().slice(0, 16).replace(/[:T]/g, '');
+  const entries = caseLog(incident);
 
   const copy = async () => {
     try {
@@ -37,9 +40,27 @@ export function ReportTab() {
           {copied ? '✔ 已複製' : '📋 複製回報文字'}
         </button>
       </section>
+      <ShareSection />
+      <section className="section">
+        <h2>案件經過（{entries.length}）</h2>
+        <div className="log">
+          {[...entries].reverse().map((l, i) => (
+            <div key={i}>
+              <time>{fmtClock(l.at)}</time>
+              {l.text}
+            </div>
+          ))}
+        </div>
+      </section>
       <section className="section">
         <h2>匯出（事後檢討）</h2>
         <div className="grid">
+          <button className="btn" onClick={() => download(`案件經過-${stamp}.csv`, logToCsv(incident), 'text/csv')}>
+            案件經過 CSV
+          </button>
+          <button className="btn" onClick={() => download(`傷患清單-${stamp}.csv`, patientsToCsv(patients, vehicles), 'text/csv')}>
+            傷患清單 CSV
+          </button>
           <button
             className="btn"
             onClick={() =>
@@ -50,25 +71,8 @@ export function ReportTab() {
               )
             }
           >
-            完整 JSON
+            完整資料 JSON
           </button>
-          <button className="btn" onClick={() => download(`mci-log-${stamp}.csv`, logToCsv(incident), 'text/csv')}>
-            操作紀錄 CSV
-          </button>
-          <button className="btn" onClick={() => download(`mci-patients-${stamp}.csv`, patientsToCsv(patients), 'text/csv')}>
-            傷患清單 CSV
-          </button>
-        </div>
-      </section>
-      <section className="section">
-        <h2>操作紀錄（{incident.log.length}）</h2>
-        <div className="log">
-          {[...incident.log].reverse().map((l, i) => (
-            <div key={i}>
-              <time>{new Date(l.at).toLocaleTimeString('zh-TW')}</time>
-              {l.text}
-            </div>
-          ))}
         </div>
       </section>
     </>

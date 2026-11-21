@@ -48,7 +48,7 @@ export function buildReport(
   const lines = [
     `【新竹縣MCI後送回報】${fmtClock(now)}`,
     `事件：${types}｜地點：${incident.location?.label ?? '未指定'}`,
-    `經過時間：${elapsedMin(incident, now)} 分`,
+    `經過時間：${elapsedMin(incident, now)} 分${incident.milestones?.['大隊抵達'] ? `｜大隊抵達 ${fmtClock(incident.milestones['大隊抵達'])}` : ''}`,
     `傷患總數 ${patients.length}：${f(N.R, by('R'))} ${f(N.Y, by('Y'))} ${f(N.G, by('G'))} ${f(N.K, by('K'))}`,
     `已後送：${f(N.R, by('R', 'sent'))} ${f(N.Y, by('Y', 'sent'))} ${f(N.G, by('G', 'sent'))}；待後送：${f(N.R, by('R', 'waiting'))} ${f(N.Y, by('Y', 'waiting'))} ${f(N.G, by('G', 'waiting'))}`,
     `勤務車／群送 ${patients.filter((p) => p.byDuty).length}、自行離開 ${patients.filter((p) => p.status === 'left').length}`,
@@ -67,23 +67,28 @@ function csvCell(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** 案件經過：排除標籤變動、車程查詢等系統內部紀錄 */
+export function caseLog(incident: Incident) {
+  return incident.log.filter((l) => !/(加|移除)標籤：|^即時車程查詢完成/.test(l.text));
+}
+
 export function logToCsv(incident: Incident): string {
-  const rows = [['時間', '內容'], ...incident.log.map((l) => [new Date(l.at).toLocaleString('zh-TW'), l.text])];
+  const rows = [['時間', '案件經過'], ...caseLog(incident).map((l) => [new Date(l.at).toLocaleString('zh-TW'), l.text])];
   return '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n');
 }
 
-export function patientsToCsv(patients: Patient[]): string {
+export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): string {
   const rows = [
-    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '標籤', '檢傷卡號'],
+    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '傷勢註解', '檢傷卡號'],
     ...patients.map((p) => [
       p.label,
       p.prevLabels.join('→'),
       p.color,
-      p.status === 'sent' ? '已送出' : '待送',
+      p.status === 'sent' ? '已送出' : p.status === 'left' ? '自行離開' : '待送',
       p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '',
-      p.vehicleId ?? '',
+      (p.vehicleId && vehicles.find((v) => v.id === p.vehicleId)?.name) || (p.byDuty ? '勤務車' : ''),
       p.sentAt ? new Date(p.sentAt).toLocaleString('zh-TW') : '',
-      p.tags.join(' '),
+      p.note ?? '',
       p.triageTagNo ?? '',
     ]),
   ];

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
-import { capacityOf, effectiveTravel } from '../engine/plan';
+import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
+import { fmtClock } from '../engine/actions';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -112,7 +113,7 @@ function GreenActions({ id, onDone }: { id: string; onDone: () => void }) {
       (h.county === '新竹縣' || h.county === '新竹市') &&
       h.level !== 'heavy' &&
       !runtime[h.id]?.bypass &&
-      capacityOf(h, runtime[h.id], settings.nightMode).G - runtime[h.id].used.G - runtime[h.id].selfPresented.G > 0,
+      effectiveCap(h, runtime[h.id], settings).G - runtime[h.id].used.G - runtime[h.id].selfPresented.G > 0,
   )
     .map((h) => ({ h, go: effectiveTravel(travel[h.id], runtime[h.id], settings)?.go ?? 99 }))
     .sort((a, b) => a.go - b.go)
@@ -185,15 +186,11 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const setRedClass = useStore((s) => s.setRedClass);
   const setLeft = useStore((s) => s.setLeft);
   const { names } = useTriage();
-  const [showTags, setShowTags] = useState(false);
+  const setNote = useStore((s) => s.setPatientNote);
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
   const rules = useRules();
   if (!p) return null;
-  // 事件相關標籤排前面
-  const tags = [...PATIENT_TAGS].sort(
-    (a, b) => Number(rules.patientTags.includes(b.id)) - Number(rules.patientTags.includes(a.id)),
-  );
   const no = p.triageTagNo ?? '';
   return (
     <Sheet onClose={onClose}>
@@ -205,30 +202,38 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         {p.status === 'sent' && <span className="muted small">已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}</span>}
       </h2>
 
+      {p.status === 'waiting' && p.color !== 'R' && (
+        <div className="upgrade-red">
+          <div className="ur-title">⬆ 升級為{names.R}（危急）</div>
+          <div className="grid g4">
+            {RED_CLASSES.map((rc) => (
+              <button key={rc.id} className="triage-btn R abcd" onClick={() => retriage(p.id, 'R', rc.id)}>
+                <span className="l">{rc.id}</span>
+                <span className="nm">{rc.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {p.color === 'G' && p.status === 'waiting' && <GreenActions id={p.id} onDone={onClose} />}
 
       {rules.hazmat && (
-        <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginBottom: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
+        <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginTop: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
           {p.tags.includes('decontaminated') ? '✔ 已除污' : '已除污'}
         </button>
       )}
-      <button className={`btn sm full ${showTags ? 'on' : ''}`} onClick={() => setShowTags(!showTags)}>
-        傷情標籤{p.tags.length ? `（${p.tags.length}）` : ''} {showTags ? '▲' : '▼'}
+
+      <h3>傷勢</h3>
+      <button className="btn full body-map-btn" disabled title="人形圖模組即將匯入">
+        🧍 人形圖選取部位（即將推出）
       </button>
-      {showTags && (
-      <div className="grid g4" style={{ marginTop: 8 }}>
-        {tags.map((t) => (
-          <button
-            key={t.id}
-            className={`btn sm ${p.tags.includes(t.id) ? 'on' : ''}`}
-            style={rules.patientTags.includes(t.id) && !p.tags.includes(t.id) ? { borderColor: 'var(--orange)' } : undefined}
-            onClick={() => toggleTag(p.id, t.id)}
-          >
-            {t.name}
-          </button>
-        ))}
-      </div>
-      )}
+      <input
+        className="note-input"
+        value={p.note ?? ''}
+        placeholder="傷勢註解（例：左大腿開放性骨折）"
+        onChange={(e) => setNote(p.id, e.target.value)}
+      />
 
       {p.status === 'waiting' && (
         <>
@@ -245,15 +250,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
             </>
           )}
           <h3>再檢傷</h3>
-          {p.color !== 'R' && (
-            <div className="grid g4" style={{ marginBottom: 6 }}>
-              {RED_CLASSES.map((rc) => (
-                <button key={rc.id} className="btn sm chip R" onClick={() => retriage(p.id, 'R', rc.id)}>
-                  改{names.R}-{rc.id}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="grid g3">
             {(['Y', 'G', 'K'] as Color[]).map((c) => (
               <button key={c} className={`btn sm chip ${c}`} disabled={p.color === c} onClick={() => retriage(p.id, c)}>
@@ -288,22 +284,22 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       <div className="log">
         {p.history.map((h, i) => (
           <div key={i}>
-            <time>{new Date(h.at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</time>
+            <time>{fmtClock(h.at)}</time>
             {h.action}
           </div>
         ))}
       </div>
 
       {p.status === 'waiting' && (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
           <DoubleTapButton
-            className="full"
+            className="sm del-sm"
             onConfirm={() => {
               del(p.id);
               onClose();
             }}
           >
-            刪除此傷患
+            刪除
           </DoubleTapButton>
         </div>
       )}
@@ -431,6 +427,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deleteVehicle);
   const adjustCrew = useStore((s) => s.adjustCrew);
   const releaseHold = useStore((s) => s.releaseHold);
+  const setHold = useStore((s) => s.setHold);
   if (!v) return null;
   const act = (fn: () => void) => () => {
     fn();
@@ -449,7 +446,12 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
       <div className="grid">
         {v.held && (
           <button className="btn go" onClick={act(() => releaseHold(v.id))}>
-            解除留守，可載送
+            解除留守，重新派車
+          </button>
+        )}
+        {!v.held && v.status === 'standby' && (
+          <button className="btn" onClick={act(() => setHold(v.id, true))}>
+            設為留守
           </button>
         )}
         {v.status === 'enroute' && (

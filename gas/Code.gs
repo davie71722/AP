@@ -8,6 +8,9 @@
  *      { address: "竹北市光明五街295號" }    → { lat, lng, label }
  *      { resolve: "https://maps.app.goo.gl/…" } → { url }
  *      { origins: [{lat,lng}], destinations: [{lat,lng}] } → [{ originIndex, destinationIndex, duration: "123s", condition }]
+ *  - 交接／多人同步：{ sync: 'create' | 'get' | 'put', room, key, rev, state }
+ *      資料存在 CacheService（每次讀寫自動延長，6 小時無人使用才失效），以版本號避免互相覆蓋，
+ *      合併（單一病人／車輛欄位以較新者為準）在 App 端完成。
  *
  * 使用 GAS 內建 Maps 服務與 UrlFetchApp，有每日額度：
  *  - 結果暫存在 CacheService（車程 10 分鐘、地點 6 小時），重複查詢不再耗用額度
@@ -59,6 +62,7 @@ function api(reqText) {
     }
     if (typeof req.resolve === 'string') return JSON.stringify({ url: resolve_(req.resolve) });
     if (req.origins && req.destinations) return JSON.stringify(matrix_(req.origins, req.destinations));
+    if (typeof req.sync === 'string') return JSON.stringify(sync_(req));
     return JSON.stringify({ error: 'unknown_request' });
   } catch (err) {
     return JSON.stringify({ error: String((err && err.message) || err) });
@@ -168,4 +172,80 @@ function route_(o, d) {
 function test() {
   Logger.log(api(JSON.stringify({ search: '東元綜合醫院 竹北' })));
   Logger.log(api(JSON.stringify({ origins: [{ lat: 24.839, lng: 121.004 }], destinations: [{ lat: 24.8275, lng: 121.0128 }] })));
+}
+
+// ---------------- 交接／多人同步 ----------------
+var ROOM_SEC = 21600; // CacheService 上限 6 小時；有人在用就會一直延長
+var CHUNK = 25000; // 每段字元數（中文 UTF-8 約 3 bytes，單筆上限 100KB）
+
+function rid_(n) {
+  var a = 'abcdefghijkmnpqrstuvwxyz23456789';
+  var s = '';
+  for (var i = 0; i < n; i++) s += a.charAt(Math.floor(Math.random() * a.length));
+  return s;
+}
+
+function roomLoad_(cache, room) {
+  var m = cache.get('room:' + room);
+  if (!m) return null;
+  var meta = JSON.parse(m);
+  var keys = [];
+  for (var i = 0; i < meta.n; i++) keys.push('room:' + room + ':' + i);
+  var parts = cache.getAll(keys);
+  var text = '';
+  for (var j = 0; j < keys.length; j++) {
+    if (parts[keys[j]] === undefined || parts[keys[j]] === null) return null;
+    text += parts[keys[j]];
+  }
+  meta.state = text;
+  return meta;
+}
+
+function roomSave_(cache, room, meta, text) {
+  var put = {};
+  var n = Math.max(1, Math.ceil(text.length / CHUNK));
+  for (var i = 0; i < n; i++) put['room:' + room + ':' + i] = text.slice(i * CHUNK, (i + 1) * CHUNK);
+  put['room:' + room] = JSON.stringify({ editKey: meta.editKey, viewKey: meta.viewKey, rev: meta.rev, n: n, saved: Date.now() });
+  cache.putAll(put, ROOM_SEC);
+}
+
+function sync_(req) {
+  var cache = CacheService.getScriptCache();
+  var url = '';
+  try {
+    url = ScriptApp.getService().getUrl();
+  } catch (e) {}
+  if (req.sync === 'create') {
+    var room = rid_(8);
+    var meta = { editKey: rid_(10), viewKey: rid_(10), rev: 1 };
+    roomSave_(cache, room, meta, JSON.stringify(req.state || {}));
+    return { room: room, editKey: meta.editKey, viewKey: meta.viewKey, rev: 1, role: 'edit', url: url };
+  }
+  var room = String(req.room || '');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var cur = roomLoad_(cache, room);
+    if (!cur) return { error: 'room_not_found' };
+    var role = req.key === cur.editKey ? 'edit' : req.key === cur.viewKey ? 'view' : '';
+    if (!role) return { error: 'bad_key' };
+    var keys = role === 'edit' ? { editKey: cur.editKey, viewKey: cur.viewKey } : {};
+    if (req.sync === 'get') {
+      // 有人在看就延長保存
+      if (Date.now() - (cur.saved || 0) > 1800000) roomSave_(cache, room, cur, cur.state);
+      if (req.rev === cur.rev) return { rev: cur.rev, role: role, url: url, keys: keys };
+      return { rev: cur.rev, role: role, url: url, keys: keys, state: JSON.parse(cur.state) };
+    }
+    if (req.sync === 'put') {
+      if (role !== 'edit') return { error: 'read_only' };
+      // 版本不符：回傳最新狀態，由 App 合併後重送
+      if (req.rev !== cur.rev) return { conflict: true, rev: cur.rev, role: role, state: JSON.parse(cur.state) };
+      cur.rev += 1;
+      roomSave_(cache, room, cur, JSON.stringify(req.state || {}));
+      return { rev: cur.rev, role: role };
+    }
+    return { error: 'unknown_sync' };
+  } finally {
+    lock.releaseLock();
+  }
 }

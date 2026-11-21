@@ -133,6 +133,8 @@ export interface Settings {
   longHaulMin: number;
   reserveVehicles: number;
   nightMode: boolean;
+  /** 啟用醫院收治上限（預設否：只統計已後送牌數，不設上限） */
+  useCapacity: boolean;
   /** 化災時救護車每趟返場後需除污（預設否） */
   hazmatVehicleDecon: boolean;
   /** 檢傷系統（預設 START 四色） */
@@ -153,6 +155,8 @@ export interface Incident {
   startAt: number | null;
   settings: Settings;
   log: LogEntry[];
+  /** 指揮節點時間（如「大隊抵達」） */
+  milestones?: Record<string, number>;
 }
 
 export interface TravelEntry {
@@ -187,6 +191,7 @@ export const DEFAULT_SETTINGS: Settings = {
   longHaulMin: 35,
   reserveVehicles: 0,
   nightMode: false,
+  useCapacity: false,
   hazmatVehicleDecon: false,
   triageSystem: 'START',
   defaultEmt2: 2,

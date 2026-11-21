@@ -104,6 +104,15 @@ export function capacityOf(h: Hospital, rt: HospitalRuntime | undefined, night: 
   return night && h.capacityNight ? h.capacityNight : h.capacity;
 }
 
+/** 實際使用的上限：未啟用收治上限時不限（僅保留「不收此色」＝0 的能力限制） */
+export function effectiveCap(h: Hospital, rt: HospitalRuntime | undefined, settings: Settings): Cap {
+  const cap = capacityOf(h, rt, settings.nightMode);
+  if (settings.useCapacity) return cap;
+  const base = settings.nightMode && h.capacityNight ? h.capacityNight : h.capacity;
+  const open = (c: TransportColor) => (base[c] > 0 || cap[c] > 0 ? 999 : 0);
+  return { R: open('R'), Y: open('Y'), G: open('G') };
+}
+
 export function fitClass(h: Hospital, color: TransportColor, trauma: boolean): FitClass {
   if (color === 'R' && trauma) {
     if (h.level === 'heavy') return 'heavy';
@@ -321,7 +330,7 @@ export function computePlan(input: PlanInput): Plan {
   /** ignoreLoad：不考慮量能與分散（用來找「理想首選」） */
   const scoreHospital = (h: Hospital, job: Job, go: number, departMin: number, ignoreLoad = false): number => {
     const c = job.color;
-    const cap = capacityOf(h, runtime[h.id], settings.nightMode)[c];
+    const cap = effectiveCap(h, runtime[h.id], settings)[c];
     const loadRatio = ignoreLoad ? 0 : cap > 0 ? Math.min(1, simUsed[h.id][c] / cap) : 1;
     let s =
       fitScore(h, c, rules.trauma) -
@@ -353,7 +362,7 @@ export function computePlan(input: PlanInput): Plan {
 
   /** 各色剩餘量能是否足夠 */
   const fits = (h: Hospital, job: Job) => {
-    const cap = capacityOf(h, runtime[h.id], settings.nightMode);
+    const cap = effectiveCap(h, runtime[h.id], settings);
     return (['R', 'Y', 'G'] as TransportColor[]).every((c) => !job.need[c] || cap[c] - simUsed[h.id][c] >= job.need[c]);
   };
 
@@ -370,7 +379,7 @@ export function computePlan(input: PlanInput): Plan {
       if (!tr) continue;
       if (respectCapacity) {
         if (!fits(h, job)) continue;
-      } else if (capacityOf(h, rt, settings.nightMode)[job.color] <= 0) continue;
+      } else if (effectiveCap(h, rt, settings)[job.color] <= 0) continue;
       const score = scoreHospital(h, job, tr.go, departMin, !respectCapacity);
       if (!best || score > best.score) best = { h, score, go: tr.go, back: tr.back };
     }
@@ -390,7 +399,7 @@ export function computePlan(input: PlanInput): Plan {
         if (rt?.bypass) continue;
         const tr = effectiveTravel(travel[h.id], rt, settings);
         if (!tr) continue;
-        if (capacityOf(h, rt, settings.nightMode)[main] <= 0) continue;
+        if (effectiveCap(h, rt, settings)[main] <= 0) continue;
         ranking.push({
           hospitalId: h.id,
           score: scoreHospital(h, job, tr.go, settings.loadMin),

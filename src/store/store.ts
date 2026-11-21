@@ -8,9 +8,10 @@ import {
   hazmatNotifyList,
   setLeft as setLeftDomain,
   setVehicleStatus,
+  fmtClock,
   type DomainState,
 } from '../engine/actions';
-import { capacityOf, effectiveTravel } from '../engine/plan';
+import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { missingRequirements } from '../engine/rules';
 import type { Suggestion } from '../engine/plan';
 import { combineRules } from '../engine/rules';
@@ -71,7 +72,12 @@ interface Store extends Persisted {
   tab: Tab;
   now: number;
   online: boolean;
+  /** 上一頁用的頁籤紀錄 */
+  tabHistory: Tab[];
   setTab(t: Tab): void;
+  back(): void;
+  /** 指揮節點：大隊抵達等時間戳記 */
+  markMilestone(name: string): void;
   tick(): void;
   hydrate(): Promise<void>;
 
@@ -98,6 +104,7 @@ interface Store extends Persisted {
   addSupportVehicle(name: string): void;
   setVehicleStatus(id: string, s: VehicleStatus): void;
   releaseHold(id: string): void;
+  setHold(id: string, on: boolean): void;
   arriveAndConfirm(s: Suggestion): void;
   groupTransport(hid: string): void;
   adjustEta(id: string, delta: number): void;
@@ -223,7 +230,20 @@ export const useStore = create<Store>((set, get) => {
     now: Date.now(),
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
 
-    setTab: (tab) => set({ tab }),
+    tabHistory: [],
+    setTab: (tab) =>
+      set((s) => (s.tab === tab ? {} : { tab, tabHistory: [...s.tabHistory.slice(-19), s.tab] })),
+    back: () =>
+      set((s) => {
+        const prev = s.tabHistory[s.tabHistory.length - 1];
+        return prev ? { tab: prev, tabHistory: s.tabHistory.slice(0, -1) } : {};
+      }),
+    markMilestone: (name) => {
+      if (!get().incident.startAt) get().startIncident(false);
+      const at = Date.now();
+      set((s) => ({ incident: { ...s.incident, milestones: { ...(s.incident.milestones ?? {}), [name]: at } } }));
+      log(`${name} ${fmtClock(at)}`);
+    },
     tick: () => set({ now: Date.now(), online: typeof navigator === 'undefined' ? true : navigator.onLine }),
 
     hydrate: async () => {
@@ -286,7 +306,7 @@ export const useStore = create<Store>((set, get) => {
         if (s.travel.source !== 'online') set({ travel: offlineTravelState(loc, now) });
         setTimeout(() => void get().refreshTravel(true), 0);
       }
-      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab } : {}) });
+      set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab, tabHistory: [...s.tabHistory, s.tab] } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
       log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
     },
@@ -304,7 +324,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     clearIncident: () => {
-      set({ ...freshPersisted(), tab: 'incident' });
+      set({ ...freshPersisted(), tab: 'incident', tabHistory: [] });
     },
 
     // ---------- 傷患 ----------
@@ -353,7 +373,8 @@ export const useStore = create<Store>((set, get) => {
           return { ...p, tags, history: [...p.history, { at: now, action: `${on ? '加' : '移除'}標籤：${name}` }] };
         }),
       }));
-      log(`${label} ${on ? '加' : '移除'}標籤：${name}`);
+      // 標籤變動只記在病人紀錄，不列入案件經過
+      void label;
     },
 
     retriage: (id, c, redClass) => {
@@ -541,7 +562,14 @@ export const useStore = create<Store>((set, get) => {
       const v = get().vehicles.find((x) => x.id === id);
       if (!v?.held) return;
       set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === id ? { ...x, held: false } : x)) }));
-      log(`${v.name} 解除留守，可載送`);
+      log(`${v.name} 解除留守，可重新派車`);
+    },
+    setHold: (id, on) => {
+      const v = get().vehicles.find((x) => x.id === id);
+      if (!v || !!v.held === on) return;
+      if (!on) return get().releaseHold(id);
+      set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === id ? { ...x, held: true, wasHeld: true } : x)) }));
+      log(`${v.name} 設為留守`);
     },
     arriveAndConfirm: (sug) => {
       // 這台車是派遣建議選定的，直接到場出發（不指定為留守車）
@@ -552,7 +580,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const h = HOSPITAL_BY_ID[hid];
       const rt = s.runtime[hid];
-      const cap = capacityOf(h, rt, s.incident.settings.nightMode).G - rt.used.G - rt.selfPresented.G;
+      const cap = effectiveCap(h, rt, s.incident.settings).G - rt.used.G - rt.selfPresented.G;
       const rules = combineRules(s.incident.types);
       const greens = s.patients
         .filter((p) => p.color === 'G' && p.status === 'waiting' && missingRequirements(p, rules).length === 0)
@@ -643,7 +671,7 @@ export const useStore = create<Store>((set, get) => {
       const last = s.undoStack[s.undoStack.length - 1];
       if (!last) return;
       // 保留撤銷後新增的紀錄
-      const log = [...s.incident.log, { at: Date.now(), text: `撤銷確認出發：${last.label}` }];
+      const log = [...s.incident.log, { at: Date.now(), text: `撤銷派車：${last.label}` }];
       set({
         undoStack: s.undoStack.slice(0, -1),
         patients: last.state.patients,
@@ -682,7 +710,6 @@ export const useStore = create<Store>((set, get) => {
             v.status === 'enroute' && res.unitEta[v.unit] !== undefined ? { ...v, etaToSceneMin: res.unitEta[v.unit] } : v,
           ),
         }));
-        log(`即時車程查詢完成：${Object.keys(res.byHospital).length} 家醫院、${Object.keys(res.unitEta).length} 個分隊`);
       } catch (e) {
         set((st) => ({ travel: { ...st.travel, error: String((e as Error).message ?? e) } }));
       }
@@ -719,3 +746,22 @@ useStore.subscribe((s, prev) => {
     void saveSnapshot(data);
   }, 300);
 });
+
+// ---------- 唯讀（交接檢視模式） ----------
+const READ_SAFE = new Set(['setTheme', 'setTab', 'back', 'tick', 'hydrate', 'refreshTravel']);
+let readOnly = false;
+export function setReadOnly(v: boolean) {
+  readOnly = v;
+}
+export function isReadOnly() {
+  return readOnly;
+}
+{
+  const st = useStore.getState() as unknown as Record<string, unknown>;
+  const wrapped: Record<string, unknown> = {};
+  for (const [k, f] of Object.entries(st)) {
+    if (typeof f !== 'function' || READ_SAFE.has(k)) continue;
+    wrapped[k] = (...a: unknown[]) => (readOnly ? undefined : (f as (...x: unknown[]) => unknown)(...a));
+  }
+  useStore.setState(wrapped as Partial<ReturnType<typeof useStore.getState>>);
+}
