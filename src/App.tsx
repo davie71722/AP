@@ -22,6 +22,7 @@ export default function App() {
   const refreshTravel = useStore((s) => s.refreshTravel);
   const theme = useStore((s) => s.theme);
   const role = useSync((s) => s.role);
+  const ended = useStore((s) => !!s.incident.endAt);
   const enRoute = useStore((s) => s.vehicles.filter((v) => v.status === 'transport').length);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function App() {
     <div className={`app ${role === 'view' ? 'readonly' : ''}`}>
       <Header />
       <main className="main">
+        {ended && tab !== 'report' && <div className="ended-bar">🏁 案件已結束｜總結在「回報」</div>}
         {role === 'view' && <div className="readonly-bar">👁 唯讀模式：即時觀看，無法操作</div>}
         {tab === 'incident' && <IncidentTab />}
         {tab === 'scene' && <SceneTab />}

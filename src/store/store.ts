@@ -77,6 +77,9 @@ interface Store extends Persisted {
   setTab(t: Tab): void;
   /** 指揮節點：大隊抵達等時間戳記 */
   markMilestone(name: string): void;
+  /** 案件結束／重新開啟 */
+  endIncident(): void;
+  reopenIncident(): void;
   tick(): void;
   hydrate(): Promise<void>;
 
@@ -232,6 +235,19 @@ export const useStore = create<Store>((set, get) => {
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
 
     setTab: (tab) => set({ tab }),
+    endIncident: () => {
+      const s = get();
+      if (!s.incident.startAt || s.incident.endAt) return;
+      const at = Date.now();
+      set({ incident: { ...s.incident, endAt: at } });
+      log(`案件結束 ${fmtClock(at)}`);
+    },
+    reopenIncident: () => {
+      const s = get();
+      if (!s.incident.endAt) return;
+      set({ incident: { ...s.incident, endAt: null } });
+      log(`案件重新開啟 ${fmtClock(Date.now())}`);
+    },
     markMilestone: (name) => {
       if (!get().incident.startAt) get().startIncident(false);
       const at = Date.now();

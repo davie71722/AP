@@ -13,7 +13,7 @@ export function Header() {
   const { names } = useTriage();
   const setTheme = useStore((s) => s.setTheme);
 
-  const elapsed = incident.startAt ? Math.max(0, now - incident.startAt) : 0;
+  const elapsed = incident.startAt ? Math.max(0, (incident.endAt ?? now) - incident.startAt) : 0;
   const mm = Math.floor(elapsed / 60000);
   const ss = Math.floor((elapsed % 60000) / 1000);
   const hh = Math.floor(mm / 60);

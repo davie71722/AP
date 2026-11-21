@@ -44,7 +44,7 @@ export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
     { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', FIX_PELVIS, FIX_BOARD, IV2, IO, TXA, BLOOD, NALB] },
     { id: 'r-art', region: '四肢', name: '動脈大出血', acts: ['出血性休克', TQ, '已填塞止血紗布', '已加壓包紮', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
     { id: 'r-amp', region: '四肢', name: '創傷性截肢', acts: ['出血性休克', TQ, '已加壓包紮', '斷肢低溫保存隨行', IV2, IO, TXA, BLOOD, NALB] },
-    { id: 'r-crush', region: '四肢', name: '壓砸傷', acts: ['壓砸症候群風險', '遠端脈搏消失', '出血性休克', TQ, FIX_SPLINT, IV2, '已給NS輸液', NALB, BLOOD] },
+    { id: 'r-crush', region: '四肢', name: '壓砸傷', acts: ['遠端脈搏消失', TQ, FIX_SPLINT, IV2, NALB, BLOOD] },
     { id: 'r-femur', region: '四肢', name: '股骨骨折', acts: ['出血性休克', '遠端脈搏消失', FIX_SPLINT, IV2, IO, NALB, TXA, BLOOD] },
     { id: 'r-burn', region: '全身', name: '大面積燒燙傷(>20%)', acts: ['吸入性灼傷疑慮', '環狀燒傷', '無菌乾紗/燒傷敷料覆蓋', '已保溫防失溫', '已打IV/IO輸液', NALB, NRM, BVM, ETT] },
     { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['意識改變', '血壓<90', '心跳>120', '皮膚濕冷', FIX_COLLAR, FIX_BOARD, FIX_PELVIS, IV2, IO, TXA, BLOOD, '已保溫防失溫', NRM] },
@@ -207,7 +207,7 @@ export const STATUS = new Set([
   '四肢癱瘓/無力', '感覺異常', '神經性休克(低血壓/心跳慢)',
   '呼吸音減弱(左)', '呼吸音減弱(右)', '氣管偏移', '頸靜脈怒張', '呼吸窘迫', '胸壁反常運動',
   '疑內出血/休克', '腹部膨脹/僵硬', '血壓<90', '心跳>120', '下肢長度不等/外旋',
-  '出血性休克', '壓砸症候群風險', '遠端脈搏消失', '吸入性灼傷疑慮', '環狀燒傷', '意識改變', '皮膚濕冷',
+  '出血性休克', '遠端脈搏消失', '吸入性灼傷疑慮', '環狀燒傷', '意識改變', '皮膚濕冷',
   // 黃、綠牌的評估
   '遠端脈搏正常', '曾短暫昏迷', '生命徵象穩定', '四肢肌力正常', '行走無礙',
 ]);

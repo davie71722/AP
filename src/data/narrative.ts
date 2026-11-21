@@ -79,7 +79,6 @@ const PROC: Record<string, [string, string]> = {
   三角巾固定: ['fix', '三角巾'],
   副木固定: ['fix', '副木'],
   KED固定: ['fix', 'KED'],
-  已給NS輸液: ['access', 'NS輸液'],
   已上頸圈: ['fix', '頸圈'],
   已上頸圈及頭部固定: ['fix', '頸圈'],
   '已上長背板/鏟式擔架': ['fix', '長背板'],

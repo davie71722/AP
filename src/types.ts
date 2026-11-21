@@ -196,6 +196,8 @@ export interface Incident {
   log: LogEntry[];
   /** 指揮節點時間（如「大隊抵達」） */
   milestones?: Record<string, number>;
+  /** 案件結束時間 */
+  endAt?: number | null;
 }
 
 export interface TravelEntry {

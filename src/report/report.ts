@@ -77,6 +77,89 @@ export function buildReport(
   return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
 }
 
+/** 案件結束：統整戰況（條列，沒有的不寫），可複製 */
+export function buildSummary(
+  incident: Incident,
+  patients: Patient[],
+  vehicles: Vehicle[],
+  runtime: Record<string, HospitalRuntime>,
+  now: number,
+): string {
+  const N = TRIAGE_NAMES[incident.settings.triageSystem ?? 'START'];
+  const f = (name: string, n: number) => `${n}${/\d$/.test(name) ? ' ' : ''}${name}`;
+  const colors = (ps: Patient[], cs: readonly ('R' | 'Y' | 'G' | 'K')[] = ['R', 'Y', 'G', 'K']) =>
+    cs
+      .map((c) => [c, ps.filter((p) => p.color === c).length] as const)
+      .filter(([, n]) => n > 0)
+      .map(([c, n]) => f(N[c], n))
+      .join(' ');
+  const end = incident.endAt ?? now;
+  const d = new Date(end);
+  const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  const order = (p: Patient) => ({ R: 0, Y: 1, G: 2, K: 3 })[p.color] * 1000 + p.num;
+  const sorted = [...patients].sort((a, b) => order(a) - order(b));
+  const sent = sorted.filter((p) => p.status === 'sent');
+  const byAmb = sent.filter((p) => !p.byDuty);
+  const byDuty = sent.filter((p) => p.byDuty);
+  const left = sorted.filter((p) => p.status === 'left');
+  const waiting = sorted.filter((p) => p.status === 'waiting' && p.color !== 'K');
+  const black = sorted.filter((p) => p.color === 'K');
+  const departs = [...new Set(byAmb.map((p) => p.sentAt!).filter(Boolean))].sort((a, b) => a - b);
+  const mins = incident.startAt ? Math.max(0, Math.round((end - incident.startAt) / 60000)) : 0;
+  const upgraded = incident.log.filter((l) => l.text.includes('檢傷升級為紅傷')).map((l) => l.text.split('：').pop());
+
+  const timeline = [
+    incident.startAt ? `開始 ${fmtClock(incident.startAt)}` : '',
+    incident.milestones?.['大隊抵達'] ? `大隊抵達 ${fmtClock(incident.milestones['大隊抵達'])}` : '',
+    departs.length ? `首車出發 ${fmtClock(departs[0])}` : '',
+    departs.length > 1 ? `末車出發 ${fmtClock(departs[departs.length - 1])}` : '',
+    incident.endAt ? `結束 ${fmtClock(incident.endAt)}` : '',
+  ].filter(Boolean);
+
+  const perHospital = HOSPITALS.map((h) => {
+    const ps = sent.filter((p) => p.hospitalId === h.id);
+    return ps.length ? `${h.short} ${colors(ps, ['R', 'Y', 'G'])}（${ps.map((p) => p.label).join('、')}）` : '';
+  }).filter(Boolean);
+  const trips = vehicles
+    .filter((v) => v.trips > 0)
+    .map((v) => `${v.name} ${v.trips}趟`);
+  const full = HOSPITALS.filter((h) => (runtime[h.id]?.strain ?? 0) === 2 && !runtime[h.id]?.bypass).map((h) => h.short);
+  const closed = HOSPITALS.filter((h) => runtime[h.id]?.bypass).map((h) => h.short);
+
+  const items: [string, string][] = [
+    ['結束時間', `${date} ${fmtClock(end)}`],
+    ['事件類型', incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋')],
+    ['地點', incident.location?.label ?? ''],
+    ['時間軸', `${timeline.join('、')}${mins ? `（歷時 ${mins} 分）` : ''}`],
+    ['傷患總數', patients.length ? `${patients.length}（${colors(patients)}）` : ''],
+    ['救護車後送', byAmb.length ? `${byAmb.length}（${colors(byAmb, ['R', 'Y', 'G'])}）` : ''],
+    ['勤務車／群送', byDuty.length ? `${byDuty.length}（${byDuty.map((p) => p.label).join('、')}）` : ''],
+    ['自行離開', left.length ? `${left.length}（${left.map((p) => p.label).join('、')}）` : ''],
+    ['未後送', waiting.length ? `${waiting.length}（${waiting.map((p) => p.label).join('、')}）` : ''],
+    [N.K, black.length ? `${black.length}（${black.map((p) => p.label).join('、')}）` : ''],
+    ['檢傷升級為紅傷', upgraded.length ? `${upgraded.length} 位（${upgraded.join('、')}）` : ''],
+    ['各院收治', perHospital.join('；')],
+    ['救護車', trips.length ? `${trips.length} 台、共 ${vehicles.reduce((n, v) => n + v.trips, 0)} 趟（${trips.join('、')}）` : ''],
+    ['滿載醫院', full.join('、')],
+    ['關閉醫院', closed.join('、')],
+  ];
+  const lines = ['【新竹縣MCI案件總結】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)];
+
+  // 傷患明細：代碼｜車輛 出發時間 ➔ 醫院｜交接註解
+  const detail = sorted
+    .filter((p) => p.color !== 'K' || injuryText(p))
+    .map((p) => {
+      const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? '勤務車' : '';
+      const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
+      const where =
+        p.status === 'sent' ? `${v ?? ''}${p.sentAt ? ` ${fmtClock(p.sentAt)}` : ''} ➔ ${h || '未定'}` : p.status === 'left' ? '自行離開' : '未後送';
+      const inj = injuryText(p);
+      return `${p.label}｜${where}${inj ? `｜${inj}` : ''}`;
+    });
+  if (detail.length) lines.push('', '【傷患明細】', ...detail);
+  return lines.join('\n');
+}
+
 function csvCell(v: unknown): string {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
