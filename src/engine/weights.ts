@@ -88,7 +88,7 @@ export const WEIGHTS = {
    */
   cumulative: { R: 15, Y: 6, G: 4 } as Record<TransportColor, number>,
   cumulativeOther: 1,
-  /** 醫院負荷回報：吃緊／爆量扣分 */
+  /** 醫院負荷回報：吃緊／滿載扣分 */
   strainPenalty: [0, 20, 50] as number[],
   /** 以縣市內醫院為主：第一層只在這些縣市中、級別適合的醫院之間分配 */
   localCounties: ['新竹縣', '新竹市'] as string[],

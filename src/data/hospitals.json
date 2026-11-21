@@ -3,7 +3,7 @@
  "source": "衛生福利部「急救責任醫院分區名單」（115/2/12 更新）",
  "sourceUrl": "https://www.mohw.gov.tw/dl-97025-23d029a4-14c2-4ae9-a057-7a32d3885839.html",
  "updatedAt": "2026-02-12",
- "note": "座標為約略值（TODO：以 Google Maps 校正）。capacity 為預留值（TODO：與各院協定 MCI 收治量，日間／夜間各一套）。 怡仁、楊梅天成分級暫定中度級、座標為估計值（TODO：依衛福部名單與地圖校正）。",
+ "note": "15 家優先醫院座標依地址以 Google 地圖查得（2026-11）；其他醫院座標為約略值（TODO）。capacity 為預留值（TODO：與各院協定 MCI 收治量，日間／夜間各一套）。 怡仁、楊梅天成分級暫定中度級（TODO：依衛福部名單確認）。",
  "hospitals": [
   {"id": "tungyuan",
    "name": "東元醫療社團法人東元綜合醫院",
@@ -14,14 +14,15 @@
    "tags": [
     "hazmat"
    ],
-   "lat": 24.8275,
-   "lng": 121.0128,
+   "lat": 24.82345,
+   "lng": 121.01371,
    "capacity": {
     "R": 4,
     "Y": 8,
     "G": 15
    },
-   "featured": 7
+   "featured": 7,
+   "address": "新竹縣竹北市縣政二路69號"
   },
   {"id": "cmuh-hc",
    "name": "中國醫藥大學新竹附設醫院",
@@ -30,14 +31,15 @@
    "level": "medium",
    "traumaLevel": "heavy",
    "tags": [],
-   "lat": 24.812,
-   "lng": 121.029,
+   "lat": 24.82523,
+   "lng": 121.00269,
    "capacity": {
     "R": 3,
     "Y": 6,
     "G": 12
    },
-   "featured": 6
+   "featured": 6,
+   "address": "新竹縣竹北市興隆路一段199號"
   },
   {"id": "ntu-bio-zb",
    "name": "國立臺灣大學醫學院附設醫院新竹臺大分院生醫醫院生醫院區",
@@ -46,14 +48,15 @@
    "level": "medium",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.815,
-   "lng": 121.041,
+   "lat": 24.80638,
+   "lng": 121.04426,
    "capacity": {
     "R": 2,
     "Y": 5,
     "G": 12
    },
-   "featured": 10
+   "featured": 10,
+   "address": "新竹縣竹北市生醫路一段2號"
   },
   {"id": "vgh-hc",
    "name": "臺北榮民總醫院新竹分院",
@@ -62,14 +65,15 @@
    "level": "general",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.74,
-   "lng": 121.089,
+   "lat": 24.72209,
+   "lng": 121.09979,
    "capacity": {
     "R": 1,
     "Y": 3,
     "G": 10
    },
-   "featured": 15
+   "featured": 15,
+   "address": "新竹縣竹東鎮中豐路一段81號"
   },
   {"id": "renci",
    "name": "天主教仁慈醫療財團法人仁慈醫院",
@@ -80,14 +84,15 @@
    "tags": [
     "hazmat"
    ],
-   "lat": 24.899,
-   "lng": 121.044,
+   "lat": 24.90046,
+   "lng": 121.04551,
    "capacity": {
     "R": 1,
     "Y": 3,
     "G": 10
    },
-   "featured": 8
+   "featured": 8,
+   "address": "新竹縣湖口鄉忠孝路29號"
   },
   {"id": "ntu-bio-zd",
    "name": "國立臺灣大學醫學院附設醫院新竹臺大分院生醫醫院竹東院區",
@@ -96,14 +101,15 @@
    "level": "general",
    "traumaLevel": "general",
    "tags": [],
-   "lat": 24.737,
-   "lng": 121.088,
+   "lat": 24.71891,
+   "lng": 121.09334,
    "capacity": {
     "R": 0,
     "Y": 3,
     "G": 10
    },
-   "featured": 9
+   "featured": 9,
+   "address": "新竹縣竹東鎮至善路52號"
   },
   {"id": "ntu-hc",
    "name": "國立臺灣大學醫學院附設醫院新竹臺大分院",
@@ -112,14 +118,15 @@
    "level": "heavy",
    "traumaLevel": "heavy",
    "tags": [],
-   "lat": 24.816,
-   "lng": 120.972,
+   "lat": 24.8162,
+   "lng": 120.98028,
    "capacity": {
     "R": 4,
     "Y": 8,
     "G": 15
    },
-   "featured": 1
+   "featured": 1,
+   "address": "新竹市北區經國路一段442巷25號"
   },
   {"id": "mackay-hc",
    "name": "台灣基督長老教會馬偕醫療財團法人新竹馬偕紀念醫院",
@@ -130,14 +137,15 @@
    "tags": [
     "peds"
    ],
-   "lat": 24.801,
-   "lng": 120.992,
+   "lat": 24.8005,
+   "lng": 120.99068,
    "capacity": {
     "R": 4,
     "Y": 8,
     "G": 15
    },
-   "featured": 2
+   "featured": 2,
+   "address": "新竹市東區光復路二段690號"
   },
   {"id": "cathay-hc",
    "name": "國泰醫療財團法人新竹國泰綜合醫院",
@@ -146,14 +154,15 @@
    "level": "medium",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.803,
-   "lng": 120.966,
+   "lat": 24.79812,
+   "lng": 120.96501,
    "capacity": {
     "R": 2,
     "Y": 5,
     "G": 12
    },
-   "featured": 3
+   "featured": 3,
+   "address": "新竹市東區中華路二段678號"
   },
   {"id": "af-hc",
    "name": "國軍桃園總醫院新竹分院附設民眾診療服務處",
@@ -162,14 +171,15 @@
    "level": "general",
    "traumaLevel": "general",
    "tags": [],
-   "lat": 24.787,
-   "lng": 120.953,
+   "lat": 24.8163,
+   "lng": 120.96236,
    "capacity": {
     "R": 0,
     "Y": 3,
     "G": 10
    },
-   "featured": 4
+   "featured": 4,
+   "address": "新竹市北區武陵路3號"
   },
   {"id": "nanmen",
    "name": "南門綜合醫院",
@@ -178,14 +188,15 @@
    "level": "general",
    "traumaLevel": "general",
    "tags": [],
-   "lat": 24.801,
-   "lng": 120.964,
+   "lat": 24.80257,
+   "lng": 120.96962,
    "capacity": {
     "R": 0,
     "Y": 3,
     "G": 10
    },
-   "featured": 5
+   "featured": 5,
+   "address": "新竹市東區林森路20號"
   },
   {"id": "cgmh-lk",
    "name": "長庚醫療財團法人林口長庚紀念醫院",
@@ -227,14 +238,15 @@
    "level": "medium",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.868,
-   "lng": 121.237,
+   "lat": 24.87827,
+   "lng": 121.23474,
    "capacity": {
     "R": 2,
     "Y": 5,
     "G": 12
    },
-   "featured": 12
+   "featured": 12,
+   "address": "桃園市龍潭區中興路168號"
   },
   {"id": "landseed",
    "name": "聯新國際醫院",
@@ -333,14 +345,15 @@
    "level": "heavy",
    "traumaLevel": "heavy",
    "tags": [],
-   "lat": 24.687,
-   "lng": 120.91,
+   "lat": 24.68733,
+   "lng": 120.9078,
    "capacity": {
     "R": 4,
     "Y": 8,
     "G": 15
    },
-   "featured": 11
+   "featured": 11,
+   "address": "苗栗縣頭份市信義路128號"
   },
   {"id": "dachien",
    "name": "大千綜合醫院",
@@ -394,8 +407,8 @@
    "level": "medium",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.9105,
-   "lng": 121.1455,
+   "lat": 24.90886,
+   "lng": 121.15719,
    "capacity": {
     "R": 2,
     "Y": 5,
@@ -403,15 +416,16 @@
    },
    "name": "天成醫療體系楊梅天成醫院",
    "short": "楊梅天成",
-   "featured": 13
+   "featured": 13,
+   "address": "桃園市楊梅區中山北路一段356號"
   },
   {"id": "yiren",
    "county": "桃園市",
    "level": "medium",
    "traumaLevel": "medium",
    "tags": [],
-   "lat": 24.917,
-   "lng": 121.147,
+   "lat": 24.91699,
+   "lng": 121.15555,
    "capacity": {
     "R": 2,
     "Y": 5,
@@ -419,7 +433,8 @@
    },
    "name": "怡仁綜合醫院",
    "short": "怡仁醫院",
-   "featured": 14
+   "featured": 14,
+   "address": "桃園市楊梅區楊新北路321巷30號"
   }
  ]
 }

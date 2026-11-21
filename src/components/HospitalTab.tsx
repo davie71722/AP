@@ -59,7 +59,7 @@ function HospitalRow({ h, planned, onOpen }: { h: Hospital; planned?: Record<Tra
           {rt.bypass && <span style={{ color: 'var(--red)', fontSize: 14 }}> 關閉中</span>}
           {!rt.bypass && (rt.strain ?? 0) > 0 && (
             <span className={`chip ${rt.strain === 2 ? 'R' : 'Y'}`} style={{ fontSize: 13, marginLeft: 6 }}>
-              {rt.strain === 2 ? '爆量' : '吃緊'}
+              {rt.strain === 2 ? '滿載' : '吃緊'}
             </span>
           )}
           <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>
@@ -145,7 +145,7 @@ export function HospitalSheet({ id, planned, onClose }: { id: string; planned?: 
 
       <h3>負荷</h3>
       <div className="grid g3">
-        {(['正常', '吃緊', '爆量'] as const).map((name, lv) => (
+        {(['正常', '吃緊', '滿載'] as const).map((name, lv) => (
           <button
             key={name}
             className={`btn sm ${(rt.strain ?? 0) === lv ? (lv === 2 ? 'chip R' : lv === 1 ? 'chip Y' : 'on') : ''}`}

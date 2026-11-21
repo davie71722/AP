@@ -578,7 +578,7 @@ export const useStore = create<Store>((set, get) => {
     },
     setStrain: (hid, level) => {
       patchRuntime(hid, (r) => ({ ...r, strain: level }));
-      log(`${HOSPITAL_BY_ID[hid].short} 負荷：${['正常', '吃緊', '爆量'][level]}`);
+      log(`${HOSPITAL_BY_ID[hid].short} 負荷：${['正常', '吃緊', '滿載'][level]}`);
     },
     setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
     dutyTransport: (id, hid) => {

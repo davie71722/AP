@@ -264,7 +264,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
         </b>
         <span className="muted small">
           剩 紅{left('R')} 黃{left('Y')} 綠{left('G')}
-          {(rt.strain ?? 0) > 0 ? `｜${rt.strain === 2 ? '爆量' : '吃緊'}` : ''}
+          {(rt.strain ?? 0) > 0 ? `｜${rt.strain === 2 ? '滿載' : '吃緊'}` : ''}
         </span>
       </button>
     );

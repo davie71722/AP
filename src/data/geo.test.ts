@@ -35,7 +35,7 @@ describe('地點輸入解析', () => {
     expect(pinLocation(24.793, 121.037)).toMatchObject({ unit: '二重', area: '二重', township: '竹東' });
     expect(pinLocation(24.76, 120.985)).toMatchObject({ unit: '寶山', area: '寶山' });
     expect(pinLocation(24.882, 121.0)).toMatchObject({ unit: '山崎', area: '山崎', township: '新豐' });
-    expect(pinLocation(24.84, 121.012)).toMatchObject({ unit: '竹北', area: '竹北' });
+    expect(pinLocation(24.84, 121.012)).toMatchObject({ area: '竹北', township: '竹北' });
     expect(pinLocation(24.62, 121.28)).toMatchObject({ unit: '田埔', area: '尖石' });
   });
   it('依鄉鎮界線判斷；內灣村（橫山鄉）例外由尖石分隊負責', () => {

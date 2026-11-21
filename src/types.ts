@@ -23,6 +23,8 @@ export interface Hospital {
   lng: number;
   capacity: Cap;
   capacityNight?: Cap;
+  /** 地址 */
+  address?: string;
   /** 送醫進度頁優先顯示的順序（未設定者收在「更多醫院」） */
   featured?: number;
 }
@@ -31,7 +33,7 @@ export interface HospitalRuntime {
   used: Cap;
   selfPresented: Cap;
   bypass: boolean;
-  /** 醫院負荷回報（護理人力、情緒）：0 正常、1 吃緊、2 爆量 */
+  /** 醫院負荷回報（護理人力、情緒）：0 正常、1 吃緊、2 滿載 */
   strain?: 0 | 1 | 2;
   travelAdjustMin: number;
   decon: boolean;

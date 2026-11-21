@@ -308,7 +308,7 @@ describe('護理量能與發牌輪送', () => {
     for (let k = 0; k < 12; k += 4) expect(new Set(hs.slice(k, k + 4)).size).toBe(4);
   });
 
-  it('醫院回報爆量時避開，吃緊時降低優先', () => {
+  it('醫院標記滿載時排序往後，吃緊時降低優先', () => {
     const base = computePlan(input({ patients: patients({ R: 1 }) })).suggestions[0].hospitalId;
     const runtime = initialRuntimes();
     runtime[base].strain = 2;
