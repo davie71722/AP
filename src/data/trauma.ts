@@ -21,37 +21,46 @@ const BVM = 'BVM給氧';
 const NRM = 'NRM給氧';
 const ETT = '已插氣管內管';
 const RIDE = '可搭坐車';
+// 固定（統一選項）
+export const FIX_COLLAR = '頸圈固定';
+export const FIX_BOARD = '長背板固定';
+export const FIX_PELVIS = '骨盆固定帶固定';
+export const FIX_SLING = '三角巾固定';
+export const FIX_SPLINT = '副木固定';
+export const FIX_KED = 'KED固定';
+export const FIXES = [FIX_COLLAR, FIX_BOARD, FIX_PELVIS, FIX_SLING, FIX_SPLINT, FIX_KED];
 
 export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
   R: [
-    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放i-gel', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
-    { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片', '已抽吸', '已放口咽/鼻咽呼吸道', ETT, '通報醫導後環甲切', BVM, NRM, '加壓止血'] },
+    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放i-gel', BVM, NRM, FIX_COLLAR, FIX_BOARD, '頭部抬高30度'] },
+    { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片', '已抽吸', '已放口咽/鼻咽呼吸道', ETT, '已放i-gel', '通報醫導後環甲切', BVM, NRM, '加壓止血'] },
     { id: 'r-inhal', region: '頸部', name: '吸入性灼傷', acts: ['聲音沙啞/喘鳴', '口鼻焦黑/鼻毛燒焦', '血氧<90%', '預防性插管完成', ETT, NRM, BVM] },
     { id: 'r-neckpen', region: '頸部', name: '頸部穿刺/血腫', acts: ['血腫擴大', '皮下氣腫', '氣道受阻風險', '局部加壓止血', '已貼封閉敷料', ETT, '通報醫導後環甲切', '已打大口徑IV', NRM] },
-    { id: 'r-cspine', region: '頸部', name: '疑頸椎損傷', acts: ['四肢癱瘓/無力', '感覺異常', '神經性休克(低血壓/心跳慢)', '已上頸圈及頭部固定', '已上長背板/鏟式擔架', NRM, '已打IV'] },
+    { id: 'r-cspine', region: '頸部', name: '疑頸椎損傷', acts: ['四肢癱瘓/無力', '感覺異常', '神經性休克(低血壓/心跳慢)', FIX_COLLAR, FIX_BOARD, FIX_KED, NRM, '已打IV'] },
     { id: 'r-ptx', region: '胸部', name: '氣胸/血胸', acts: ['呼吸音減弱(左)', '呼吸音減弱(右)', '氣管偏移', '頸靜脈怒張', '血氧<90%', '已針刺減壓(左)', '已針刺減壓(右)', '已貼胸部封閉敷料', NRM, BVM, '已打大口徑IV'] },
     { id: 'r-flail', region: '胸部', name: '連枷胸/穿刺傷', acts: ['呼吸窘迫', '胸壁反常運動', '血氧<90%', '已貼胸部封閉敷料', '異物固定未拔除', NRM, BVM, '已打大口徑IV', BLOOD] },
     { id: 'r-abd', region: '腹部', name: '腹部嚴重創傷', acts: ['疑內出血/休克', '腹部膨脹/僵硬', '血壓<90', '心跳>120', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
     { id: 'r-evisc', region: '腹部', name: '臟器外露', acts: ['疑內出血/休克', '臟器NS濕紗覆蓋', '異物固定未拔除', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
-    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', '已上骨盆固定帶', '已上長背板/鏟式擔架', IV2, IO, TXA, BLOOD, NALB] },
+    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', FIX_PELVIS, FIX_BOARD, IV2, IO, TXA, BLOOD, NALB] },
     { id: 'r-art', region: '四肢', name: '動脈大出血', acts: ['出血性休克', TQ, '已填塞止血紗布', '已加壓包紮', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
-    { id: 'r-amp', region: '四肢', name: '創傷性截肢/壓砸', acts: ['出血性休克', '壓砸症候群風險', TQ, '斷肢低溫保存隨行', NALB, '已打IV', IV2, TXA, BLOOD] },
-    { id: 'r-femur', region: '四肢', name: '股骨骨折', acts: ['出血性休克', '遠端脈搏消失', '已上牽引固定器', IV2, IO, NALB, TXA, BLOOD] },
+    { id: 'r-amp', region: '四肢', name: '創傷性截肢', acts: ['出血性休克', TQ, '已加壓包紮', '斷肢低溫保存隨行', IV2, IO, TXA, BLOOD, NALB] },
+    { id: 'r-crush', region: '四肢', name: '壓砸傷', acts: ['壓砸症候群風險', '遠端脈搏消失', '出血性休克', TQ, FIX_SPLINT, IV2, '已給NS輸液', NALB, BLOOD] },
+    { id: 'r-femur', region: '四肢', name: '股骨骨折', acts: ['出血性休克', '遠端脈搏消失', FIX_SPLINT, IV2, IO, NALB, TXA, BLOOD] },
     { id: 'r-burn', region: '全身', name: '大面積燒燙傷(>20%)', acts: ['吸入性灼傷疑慮', '環狀燒傷', '無菌乾紗/燒傷敷料覆蓋', '已保溫防失溫', '已打IV/IO輸液', NALB, NRM, BVM, ETT] },
-    { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['意識改變', '血壓<90', '心跳>120', '皮膚濕冷', '全身脊椎固定完成', IV2, IO, TXA, BLOOD, '已保溫防失溫', NRM] },
+    { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['意識改變', '血壓<90', '心跳>120', '皮膚濕冷', FIX_COLLAR, FIX_BOARD, FIX_PELVIS, IV2, IO, TXA, BLOOD, '已保溫防失溫', NRM] },
   ],
   Y: [
-    { id: 'y-fx', name: '單一肢體骨折/脫臼', acts: ['已副木/夾板固定', '三角巾懸吊', '遠端脈搏正常', NALB] },
-    { id: 'y-openfx', name: '開放性骨折(已止血)', acts: ['無菌敷料覆蓋', '已副木固定', '遠端脈搏正常', '已打IV', NALB] },
+    { id: 'y-fx', name: '單一肢體骨折/脫臼', acts: ['遠端脈搏正常', FIX_SPLINT, FIX_SLING, NALB] },
+    { id: 'y-openfx', name: '開放性骨折(已止血)', acts: ['遠端脈搏正常', '無菌敷料覆蓋', FIX_SPLINT, FIX_SLING, '已打IV', NALB] },
     { id: 'y-burn', name: '中度燒燙傷(10-20%)', acts: ['已沖水降溫', '無菌敷料覆蓋', NALB, 'Mask給氧'] },
     { id: 'y-lac', name: '較大撕裂/穿刺(無休克)', acts: ['彈性繃帶加壓止血', '無菌敷料包紮', '已打IV'] },
-    { id: 'y-spine', name: '背痛/頸痛(無癱瘓)', acts: ['已上頸圈', '已上長背板/真空墊', '四肢肌力正常'] },
-    { id: 'y-head', name: '頭部撞擊(意識清楚)', acts: ['傷口加壓包紮', '曾短暫昏迷', '生命徵象穩定'] },
+    { id: 'y-spine', name: '背痛/頸痛(無癱瘓)', acts: ['四肢肌力正常', FIX_COLLAR, FIX_BOARD, FIX_KED] },
+    { id: 'y-head', name: '頭部撞擊(意識清楚)', acts: ['曾短暫昏迷', '生命徵象穩定', '傷口加壓包紮', FIX_COLLAR] },
   ],
   G: [
     { id: 'g-abr', name: '表淺擦傷/挫傷', acts: ['NS清洗傷口', '已貼敷料/紗布', RIDE] },
-    { id: 'g-lac', name: '小面積撕裂傷(已止血)', acts: ['已加壓止血包紮', '行走無礙', RIDE] },
-    { id: 'g-sprain', name: '輕微扭傷/肢體疼痛', acts: ['已彈性繃帶包紮', '患肢抬高/冰敷', RIDE] },
+    { id: 'g-lac', name: '小面積撕裂傷(已止血)', acts: ['行走無礙', '已加壓止血包紮', RIDE] },
+    { id: 'g-sprain', name: '輕微扭傷/肢體疼痛', acts: ['已彈性繃帶包紮', FIX_SLING, FIX_SPLINT, '患肢抬高/冰敷', RIDE] },
     { id: 'g-burn', name: '小面積二度燒傷(<10%)', acts: ['已冷水降溫', '無菌紗布覆蓋', RIDE] },
   ],
 };
@@ -88,6 +97,7 @@ export const SIDE_KIND: Record<string, 'limb' | 'chest' | 'femur'> = {
   'r-femur': 'femur',
   'r-art': 'limb',
   'r-amp': 'limb',
+  'r-crush': 'limb',
   'y-fx': 'limb',
   'y-openfx': 'limb',
   'g-sprain': 'limb',
@@ -119,6 +129,7 @@ export const GROUPS: Record<string, string[]> = {
   'r-pelvis': ['pelvis'],
   'r-art': ['arm', 'leg', 'neck'],
   'r-amp': ['arm', 'leg'],
+  'r-crush': ['arm', 'leg'],
   'r-femur': ['leg'],
   'r-burn': ['burn'],
   'r-shock': ['any'],
@@ -228,7 +239,7 @@ const KEY_ACTS: [RegExp, string][] = [
   [/^通報醫導後環甲切$|^已行環甲膜切開$/, '環甲切'],
   [/^已針刺減壓/, '針刺減壓'],
   [/^已上止血帶\((\d\d:\d\d)\)$/, '止血帶'],
-  [/^已上骨盆固定帶$/, '骨盆固定帶'],
+  [/^骨盆固定帶固定$|^已上骨盆固定帶$/, '骨盆固定帶'],
   [/^已輸血$/, '輸血'],
   [/^已給Nalbuphine$/, 'Nalbuphine'],
 ];

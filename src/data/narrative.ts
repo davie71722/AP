@@ -16,7 +16,8 @@ const INJURY_SHORT: Record<string, string> = {
   'r-evisc': '臟器外露',
   'r-pelvis': '不穩定骨盆骨折',
   'r-art': '動脈大出血',
-  'r-amp': '創傷性截肢壓砸',
+  'r-amp': '創傷性截肢',
+  'r-crush': '壓砸傷',
   'r-femur': '股骨骨折',
   'r-burn': '大面積燒燙傷(>20%)',
   'r-shock': '高能量創傷併休克',
@@ -72,12 +73,19 @@ const PROC: Record<string, [string, string]> = {
   '已針刺減壓(右)': ['chest', '右側針刺減壓'],
   已貼胸部封閉敷料: ['chest', '胸部封閉敷料'],
   已貼封閉敷料: ['chest', '封閉敷料'],
+  頸圈固定: ['fix', '頸圈'],
+  長背板固定: ['fix', '長背板'],
+  骨盆固定帶固定: ['fix', '骨盆固定帶'],
+  三角巾固定: ['fix', '三角巾'],
+  副木固定: ['fix', '副木'],
+  KED固定: ['fix', 'KED'],
+  已給NS輸液: ['access', 'NS輸液'],
   已上頸圈: ['fix', '頸圈'],
-  已上頸圈及頭部固定: ['fix', '頭頸'],
+  已上頸圈及頭部固定: ['fix', '頸圈'],
   '已上長背板/鏟式擔架': ['fix', '長背板'],
-  '已上長背板/真空墊': ['fix', '長背板或真空墊'],
+  '已上長背板/真空墊': ['fix', '長背板'],
   全身脊椎固定完成: ['fix', '全身脊椎'],
-  已上骨盆固定帶: ['fix', '骨盆帶'],
+  已上骨盆固定帶: ['fix', '骨盆固定帶'],
   已上牽引固定器: ['fix', '牽引器'],
   '已副木/夾板固定': ['fix', '副木'],
   已副木固定: ['fix', '副木'],
@@ -203,18 +211,20 @@ export function procedurePhrase(acts: string[]): string {
     // 脊椎固定合寫：長背板頸圈固定
     const fixes = g.fix ?? [];
     const board = fixes.some((x) => /長背板|全身脊椎/.test(x));
-    const collar = fixes.some((x) => x === '頸圈' || x === '頭頸');
+    const collar = fixes.includes('頸圈');
     const spine = board && collar ? '長背板頸圈' : board ? '長背板' : collar ? '頸圈' : '';
-    const rest = fixes.filter((x) => !/長背板|全身脊椎/.test(x) && x !== '頸圈' && x !== '頭頸');
+    const rest = [...new Set(fixes.filter((x) => !/長背板|全身脊椎/.test(x) && x !== '頸圈'))];
     const nouns = [spine, ...rest].filter(Boolean);
-    const phrases = nouns.length ? [`${joinAnd(nouns)}固定`] : [];
+    const phrases = nouns.length ? [`${joinFindings(nouns)}固定`] : [];
     const plus = g.fixplus ?? [];
-    if (phrases.length && plus.length) phrases[0] = `${phrases[0]}並${joinAnd(plus)}`;
-    else if (plus.length) phrases.push(joinAnd(plus));
+    if (phrases.length && plus.length) phrases[0] = `${phrases[0]}並${joinFindings(plus)}`;
+    else if (plus.length) phrases.push(joinFindings(plus));
     parts.push(...phrases);
   }
-  if (g.access?.length) parts.push(`建立${joinAnd(g.access)}`);
-  if (g.med?.length) parts.push(`給${joinAnd([...g.med, ...(g.blood ?? [])])}`);
+  // 有輸血必有 IV：不再寫一般 IV
+  const access = g.blood?.length ? (g.access ?? []).filter((x) => x !== 'IV') : (g.access ?? []);
+  if (access.length) parts.push(`建立${joinFindings(access)}`);
+  if (g.med?.length) parts.push(`給${joinFindings([...g.med, ...(g.blood ?? [])])}`);
   else if (g.blood?.length) parts.push('輸血');
   parts.push(...other);
   const body = parts.join('、');

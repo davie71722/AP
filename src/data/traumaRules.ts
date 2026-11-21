@@ -8,13 +8,12 @@ export const O2_DEVICES = ['NRM給氧', 'Mask給氧', 'BVM給氧'];
 const BASIC_AIRWAY = ['已放口咽/鼻咽呼吸道'];
 const IV_BASIC = '已打IV';
 const IV_BIG = ['已打雙線IV', '已打大口徑IV'];
-const COLLAR = '已上頸圈';
-const COLLAR_FULL = '已上頸圈及頭部固定';
+const INTUBATED = ['已插氣管內管', '預防性插管完成'];
 
 const SHOCK = ['疑內出血/休克', '出血性休克', '血壓<90', '神經性休克(低血壓/心跳慢)', '皮膚濕冷'];
 const ALOC = ['意識不清', 'GCS≤8', '意識持續下降', '意識改變'];
 const NEED_AIRWAY = ['意識不清', 'GCS≤8'];
-const ACCESS = /IV|IO|輸液/;
+const ACCESS = /IV|IO|輸液|輸血/;
 
 /** 移除時需再按一次確認的關鍵處置 */
 export function isKeyAct(stored: string): boolean {
@@ -48,7 +47,7 @@ export function actState(list: TraumaEntry[], act: string, traumaId?: string): A
   if (adv && O2_DEVICES.includes(act)) return { disabled: true, reason: `已建立進階呼吸道（${adv.replace(/^已/, '')}），不再選給氧方式` };
   if (adv && BASIC_AIRWAY.includes(act)) return { disabled: true, reason: '已建立進階呼吸道' };
   if (act === IV_BASIC && all.some((a) => IV_BIG.includes(a))) return { disabled: true, reason: '已記錄大口徑／雙線 IV' };
-  if (act === COLLAR && all.includes(COLLAR_FULL)) return { disabled: true, reason: '已記錄頸圈及頭部固定' };
+  if (act === '已放i-gel' && all.some((a) => INTUBATED.includes(a))) return { disabled: true, reason: '已插管，不需 i-gel' };
   const side = sideOf(act);
   if (side && /^(呼吸音減弱|已針刺減壓)/.test(act)) {
     const cs = chestSides(list);
@@ -61,7 +60,7 @@ export function actState(list: TraumaEntry[], act: string, traumaId?: string): A
  * 點選處置（加入）：互斥、取代、連帶。
  * - 給氧裝置一次一種；進階呼吸道一次一種
  * - 建立進階呼吸道：移除所有給氧方式（NRM／Mask／BVM）與口咽／鼻咽呼吸道
- * - 大口徑／雙線 IV 取代「已打IV」；頸圈及頭部固定取代「已上頸圈」
+ * - 大口徑／雙線 IV 取代「已打IV」；已插管時不可放 i-gel
  * - 胸部左右處置：自動補上胸部傷勢側別
  */
 export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: number): TraumaEntry[] {
@@ -76,7 +75,6 @@ export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: 
     BASIC_AIRWAY.forEach((x) => remove.add(x));
   }
   if (IV_BIG.includes(text)) remove.add(IV_BASIC);
-  if (text === COLLAR_FULL) remove.add(COLLAR);
   const side = sideOf(text);
   const chest = side && /^(呼吸音減弱|已針刺減壓)/.test(text);
 
@@ -155,7 +153,7 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
       w.push(`${entryName(t)} 與人形圖${type === '截肢' ? '截肢' : '骨折'}部位（${[...new Set(ws.map((x) => x.region))].join('、')}）側別不同，請確認`);
   }
   // 止血帶：需有四肢出血／截肢傷勢
-  if (all.some((a) => a.startsWith('已上止血帶(')) && !l.some((t) => t.id === 'r-art' || t.id === 'r-amp')) w.push('已上止血帶，但未記錄動脈大出血或截肢');
+  if (all.some((a) => a.startsWith('已上止血帶(')) && !l.some((t) => ['r-art', 'r-amp', 'r-crush'].includes(t.id))) w.push('已上止血帶，但未記錄動脈大出血、截肢或壓砸傷');
   // 呼吸道與給氧
   const adv = all.find((a) => ADV_AIRWAY.includes(a));
   if (has(NEED_AIRWAY) && !adv) w.push('意識不清／GCS≤8，尚未建立進階呼吸道，請確認呼吸道處置');
@@ -164,7 +162,6 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
   if (all.includes('已給Nalbuphine') && has([...SHOCK, ...ALOC])) w.push('休克或意識改變時給予 Nalbuphine（鴉片類止痛），請再確認');
   // 休克未建立管路
   if (has(SHOCK) && !all.some((a) => ACCESS.test(a))) w.push('有休克徵象，尚未建立 IV／IO');
-  if (all.includes('已輸血') && !all.some((a) => ACCESS.test(a))) w.push('已輸血，但未記錄 IV／IO 管路');
   // 燒燙傷面積與分類
   const tbsa = wounds.filter((x) => x.type === '燙傷').reduce((n, x) => n + (x.tbsa || 0), 0);
   if (tbsa > 0) {

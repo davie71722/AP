@@ -8,11 +8,11 @@ const W = (region: string, type: string, extra: Partial<Wound> = {}): Wound => (
 describe('交接註解：連接詞敘述', () => {
   it('使用者範例（紅牌）', () => {
     const trauma: TraumaEntry[] = [
-      { id: 'r-head', name: '重度頭部外傷', acts: ['耳鼻流出血/腦脊髓液', '已抽吸', '已放i-gel', '已上頸圈', '頭部抬高30度'] },
+      { id: 'r-head', name: '重度頭部外傷', acts: ['耳鼻流出血/腦脊髓液', '已抽吸', '已放i-gel', '頸圈固定', '頭部抬高30度'] },
       { id: 'r-face', name: '顏面嚴重創傷', acts: ['口鼻大量出血', '通報醫導後環甲切'] },
       { id: 'r-neckpen', name: '頸部穿刺/血腫', acts: ['血腫擴大', '氣道受阻風險', '局部加壓止血', '已打大口徑IV'] },
       { id: 'r-ptx', name: '氣胸/血胸', acts: ['呼吸音減弱(左)', '氣管偏移'], sides: ['左'] },
-      { id: 'r-pelvis', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '已上長背板/鏟式擔架', '已打骨針IO', '已給Transamin', '已輸血'] },
+      { id: 'r-pelvis', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '長背板固定', '已打骨針IO', '已給Transamin', '已輸血'] },
     ];
     const wounds = [W('額頭', '撕裂傷'), W('頸部', '挫傷'), W('上唇', '撕裂傷'), W('右前臂', '疑似骨折/脫臼')];
     expect(narrative(trauma, wounds, undefined, 'R')).toBe(
@@ -34,8 +34,9 @@ describe('交接註解：連接詞敘述', () => {
       narrative([{ id: 'y-lac', name: '較大撕裂/穿刺(無休克)', acts: ['彈性繃帶加壓止血'] }], [W('右大腿', '撕裂傷', { cm: 6 }), W('額頭', '撕裂傷'), W('右大腿', '挫傷')], undefined, 'Y'),
     ).toBe('右大腿6cm及額頭撕裂穿刺傷、右大腿挫傷；處置予彈性繃帶加壓止血。');
     expect(narrative([{ id: 'g-abr', name: '表淺擦傷/挫傷', acts: [] }], [W('右膝', '擦傷'), W('左前臂', '挫傷')], undefined, 'G')).toBe('右膝及左前臂擦挫傷。');
-    expect(procedurePhrase(['已上頸圈及頭部固定', '已上長背板/鏟式擔架', '全身脊椎固定完成', '已上牽引固定器', '頭部抬高30度'])).toBe('長背板頸圈及牽引器固定並頭抬高30度');
-    expect(procedurePhrase(['已上長背板/真空墊'])).toBe('長背板固定');
+    expect(procedurePhrase(['頸圈固定', '長背板固定', 'KED固定', '副木固定', '頭部抬高30度'])).toBe('長背板頸圈與KED及副木固定並頭抬高30度');
+    expect(procedurePhrase(['長背板固定'])).toBe('長背板固定');
+    expect(procedurePhrase(['三角巾固定', '副木固定'])).toBe('三角巾及副木固定');
   });
   it('黃綠牌保留輕微傷，相同傷勢合併部位', () => {
     expect(woundPhrases([W('額頭', '撕裂傷'), W('上唇', '撕裂傷'), W('頸部', '挫傷')], 'Y')).toEqual(['額頭及上唇撕裂傷', '頸部挫傷']);
@@ -56,8 +57,11 @@ describe('交接註解：連接詞敘述', () => {
     expect(narrative([{ id: 'g-abr', name: '表淺擦傷/挫傷', acts: ['NS清洗傷口', '已貼敷料/紗布', '可搭坐車'] }])).toBe('表淺擦挫傷；處置予NS清洗傷口、貼敷料/紗布，可搭坐車。');
     expect(narrative([{ id: 'r-pelvis', name: '不穩定骨盆骨折', acts: [] }], [], '酒味')).toBe('不穩定骨盆骨折。酒味');
   });
-  it('處置分組：給藥與輸血、固定合併', () => {
+  it('處置分組：給藥與輸血、固定合併；有輸血不重複寫 IV', () => {
     expect(procedurePhrase(['已輸血'])).toBe('輸血');
-    expect(procedurePhrase(['已上頸圈及頭部固定', '已上骨盆固定帶', '已給Nalbuphine'])).toBe('頸圈及骨盆帶固定、給Nalbuphine');
+    expect(procedurePhrase(['已打IV', '已輸血'])).toBe('輸血');
+    expect(procedurePhrase(['已打IV', '已打骨針IO', '已給Transamin', '已輸血'])).toBe('建立IO、給Transamin及輸血');
+    expect(procedurePhrase(['已打IV'])).toBe('建立IV');
+    expect(procedurePhrase(['頸圈固定', '骨盆固定帶固定', '已給Nalbuphine'])).toBe('頸圈及骨盆固定帶固定、給Nalbuphine');
   });
 });
