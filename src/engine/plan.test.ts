@@ -66,7 +66,7 @@ describe('紅傷轉向順序', () => {
     const hs = computePlan(input({ at: '竹北', patients: patients({ R: 4 }) })).suggestions.map((s) => short(s.hospitalId));
     expect(hs[0]).toBe('東元醫院');
     const firstCity = hs.findIndex((h) => h === '新竹臺大' || h === '新竹馬偕');
-    const firstCmuh = hs.indexOf('中醫新竹');
+    const firstCmuh = hs.indexOf('新竹中醫大');
     expect(firstCmuh).toBeGreaterThan(0);
     if (firstCity >= 0) expect(firstCmuh).toBeLessThan(firstCity);
   });
@@ -76,7 +76,7 @@ describe('紅傷轉向順序', () => {
     runtime['tungyuan'].bypass = true;
     for (const at of ['竹北', '湖口', '竹東', '新埔']) {
       const plan = computePlan(input({ at, patients: patients({ R: 1 }), runtime }));
-      expect(short(plan.suggestions[0].hospitalId)).toBe('中醫新竹');
+      expect(short(plan.suggestions[0].hospitalId)).toBe('新竹中醫大');
     }
     // 寶山緊鄰新竹市：馬偕近約 6 分鐘，綜合評估送新竹市
     const bs = computePlan(input({ at: '寶山', patients: patients({ R: 1 }), runtime }));
@@ -86,7 +86,7 @@ describe('紅傷轉向順序', () => {
   it('以縣市內醫院為主：紅傷在縣市內重度／外傷重度醫院間分散，用完才轉外縣市', () => {
     const plan = computePlan(input({ patients: patients({ R: 20 }) }));
     const hs = plan.suggestions.map((s) => short(s.hospitalId));
-    const local = ['東元醫院', '中醫新竹', '新竹臺大', '新竹馬偕'];
+    const local = ['東元醫院', '新竹中醫大', '新竹臺大', '新竹馬偕'];
     const firstOut = hs.findIndex((h) => !local.includes(h));
     // 縣市內量能（東元4＋中醫大3＋台大新竹4＋馬偕4＝15）用完才轉外縣市
     expect(firstOut).toBe(15);
@@ -99,18 +99,18 @@ describe('紅傷轉向順序', () => {
     const plan = computePlan(input({ patients: patients({ R: 12 }), runtime }));
     const hs = plan.suggestions.map((s) => short(s.hospitalId));
     // 第一位轉向中醫大新竹
-    expect(hs[0]).toBe('中醫新竹');
+    expect(hs[0]).toBe('新竹中醫大');
     expect(hs).not.toContain('東元醫院');
     // 首次出現順序：中醫大新竹 → 新竹市重度級 → 為恭／林口
     const firstSeen = (h: string) => hs.indexOf(h);
     const out = ['為恭醫院', '林口長庚', '部立桃園', '大千'];
     const firstOut = hs.findIndex((h) => out.includes(h));
     expect(firstOut).toBeGreaterThan(0);
-    expect(firstSeen('新竹臺大')).toBeGreaterThan(firstSeen('中醫新竹'));
+    expect(firstSeen('新竹臺大')).toBeGreaterThan(firstSeen('新竹中醫大'));
     expect(firstSeen('新竹臺大')).toBeLessThan(firstOut);
     expect(firstSeen('新竹馬偕')).toBeLessThan(firstOut);
     // 紅傷不送中度／一般級
-    for (const h of hs) expect(['中醫新竹', '新竹臺大', '新竹馬偕', ...out]).toContain(h);
+    for (const h of hs) expect(['新竹中醫大', '新竹臺大', '新竹馬偕', ...out]).toContain(h);
     expect(['為恭醫院', '林口長庚']).toContain(hs[firstOut]);
   });
 
@@ -344,7 +344,7 @@ describe('後送官自選病人：建議醫院', () => {
   it('紅傷建議以重度級／外傷重度醫院在前，已收病人較多者往後', () => {
     const ps = patients({ R: 1 });
     const r1 = computePlan({ ...input({ patients: ps }), rankFor: [ps[0].id] }).ranking!;
-    expect(['東元醫院', '中醫新竹']).toContain(short(r1[0].hospitalId));
+    expect(['東元醫院', '新竹中醫大']).toContain(short(r1[0].hospitalId));
     expect(r1[0].preferred && r1[0].fits).toBe(true);
     const runtime = initialRuntimes();
     runtime[r1[0].hospitalId].used.R = 2;
@@ -402,15 +402,15 @@ describe('各分隊常送醫院', () => {
     expect(first('湖口', 'Y')).toBe('湖口仁慈');
   });
   it('竹北、新埔送竹北的醫院', () => {
-    expect(['東元醫院', '中醫新竹', '臺大生醫']).toContain(first('竹北', 'Y'));
-    expect(['東元醫院', '中醫新竹', '臺大生醫']).toContain(first('新埔', 'Y'));
+    expect(['東元醫院', '新竹中醫大', '臺大生醫']).toContain(first('竹北', 'Y'));
+    expect(['東元醫院', '新竹中醫大', '臺大生醫']).toContain(first('新埔', 'Y'));
   });
   it('關西黃傷送國軍桃園或台大生醫竹北', () => {
-    expect(['國軍桃總', '臺大生醫']).toContain(first('關西', 'Y'));
+    expect(['桃園國軍', '臺大生醫']).toContain(first('關西', 'Y'));
   });
   it('竹東與山區：輕症送竹東兩院、重症送東元', () => {
     for (const at of ['竹東', '尖石', '五峰', '橫山']) {
-      expect(['竹東榮總', '臺大竹東']).toContain(first(at, 'G'));
+      expect(['竹東榮總', '竹東台大']).toContain(first(at, 'G'));
       expect(first(at, 'R')).toBe('東元醫院');
     }
   });
