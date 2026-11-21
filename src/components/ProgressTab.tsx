@@ -8,6 +8,8 @@ import { injuryText, type Hospital, type Patient } from '../types';
 import { clockAfter, SentCounts } from './common';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
+import { KeyFlags } from './TraumaPicker';
+import { keyFlags } from '../data/trauma';
 import { VehicleSheet } from './InputTab';
 
 export function ProgressTab() {
@@ -125,7 +127,16 @@ export function ProgressTab() {
                 </span>
               </div>
               {t.ps.some((p) => injuryText(p)) && (
-                <div className="muted small">{t.ps.map((p) => (injuryText(p) ? `${p.label}：${injuryText(p)}` : '')).filter(Boolean).join('｜')}</div>
+                <div className="small trip-inj">
+                  {t.ps
+                    .filter((p) => injuryText(p))
+                    .map((p) => (
+                      <div key={p.id}>
+                        <b>{p.label}</b> <KeyFlags flags={keyFlags(p.trauma)} />
+                        <span className="muted">{injuryText(p)}</span>
+                      </div>
+                    ))}
+                </div>
               )}
             </button>
           );

@@ -6,7 +6,9 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import { woundText, type Patient, type Vehicle } from '../types';
+import { injuryText, type Patient, type Vehicle } from '../types';
+import { keyFlags } from '../data/trauma';
+import { KeyFlags } from './TraumaPicker';
 import { DoubleTapButton, SentCounts, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
@@ -315,9 +317,14 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
             onChange={(e) => setNote(p.id, e.target.value)}
           />
           <button className="btn sm" onClick={() => setEdit(p.id)}>
-            🧍
+            傷勢
           </button>
-          {p.wounds && p.wounds.length > 0 && <div className="wound-text span3">{p.wounds.map(woundText).join('；')}</div>}
+          {(p.trauma?.length || p.wounds?.length) ? (
+            <div className="wound-text span3">
+              <KeyFlags flags={keyFlags(p.trauma)} />
+              {injuryText({ trauma: p.trauma, wounds: p.wounds })}
+            </div>
+          ) : null}
         </div>
       ))}
 

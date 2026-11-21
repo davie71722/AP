@@ -1,3 +1,4 @@
+import { traumaText, type TraumaEntry } from './data/trauma';
 // 核心資料模型（對應規格書「三、資料模型」）
 
 export type Color = 'R' | 'Y' | 'G' | 'K'; // 紅黃綠黑
@@ -78,6 +79,8 @@ export interface Patient {
   note?: string;
   /** 人形圖傷口 */
   wounds?: Wound[];
+  /** 創傷標籤與院前處置 */
+  trauma?: TraumaEntry[];
   history: { at: number; action: string }[];
 }
 
@@ -107,8 +110,9 @@ export function woundText(w: Wound): string {
 }
 
 /** 病人的傷勢文字：人形圖傷口＋註解，以全形分號串接 */
-export function injuryText(p: { wounds?: Wound[]; note?: string }): string {
-  return [...(p.wounds ?? []).map(woundText), p.note?.trim()].filter(Boolean).join('；');
+export function injuryText(p: { wounds?: Wound[]; note?: string; trauma?: TraumaEntry[] }): string {
+  const rest = [...(p.wounds ?? []).map(woundText), p.note?.trim()].filter(Boolean).join('；');
+  return [traumaText(p.trauma), rest].filter(Boolean).join('');
 }
 
 export type VehicleStatus = 'enroute' | 'standby' | 'transport' | 'decon' | 'offline';

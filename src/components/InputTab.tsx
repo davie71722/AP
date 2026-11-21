@@ -9,6 +9,8 @@ import { usePlan, useRules, useTriage } from '../store/usePlan';
 import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, woundText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
+import { TraumaPicker } from './TraumaPicker';
+import { keyFlags } from '../data/trauma';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -173,8 +175,10 @@ export function PatientChip({ p, onClick }: { p: Patient; onClick: () => void })
       : p.status === 'sent'
         ? `${p.byDuty ? '勤' : ''}➔${p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : ''}`
       : [p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '', tagNames.join('·')].filter(Boolean).join(' ');
+  const flagged = keyFlags(p.trauma).length > 0;
   return (
     <button className={`ptag ${p.color} ${p.status !== 'waiting' ? 'sent' : ''}`} onClick={onClick}>
+      {flagged && <i className="kf-dot" />}
       {p.label}
       {sub && <small>{sub}</small>}
     </button>
@@ -190,6 +194,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const { names } = useTriage();
   const setNote = useStore((s) => s.setPatientNote);
   const setWounds = useStore((s) => s.setWounds);
+  const setTrauma = useStore((s) => s.setTrauma);
   const [showMap, setShowMap] = useState(false);
   const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
@@ -228,7 +233,14 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         </button>
       )}
 
-      <h3>傷勢</h3>
+      {p.color !== 'K' && (
+        <>
+          <h3>創傷與處置</h3>
+          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} />
+        </>
+      )}
+
+      <h3>傷口部位</h3>
       <button className={`btn full ${showMap ? 'on' : ''}`} onClick={() => setShowMap(!showMap)}>
         🧍 人形圖{p.wounds?.length ? `（${p.wounds.length} 處）` : '：點部位記錄傷口'} {showMap ? '▲' : '▼'}
       </button>
