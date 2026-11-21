@@ -6,10 +6,10 @@ import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
-import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, woundText, type Color, type Patient, type Vehicle } from '../types';
+import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
-import { TraumaPicker } from './TraumaPicker';
+import { KeyFlags, TraumaPicker } from './TraumaPicker';
 import { keyFlags } from '../data/trauma';
 
 export function InputTab() {
@@ -247,13 +247,20 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           <BodyMap wounds={p.wounds ?? []} onChange={(w) => setWounds(p.id, w)} />
         </Suspense>
       )}
-      {!showMap && p.wounds && p.wounds.length > 0 && <div className="wound-text">{p.wounds.map(woundText).join('；')}</div>}
+
       <input
         className="note-input"
         value={p.note ?? ''}
         placeholder="其他註解（例：意識模糊、疑似骨盆骨折）"
         onChange={(e) => setNote(p.id, e.target.value)}
       />
+      {injuryText(p) && (
+        <div className="tr-out">
+          <div className="tr-sub">交接註解</div>
+          <KeyFlags flags={keyFlags(p.trauma)} />
+          {injuryText(p)}
+        </div>
+      )}
 
       {p.status === 'waiting' && (
         <>

@@ -712,3 +712,5 @@ a.btn { color: inherit; text-decoration: none; }
 .bm-cm .deg { min-width: 40px; min-height: 40px; padding: 0 6px; }
 .bm-main { display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: start; }
 .bm-svg.front, .bm-svg.back { max-height: 72dvh; }
+.btn.dim:disabled { opacity: 0.25; text-decoration: line-through; }
+.tr-out { margin-top: 8px; }

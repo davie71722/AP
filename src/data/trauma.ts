@@ -24,7 +24,7 @@ const RIDE = '可搭坐車';
 
 export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
   R: [
-    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放聲門上呼吸道', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
+    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放聲門上呼吸道(i-gel)', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
     { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片', '已抽吸', '已放口咽/鼻咽呼吸道', ETT, '已行環甲膜切開', BVM, NRM, '加壓止血'] },
     { id: 'r-inhal', region: '頸部', name: '吸入性灼傷', acts: ['聲音沙啞/喘鳴', '口鼻焦黑/鼻毛燒焦', '血氧<90%', '預防性插管完成', ETT, NRM, BVM] },
     { id: 'r-neckpen', region: '頸部', name: '頸部穿刺/血腫', acts: ['血腫擴大', '皮下氣腫', '氣道受阻風險', '局部加壓止血', '已貼封閉敷料', ETT, '已行環甲膜切開', '已打大口徑IV', NRM] },
@@ -96,30 +96,67 @@ export const STATUS = new Set([
   '出血性休克', '壓砸症候群風險', '遠端脈搏消失', '吸入性灼傷疑慮', '環狀燒傷', '意識改變', '皮膚濕冷',
 ]);
 
-/** 依按鈕順序排列 */
-function ordered(t: TraumaEntry): string[] {
-  const def = TRAUMA_BY_ID[t.id];
-  if (!def) return t.acts;
-  const idx = (a: string) => {
-    const i = def.acts.findIndex((d) => actMatches(a, d));
-    return i < 0 ? 99 : i;
+/** 進階呼吸道：選了就不再給 NRM／Mask 等氧氣面罩（BVM 仍可經管路給氧） */
+export const ADV_AIRWAY = ['已插氣管內管', '已放聲門上呼吸道(i-gel)', '已行環甲膜切開', '預防性插管完成'];
+export const MASK_O2 = ['NRM給氧', 'Mask給氧'];
+
+/** 已點選的評估／處置以「病人」為單位：任一傷勢點過，其他傷勢的同一按鈕也顯示已選 */
+export function patientActs(list: TraumaEntry[] | undefined): string[] {
+  const out: string[] = [];
+  for (const t of list ?? []) for (const a of t.acts) if (!out.includes(a)) out.push(a);
+  return out;
+}
+
+export function hasAdvAirway(list: TraumaEntry[] | undefined): boolean {
+  return patientActs(list).some((a) => ADV_AIRWAY.includes(a));
+}
+
+/** 依傷勢與按鈕順序排列 */
+function orderedActs(list: TraumaEntry[]): string[] {
+  const acts = patientActs(list);
+  const rank = (a: string) => {
+    let base = 0;
+    for (const t of list) {
+      const def = TRAUMA_BY_ID[t.id];
+      const i = def ? def.acts.findIndex((d) => actMatches(a, d)) : -1;
+      if (i >= 0 && t.acts.includes(a)) return base + i;
+      base += 100;
+    }
+    return 1e6;
   };
-  return [...t.acts].sort((a, b) => idx(a) - idx(b));
+  return [...acts].sort((x, y) => rank(x) - rank(y));
 }
 
-/** 單一傷勢：創傷名稱，狀態1、狀態2，處置1、處置2（「可搭坐車」以逗號另接） */
-export function traumaSegment(t: TraumaEntry): string {
-  const acts = ordered(t);
-  const groups = [acts.filter((a) => STATUS.has(a)), acts.filter((a) => !STATUS.has(a) && a !== RIDE), acts.filter((a) => a === RIDE)]
-    .filter((g) => g.length)
-    .map((g) => g.join('、'));
-  return [t.name, ...groups].join('，');
+/** 拆成三段：傷勢、評估、處置（各自去重） */
+export function traumaParts(list: TraumaEntry[] | undefined): { injuries: string[]; status: string[]; procs: string[]; ride: boolean } {
+  const l = list ?? [];
+  const acts = orderedActs(l);
+  return {
+    injuries: l.map((t) => t.name),
+    status: acts.filter((a) => STATUS.has(a)),
+    procs: acts.filter((a) => !STATUS.has(a) && a !== RIDE),
+    ride: acts.includes(RIDE),
+  };
 }
 
-/** 多重傷勢以「；」分隔，句尾「。」 */
+/**
+ * 整合註解：先寫傷勢、再寫評估、再寫處置。
+ * 例：重度頭部外傷、氣胸/血胸；額頭 撕裂傷。評估：意識不清、氣管偏移。處置：已插氣管內管、已針刺減壓(左)。
+ */
+export function combinedText(list: TraumaEntry[] | undefined, wounds: string[] = [], note?: string): string {
+  const { injuries, status, procs, ride } = traumaParts(list);
+  const inj = [injuries.join('、'), wounds.join('、')].filter(Boolean).join('；');
+  const out: string[] = [];
+  if (inj) out.push(`${inj}。`);
+  if (status.length) out.push(`評估：${status.join('、')}。`);
+  if (procs.length || ride) out.push(`處置：${[procs.join('、'), ride ? '可搭坐車' : ''].filter(Boolean).join('，')}。`);
+  if (note?.trim()) out.push(note.trim());
+  return out.join('');
+}
+
+/** 僅創傷部分 */
 export function traumaText(list: TraumaEntry[] | undefined): string {
-  if (!list?.length) return '';
-  return list.map(traumaSegment).join('；') + '。';
+  return combinedText(list);
 }
 
 /** 交接關鍵處置：醒目標示 */
