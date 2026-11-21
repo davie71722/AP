@@ -571,3 +571,5 @@ button {
 .loc-input input:focus { outline: none; border-color: var(--blue); }
 a.btn { color: inherit; text-decoration: none; }
 .chip.dim { background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+
+.btn.hit { flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 8px 12px; }

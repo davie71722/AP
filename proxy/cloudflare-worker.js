@@ -1,7 +1,7 @@
 // Google 地圖代理（Cloudflare Worker）：Routes API 車程矩陣、地址查座標、短網址展開
 //
 // 部署：
-//   npx wrangler secret put GOOGLE_MAPS_API_KEY     # 金鑰只存在這裡（需開放 Routes API、Geocoding API）
+//   npx wrangler secret put GOOGLE_MAPS_API_KEY     # 金鑰只存在這裡（需開放 Routes API、Places API (New)、Geocoding API）
 //   設定 ALLOWED_ORIGIN 環境變數為前端網址（例如 https://mci.example.gov.tw）
 //   npx wrangler deploy proxy/cloudflare-worker.js --name zhuxian-mci-routes
 //
@@ -30,6 +30,35 @@ export default {
     } catch {
       return new Response('Bad JSON', { status: 400, headers: cors });
     }
+    // 店家、地標、地址搜尋（Google Places API Text Search），偏重新竹縣市
+    if (body && typeof body.search === 'string') {
+      const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': env.GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
+        },
+        body: JSON.stringify({
+          textQuery: body.search.slice(0, 200),
+          languageCode: 'zh-TW',
+          regionCode: 'TW',
+          maxResultCount: 5,
+          locationBias: {
+            rectangle: { low: { latitude: 24.5, longitude: 120.85 }, high: { latitude: 25.0, longitude: 121.4 } },
+          },
+        }),
+      });
+      const j = await r.json();
+      const places = (j.places || []).map((p) => ({
+        name: (p.displayName && p.displayName.text) || '',
+        address: p.formattedAddress || '',
+        lat: p.location.latitude,
+        lng: p.location.longitude,
+      }));
+      return new Response(JSON.stringify({ places }), { headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
     // 地址 → 座標（Google Geocoding API）
     if (body && typeof body.address === 'string') {
       const q = new URL('https://maps.googleapis.com/maps/api/geocode/json');

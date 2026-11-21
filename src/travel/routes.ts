@@ -116,3 +116,16 @@ export async function resolveShortLink(url: string): Promise<string> {
   const r = await proxyPost<{ url: string }>({ resolve: url });
   return r.url;
 }
+
+export interface PlaceHit {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+/** 店家、地標、地址搜尋（經代理呼叫 Google Places Text Search），回傳最多 5 個候選 */
+export async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  const r = await proxyPost<{ places?: PlaceHit[] }>({ search: query });
+  return r.places ?? [];
+}

@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
-import { googleMapsUrl, isMapsShortLink, isUrl, parseCoords, pinLocation } from '../data/geo';
+import { googleMapsUrl, mapsShortLink, parseCoords, pinLocation, shareName } from '../data/geo';
 import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
-import { geocodeAddress, resolveShortLink, ROUTES_PROXY_URL } from '../travel/routes';
+import { resolveShortLink, ROUTES_PROXY_URL, searchPlaces, type PlaceHit } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
 import { DoubleTapButton, Stepper } from './common';
@@ -195,37 +195,53 @@ export function ThemeToggle() {
   );
 }
 
+// 嵌在其他頁面（如分享連結）時瀏覽器不提供定位
+const EMBEDDED = (() => {
+  try {
+    return window.top !== window.self;
+  } catch {
+    return true;
+  }
+})();
+
 /** 地址／座標／Google 地圖連結／GPS */
 function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
   const [text, setText] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const canGps = !EMBEDDED && 'geolocation' in navigator;
   const online = useStore((s) => s.online);
 
   const done = (l: IncidentLocation) => {
     onPick(l);
     setText('');
     setMsg('');
+    setHits([]);
   };
 
   const submit = async () => {
     const t = text.trim();
     if (!t) return;
+    setHits([]);
+    const name = shareName(t);
     const c = parseCoords(t);
-    if (c) return done(pinLocation(c.lat, c.lng));
-    if (!ROUTES_PROXY_URL) return setMsg('未設定地圖服務：請改用座標、地圖連結或 GPS');
-    if (!online) return setMsg(isUrl(t) ? '離線：請改貼含座標的地圖連結' : '離線：請改用座標、GPS 或鄉鎮');
+    if (c) return done(pinLocation(c.lat, c.lng, name && !parseCoords(name) ? name : undefined));
+    if (!ROUTES_PROXY_URL) return setMsg('地標搜尋未啟用：請貼座標（Google 地圖長按取得）');
+    if (!online) return setMsg('離線：請貼座標');
     setBusy(true);
     try {
-      if (isMapsShortLink(t)) {
-        const full = await resolveShortLink(t);
-        const c2 = parseCoords(full);
-        if (c2) return done(pinLocation(c2.lat, c2.lng));
-        return setMsg('連結中找不到座標');
+      const short = mapsShortLink(t);
+      if (short) {
+        const c2 = parseCoords(await resolveShortLink(short));
+        if (c2) return done(pinLocation(c2.lat, c2.lng, name || undefined));
+        if (!name) return setMsg('連結中找不到座標');
       }
-      const g = await geocodeAddress(t);
-      if (g) return done(pinLocation(g.lat, g.lng, g.label.replace(/^\d+台灣/, '').replace(/^台灣/, '')));
-      setMsg('查無此地址');
+      const q = short ? name : t;
+      const found = await searchPlaces(q);
+      if (found.length === 1) return done(pinLocation(found[0].lat, found[0].lng, found[0].name));
+      if (found.length === 0) return setMsg('找不到地點');
+      setHits(found);
     } catch {
       setMsg('查詢失敗');
     } finally {
@@ -255,7 +271,7 @@ function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="地址・座標・地圖連結"
+          placeholder="座標・地標・地圖連結"
           inputMode="text"
           enterKeyHint="go"
         />
@@ -263,14 +279,26 @@ function LocationInput({ onPick }: { onPick: (l: IncidentLocation) => void }) {
           {busy ? '…' : '定位'}
         </button>
       </form>
-      <div className="grid g2" style={{ marginTop: 8 }}>
-        <button className="btn sm" onClick={gps}>
-          📍 GPS
-        </button>
+      <div className={`grid ${canGps ? 'g2' : ''}`} style={{ marginTop: 8 }}>
+        {canGps && (
+          <button className="btn sm" onClick={gps}>
+            📍 GPS
+          </button>
+        )}
         <a className="btn sm" href={googleMapsUrl()} target="_blank" rel="noreferrer">
           🗺 Google 地圖
         </a>
       </div>
+      {hits.length > 0 && (
+        <div className="grid" style={{ marginTop: 8 }}>
+          {hits.map((h) => (
+            <button key={`${h.lat},${h.lng}`} className="btn sm hit" onClick={() => done(pinLocation(h.lat, h.lng, h.name))}>
+              <b>{h.name}</b>
+              <span className="muted small">{h.address.replace(/^\d{3,6}/, '').replace(/^台灣/, '')}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {msg && <p className="small" style={{ color: 'var(--orange)', margin: '6px 0 0' }}>{msg}</p>}
     </>
   );
