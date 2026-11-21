@@ -671,14 +671,14 @@ a.btn { color: inherit; text-decoration: none; }
 .bodymap { display: grid; gap: 8px; margin-top: 8px; }
 .bm-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .bm-tabs .btn { min-height: 40px; padding: 0 2px; }
-.bm-svg { width: 100%; max-height: 58vh; background: #fff; border: 1px solid var(--line); border-radius: 10px; touch-action: manipulation; }
+.bm-svg { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 10px; touch-action: manipulation; }
 .bm-svg .rg { fill: #e2e8f0; stroke: #64748b; stroke-width: 1.2; cursor: pointer; }
 .bm-svg .rg.sel { fill: #38bdf8; }
 .bm-svg .rg.fc { fill: #38bdf8; fill-opacity: 0.08; stroke: #0284c7; stroke-opacity: 0.55; stroke-dasharray: 3 2; }
 .bm-svg .rg.fc.sel { fill-opacity: 0.5; stroke-dasharray: none; }
-.bm-sel { font-weight: 800; font-size: 17px; text-align: center; }
-.bm-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.bm-types .btn { min-height: 46px; gap: 6px; }
+.bm-sel { font-weight: 800; font-size: 15px; text-align: center; padding: 6px 2px; border-radius: 8px; background: var(--well); min-height: 52px; display: flex; align-items: center; justify-content: center; word-break: break-all; }
+.bm-types { display: grid; grid-template-columns: 1fr; gap: 6px; align-content: start; position: sticky; top: 0; }
+.bm-types .btn { min-height: 52px; gap: 4px; padding: 0 4px; font-size: 14px; line-height: 1.15; flex-direction: column; }
 .bm-types i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .bm-burn { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--orange); border-radius: 10px; }
 .bm-row { display: flex; gap: 6px; align-items: center; font-weight: 700; }
@@ -705,3 +705,10 @@ a.btn { color: inherit; text-decoration: none; }
 .kf-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--red); border: 2px solid #fff; }
 .ptag { position: relative; }
 .trip-inj { display: grid; gap: 2px; }
+.tr-sub { font-size: 12px; font-weight: 800; color: var(--muted); margin: 2px 0 4px; }
+.bm-svg .rg { stroke-width: 1; }
+.bm-item { flex-wrap: wrap; }
+.bm-item .t { min-width: 60%; }
+.bm-cm .deg { min-width: 40px; min-height: 40px; padding: 0 6px; }
+.bm-main { display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: start; }
+.bm-svg.front, .bm-svg.back { max-height: 72dvh; }

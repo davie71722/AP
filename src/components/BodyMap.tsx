@@ -25,7 +25,18 @@ interface VImg {
   lx: number;
 }
 
-const WC: Record<string, string> = { 擦傷: '#f59e0b', 撕裂傷: '#dc2626', 挫傷: '#7c3aed', 燙傷: '#ea580c', 截肢: '#111827', 感染: '#16a34a' };
+const WC: Record<string, string> = {
+  擦傷: '#f59e0b',
+  撕裂傷: '#dc2626',
+  挫傷: '#7c3aed',
+  燙傷: '#ea580c',
+  '疑似骨折/脫臼': '#2563eb',
+  截肢: '#111827',
+};
+/** 傷勢按鈕（不含感染；加入疑似骨折/脫臼） */
+const TYPES = ['擦傷', '撕裂傷', '挫傷', '燙傷', '疑似骨折/脫臼', '截肢'];
+/** 放大：裁掉人形外的空白 */
+const VIEWBOX: Record<View, string> = { front: '30 0 140 395', back: '30 0 140 395', face: '10 25 180 295', hand: '0 0 200 395', foot: '0 0 200 395' };
 const VIEWS: { id: View; name: string }[] = [
   { id: 'front', name: '正面' },
   { id: 'back', name: '背面' },
@@ -48,15 +59,11 @@ export function regionName(s: Region, view: View): string {
 export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: Wound[]) => void }) {
   const [view, setView] = useState<View>('front');
   const [sel, setSel] = useState<Region | null>(null);
-  const [burn, setBurn] = useState(false);
-  const [deg, setDeg] = useState('');
-  const [tbsa, setTbsa] = useState('');
   const [msg, setMsg] = useState('');
 
   const go = (v: View) => {
     setView(v);
     setSel(null);
-    setBurn(false);
     setMsg('');
   };
   const pick = (s: Region) => {
@@ -65,29 +72,13 @@ export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: W
     if ((view === 'front' || view === 'back') && /^hd[RL]$/.test(s.key)) return go('hand');
     if ((view === 'front' || view === 'back') && /^ft[RL]$/.test(s.key)) return go('foot');
     setSel(s);
-    setBurn(false);
-    setDeg('');
     setMsg('');
   };
-  const add = (type: string, extra: Partial<Wound> = {}) => {
+  // 點傷勢即加入（撕裂傷公分、燙傷度數與 TBSA 可在清單補填，不填也可）
+  const add = (type: string) => {
     if (!sel) return setMsg('請先點選人形圖上的部位');
-    onChange([
-      ...wounds,
-      { region: regionName(sel, view), type, cm: 0, deg: '', tbsa: 0, x: sel.x + sel.w / 2, y: sel.y + sel.h / 2, v: view, ...extra },
-    ]);
-    setBurn(false);
-    setDeg('');
-    setTbsa('');
-  };
-  const clickType = (t: string) => {
-    if (!sel) return setMsg('請先點選人形圖上的部位');
-    if (t === '燙傷') return setBurn(true);
-    add(t);
-  };
-  const addBurn = () => {
-    const tb = +tbsa || 0;
-    if (tb > 100) return setMsg('TBSA 不可超過 100%');
-    add('燙傷', { deg, tbsa: tb });
+    onChange([...wounds, { region: regionName(sel, view), type, cm: 0, deg: '', tbsa: 0, x: sel.x + sel.w / 2, y: sel.y + sel.h / 2, v: view }]);
+    setMsg('');
   };
   const update = (i: number, p: Partial<Wound>) => onChange(wounds.map((w, j) => (j === i ? { ...w, ...p } : w)));
 
@@ -101,13 +92,14 @@ export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: W
           </button>
         ))}
       </div>
-      <svg className="bm-svg" viewBox="0 0 200 395">
+      <div className="bm-main">
+      <svg className={`bm-svg ${view}`} viewBox={VIEWBOX[view]}>
         {!img && (
           <>
-            <text x={6} y={14} fontSize={10} fill="#64748b">
+            <text x={33} y={12} fontSize={9} fill="#64748b">
               {view !== 'back' ? '病人右 ←' : '病人左 ←'}
             </text>
-            <text x={194} y={14} fontSize={10} fill="#64748b" textAnchor="end">
+            <text x={167} y={12} fontSize={9} fill="#64748b" textAnchor="end">
               {view !== 'back' ? '→ 病人左' : '→ 病人右'}
             </text>
           </>
@@ -140,39 +132,42 @@ export function BodyMap({ wounds, onChange }: { wounds: Wound[]; onChange: (w: W
             <circle key={i} cx={w.x} cy={w.y} r={6} fill={WC[w.type] ?? '#dc2626'} stroke="#fff" strokeWidth={1.5} pointerEvents="none" />
           ))}
       </svg>
-      <div className="bm-sel">{msg || (sel ? `部位：${regionName(sel, view)}` : '點選受傷部位（畫面左側＝病人右側）')}</div>
       <div className="bm-types">
-        {BM.woundTypes.map((t) => (
-          <button key={t} className={`btn sm ${burn && t === '燙傷' ? 'on' : ''}`} disabled={!sel} onClick={() => clickType(t)}>
+        <div className="bm-sel">{msg || (sel ? regionName(sel, view) : '先點部位')}</div>
+        {TYPES.map((t) => (
+          <button key={t} className="btn sm" disabled={!sel} onClick={() => add(t)}>
             <i style={{ background: WC[t] }} />
             {t}
           </button>
         ))}
       </div>
-      {burn && (
-        <div className="bm-burn">
-          <div className="grid g3">
-            {['I', 'II', 'III'].map((d) => (
-              <button key={d} className={`btn sm ${deg === d ? 'on' : ''}`} onClick={() => setDeg(deg === d ? '' : d)}>
-                {d} 度
-              </button>
-            ))}
-          </div>
-          <div className="bm-row">
-            TBSA
-            <input type="number" inputMode="decimal" min={0} max={100} step={0.5} value={tbsa} onChange={(e) => setTbsa(e.target.value)} />%
-            <button className="btn sm primary" onClick={addBurn}>
-              加入燙傷
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
       {wounds.length > 0 && (
         <div className="bm-list">
           {wounds.map((w, i) => (
             <div key={i} className="bm-item">
               <span style={{ color: WC[w.type] }}>●</span>
               <span className="t">{woundText(w)}</span>
+              {w.type === '燙傷' && (
+                <span className="bm-cm">
+                  {['I', 'II', 'III'].map((d) => (
+                    <button key={d} className={`btn sm deg ${w.deg === d ? 'on' : ''}`} onClick={() => update(i, { deg: w.deg === d ? '' : d })}>
+                      {d}
+                    </button>
+                  ))}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    placeholder="TBSA"
+                    value={w.tbsa > 0 ? w.tbsa : ''}
+                    onChange={(e) => update(i, { tbsa: Math.min(100, Math.max(0, +e.target.value || 0)) })}
+                  />
+                  %
+                </span>
+              )}
               {w.type === '撕裂傷' && (
                 <span className="bm-cm">
                   <input

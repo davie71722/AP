@@ -94,7 +94,7 @@ export function logToCsv(incident: Incident): string {
 
 export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): string {
   const rows = [
-    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '傷勢', '檢傷卡號'],
+    ['代碼', '原代碼', '顏色', '狀態', '醫院', '車輛', '出發時間', '傷勢'],
     ...patients.map((p) => [
       p.label,
       p.prevLabels.join('→'),
@@ -104,7 +104,6 @@ export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): st
       (p.vehicleId && vehicles.find((v) => v.id === p.vehicleId)?.name) || (p.byDuty ? '勤務車' : ''),
       p.sentAt ? new Date(p.sentAt).toLocaleString('zh-TW') : '',
       injuryText(p),
-      p.triageTagNo ?? '',
     ]),
   ];
   return '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n');

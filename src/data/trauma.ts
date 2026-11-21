@@ -24,21 +24,21 @@ const RIDE = '可搭坐車';
 
 export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
   R: [
-    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', '瞳孔不等大', '意識持續下降', '已抽吸', ETT, '已放聲門上呼吸道', BVM] },
-    { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '已抽吸', ETT, BVM, '加壓止血'] },
-    { id: 'r-inhal', region: '頸部', name: '吸入性灼傷', acts: ['聲音沙啞/喘鳴', '預防性插管完成', NRM, BVM] },
-    { id: 'r-neckpen', region: '頸部', name: '頸部穿刺/血腫', acts: ['局部加壓止血', ETT, '已行環甲膜切開', '已打大口徑IV'] },
-    { id: 'r-cspine', region: '頸部', name: '疑頸椎損傷', acts: ['四肢癱瘓/無力', '已上頸圈及頭部固定', '已上長背板/鏟式擔架'] },
-    { id: 'r-ptx', region: '胸部', name: '氣胸/血胸', acts: ['已針刺減壓(左)', '已針刺減壓(右)', '已貼胸部封閉敷料', NRM, BVM] },
-    { id: 'r-flail', region: '胸部', name: '連枷胸/穿刺傷', acts: ['呼吸窘迫', '已貼胸部封閉敷料', NRM, BVM, '已打大口徑IV', BLOOD] },
-    { id: 'r-abd', region: '腹部', name: '腹部嚴重創傷', acts: ['疑內出血/休克', IV2, IO, TXA, BLOOD] },
-    { id: 'r-evisc', region: '腹部', name: '臟器外露', acts: ['臟器NS濕紗覆蓋', IV2, IO, TXA, BLOOD] },
-    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['已上骨盆固定帶', IV2, IO, TXA, BLOOD] },
-    { id: 'r-art', region: '四肢', name: '動脈大出血', acts: [TQ, '已填塞止血紗布', IV2, TXA, BLOOD] },
-    { id: 'r-amp', region: '四肢', name: '創傷性截肢/壓砸', acts: [TQ, '斷肢低溫保存隨行', NALB, '已打IV', BLOOD] },
-    { id: 'r-femur', region: '四肢', name: '雙側股骨骨折', acts: ['已上牽引固定器', IV2, NALB, TXA, BLOOD] },
-    { id: 'r-burn', region: '全身', name: '大面積燒燙傷(>20%)', acts: ['無菌乾紗/燒傷敷料覆蓋', '已保溫防失溫', '已打IV/IO輸液', NALB, NRM] },
-    { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['全身脊椎固定完成', IV2, IO, TXA, BLOOD] },
+    { id: 'r-head', region: '頭部', name: '重度頭部外傷', acts: ['意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液', '已抽吸', ETT, '已放聲門上呼吸道', BVM, NRM, '已上頸圈', '頭部抬高30度'] },
+    { id: 'r-face', region: '顏面', name: '顏面嚴重創傷', acts: ['氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片', '已抽吸', '已放口咽/鼻咽呼吸道', ETT, '已行環甲膜切開', BVM, NRM, '加壓止血'] },
+    { id: 'r-inhal', region: '頸部', name: '吸入性灼傷', acts: ['聲音沙啞/喘鳴', '口鼻焦黑/鼻毛燒焦', '血氧<90%', '預防性插管完成', ETT, NRM, BVM] },
+    { id: 'r-neckpen', region: '頸部', name: '頸部穿刺/血腫', acts: ['血腫擴大', '皮下氣腫', '氣道受阻風險', '局部加壓止血', '已貼封閉敷料', ETT, '已行環甲膜切開', '已打大口徑IV', NRM] },
+    { id: 'r-cspine', region: '頸部', name: '疑頸椎損傷', acts: ['四肢癱瘓/無力', '感覺異常', '神經性休克(低血壓/心跳慢)', '已上頸圈及頭部固定', '已上長背板/鏟式擔架', NRM, '已打IV'] },
+    { id: 'r-ptx', region: '胸部', name: '氣胸/血胸', acts: ['呼吸音減弱(左)', '呼吸音減弱(右)', '氣管偏移', '頸靜脈怒張', '血氧<90%', '已針刺減壓(左)', '已針刺減壓(右)', '已貼胸部封閉敷料', NRM, BVM, '已打大口徑IV'] },
+    { id: 'r-flail', region: '胸部', name: '連枷胸/穿刺傷', acts: ['呼吸窘迫', '胸壁反常運動', '血氧<90%', '已貼胸部封閉敷料', '異物固定未拔除', NRM, BVM, '已打大口徑IV', BLOOD] },
+    { id: 'r-abd', region: '腹部', name: '腹部嚴重創傷', acts: ['疑內出血/休克', '腹部膨脹/僵硬', '血壓<90', '心跳>120', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
+    { id: 'r-evisc', region: '腹部', name: '臟器外露', acts: ['疑內出血/休克', '臟器NS濕紗覆蓋', '異物固定未拔除', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
+    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', '已上骨盆固定帶', '已上長背板/鏟式擔架', IV2, IO, TXA, BLOOD, NALB] },
+    { id: 'r-art', region: '四肢', name: '動脈大出血', acts: ['出血性休克', TQ, '已填塞止血紗布', '已加壓包紮', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
+    { id: 'r-amp', region: '四肢', name: '創傷性截肢/壓砸', acts: ['出血性休克', '壓砸症候群風險', TQ, '斷肢低溫保存隨行', NALB, '已打IV', IV2, TXA, BLOOD] },
+    { id: 'r-femur', region: '四肢', name: '雙側股骨骨折', acts: ['出血性休克', '遠端脈搏消失', '已上牽引固定器', IV2, IO, NALB, TXA, BLOOD] },
+    { id: 'r-burn', region: '全身', name: '大面積燒燙傷(>20%)', acts: ['吸入性灼傷疑慮', '環狀燒傷', '無菌乾紗/燒傷敷料覆蓋', '已保溫防失溫', '已打IV/IO輸液', NALB, NRM, BVM, ETT] },
+    { id: 'r-shock', region: '全身', name: '高能量創傷合併休克', acts: ['意識改變', '血壓<90', '心跳>120', '皮膚濕冷', '全身脊椎固定完成', IV2, IO, TXA, BLOOD, '已保溫防失溫', NRM] },
   ],
   Y: [
     { id: 'y-fx', name: '單一肢體骨折/脫臼', acts: ['已副木/夾板固定', '三角巾懸吊', '遠端脈搏正常', NALB] },
@@ -86,7 +86,15 @@ export function actMatches(stored: string, act: string): boolean {
 }
 
 /** 生理狀態（先列，與處置間以「，」分隔） */
-const STATUS = new Set(['意識不清', '瞳孔不等大', '意識持續下降', '氣道受阻風險', '聲音沙啞/喘鳴', '四肢癱瘓/無力', '呼吸窘迫', '疑內出血/休克']);
+export const STATUS = new Set([
+  '意識不清', 'GCS≤8', '瞳孔不等大', '意識持續下降', '抽搐', '耳鼻流出血/腦脊髓液',
+  '氣道受阻風險', '口鼻大量出血', '牙齒/骨折碎片',
+  '聲音沙啞/喘鳴', '口鼻焦黑/鼻毛燒焦', '血氧<90%', '血腫擴大', '皮下氣腫',
+  '四肢癱瘓/無力', '感覺異常', '神經性休克(低血壓/心跳慢)',
+  '呼吸音減弱(左)', '呼吸音減弱(右)', '氣管偏移', '頸靜脈怒張', '呼吸窘迫', '胸壁反常運動',
+  '疑內出血/休克', '腹部膨脹/僵硬', '血壓<90', '心跳>120', '下肢長度不等/外旋',
+  '出血性休克', '壓砸症候群風險', '遠端脈搏消失', '吸入性灼傷疑慮', '環狀燒傷', '意識改變', '皮膚濕冷',
+]);
 
 /** 依按鈕順序排列 */
 function ordered(t: TraumaEntry): string[] {
@@ -117,6 +125,7 @@ export function traumaText(list: TraumaEntry[] | undefined): string {
 /** 交接關鍵處置：醒目標示 */
 const KEY_ACTS: [RegExp, string][] = [
   [/^已插氣管內管$|^預防性插管完成$/, '插管'],
+  [/^已行環甲膜切開$/, '環甲膜切開'],
   [/^已針刺減壓/, '針刺減壓'],
   [/^已上止血帶\((\d\d:\d\d)\)$/, '止血帶'],
   [/^已上骨盆固定帶$/, '骨盆固定帶'],

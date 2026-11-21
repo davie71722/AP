@@ -1,5 +1,5 @@
 // 創傷標籤 → 專屬處置按鈕，自動組成交接註解
-import { actMatches, actText, keyFlags, TRAUMA_BY_ID, traumaListFor, traumaText, type TraumaEntry } from '../data/trauma';
+import { STATUS, actMatches, actText, keyFlags, TRAUMA_BY_ID, traumaListFor, traumaText, type TraumaEntry } from '../data/trauma';
 import { useStore } from '../store/store';
 import type { Color } from '../types';
 
@@ -19,7 +19,10 @@ export function TraumaPicker({ color, value, onChange }: { color: Color; value: 
       value.map((t) => {
         if (t.id !== id) return t;
         const on = t.acts.some((a) => actMatches(a, act));
-        return { ...t, acts: on ? t.acts.filter((a) => !actMatches(a, act)) : [...t.acts, actText(act, now)] };
+        return {
+          ...t,
+          acts: on ? t.acts.filter((a) => !actMatches(a, act)) : [...t.acts, actText(act, now)],
+        };
       }),
     );
 
@@ -33,16 +36,28 @@ export function TraumaPicker({ color, value, onChange }: { color: Color; value: 
           {d.name}
         </button>
         {sel && (
-          <div className="tr-acts">
-            {d.acts.map((a) => {
-              const stored = sel.acts.find((x) => actMatches(x, a));
-              return (
-                <button key={a} className={`btn sm ${stored ? 'on' : ''}`} onClick={() => toggleAct(id, a)}>
-                  {stored ?? a.replace('(自動帶入時間)', '')}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            {[
+              ['評估', d.acts.filter((a) => STATUS.has(a))],
+              ['處置', d.acts.filter((a) => !STATUS.has(a))],
+            ].map(([label, acts]) =>
+              (acts as string[]).length === 0 ? null : (
+                <div key={label as string}>
+                  {color === 'R' && <div className="tr-sub">{label}</div>}
+                  <div className="tr-acts">
+                    {(acts as string[]).map((a) => {
+                      const stored = sel.acts.find((x) => actMatches(x, a));
+                      return (
+                        <button key={a} className={`btn sm ${stored ? 'on' : ''}`} onClick={() => toggleAct(id, a)}>
+                          {stored ?? a.replace('(自動帶入時間)', '')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ),
+            )}
+          </>
         )}
       </div>
     );

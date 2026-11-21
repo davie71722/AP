@@ -196,11 +196,9 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const setWounds = useStore((s) => s.setWounds);
   const setTrauma = useStore((s) => s.setTrauma);
   const [showMap, setShowMap] = useState(false);
-  const setNo = useStore((s) => s.setTriageTagNo);
   const del = useStore((s) => s.deletePatient);
   const rules = useRules();
   if (!p) return null;
-  const no = p.triageTagNo ?? '';
   return (
     <Sheet onClose={onClose}>
       <h2>
@@ -287,20 +285,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           ↶ 恢復待送
         </button>
       )}
-
-      <h3>卡號</h3>
-      <div className="tagno">{no || '—'}</div>
-      <div className="keypad">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '清除', '0', '⌫'].map((k) => (
-          <button
-            key={k}
-            className="btn sm"
-            onClick={() => setNo(p.id, k === '⌫' ? no.slice(0, -1) : k === '清除' ? '' : (no + k).slice(0, 12))}
-          >
-            {k}
-          </button>
-        ))}
-      </div>
 
       <h3>紀錄</h3>
       <div className="log">
