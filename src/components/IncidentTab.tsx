@@ -190,6 +190,16 @@ export function IncidentTab() {
             </button>
           </div>
         </SetRow>
+        <SetRow label="出發時直接開分享">
+          <div className="seg">
+            <button className={`btn sm ${!st.autoShare ? 'on' : ''}`} onClick={() => update({ autoShare: false })}>
+              否
+            </button>
+            <button className={`btn sm ${st.autoShare ? 'on' : ''}`} onClick={() => update({ autoShare: true })}>
+              是
+            </button>
+          </div>
+        </SetRow>
         <SetRow label="畫面">
           <ThemeToggle />
         </SetRow>

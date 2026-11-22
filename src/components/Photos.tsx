@@ -13,6 +13,7 @@ import {
 } from '../store/db';
 import { useStore } from '../store/store';
 import { photoPanel, type PhotoPanel } from '../report/report';
+import type { Patient, Vehicle } from '../types';
 import { DoubleTapButton, PhotoActions } from './common';
 
 /** 原始大小保存：JPEG／PNG／WebP 直接存原檔（保留解析度與拍攝方向）；其他格式（如 HEIC）轉成原尺寸 JPEG */
@@ -205,6 +206,40 @@ export function CompositeKeeper() {
   return null;
 }
 
+/**
+ * 出發前預先合成（含即將送往的醫院、出發時間、ETA），讓按「出發」的同一下就能開分享選單。
+ * predicted：假設已出發的病人資料；以分鐘為單位更新。
+ */
+export function usePreparedComposites(predicted: Patient[], vehicles: Vehicle[]): File[] {
+  const photoRev = useStore((s) => s.photoRev);
+  const [files, setFiles] = useState<File[]>([]);
+  const panels = predicted.map((p) => photoPanel(p, vehicles));
+  const key = predicted.map((p) => p.id).join(',') + '|' + JSON.stringify(panels) + '|' + photoRev;
+  useEffect(() => {
+    let alive = true;
+    const t = setTimeout(async () => {
+      const out: File[] = [];
+      for (let i = 0; i < predicted.length; i++) {
+        const rows = await listPhotos(predicted[i].id);
+        if (!rows.length) continue;
+        try {
+          const url = await composePhotos(rows.map((r) => r.dataUrl), panels[i]);
+          out.push(dataUrlToFile(url, `${asciiName(predicted[i].label)}.jpg`));
+        } catch {
+          /* 略過 */
+        }
+      }
+      if (alive) setFiles(out);
+    }, 200);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return files;
+}
+
 /** 讀取已存的合成照片（分享與存檔用；依病人順序） */
 export function useStoredComposites(patientIds: string[], labelOf: (patientId: string) => string) {
   const rev = useStore((s) => s.compositeRev);
@@ -248,6 +283,8 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
   const [busy, setBusy] = useState<number | null>(null);
   const [view, setView] = useState<string | null>(null);
   const label = useStore((s) => s.patients.find((p) => p.id === patientId)?.label ?? 'photo');
+  const note = useStore((s) => s.patients.find((p) => p.id === patientId)?.personal?.photo2Note ?? '');
+  const setPersonal = useStore((s) => s.setPersonal);
   // 拍完照片即由背景自動合成並存入案件
   const { previews, files } = useStoredComposites([patientId], () => label);
 
@@ -268,22 +305,25 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
   return (
     <>
       <h3>
-        照片 <span className="muted small">按格子開相機｜原始大小，存在本機</span>
+        照片 <span className="muted small">按鈕開相機｜原始大小</span>
       </h3>
       <div className="photos">
         {[1, 2].map((slot) => {
           const r = rows.find((x) => x.slot === slot);
+          const name = slot === 1 ? '照片一' : '照片二（選用）';
+          // 照片一拍完、照片二還沒拍：提醒接著拍
+          const next = slot === 2 && !r && rows.some((x) => x.slot === 1);
           return (
             <div key={slot} className="photo">
               {r ? (
-                <img src={r.dataUrl} alt={`照片${slot === 1 ? '一' : '二'}`} onClick={() => setView(r.dataUrl)} />
+                <img src={r.dataUrl} alt={name} onClick={() => setView(r.dataUrl)} />
               ) : (
-                <div className="photo-empty">照片{slot === 1 ? '一' : '二'}</div>
+                <div className="photo-empty">{name}</div>
               )}
               {!readOnly && (
-                <div className="grid g2">
-                  <label className={`btn sm ${r ? '' : 'primary'} ${busy === slot ? 'dim' : ''}`}>
-                    {busy === slot ? '處理中…' : r ? '重拍' : `📷 拍照${slot === 1 ? '一' : '二'}`}
+                <div className={r ? 'grid g2' : 'grid'}>
+                  <label className={`btn sm ${r ? '' : 'primary'} ${next ? 'next-shot' : ''} ${busy === slot ? 'dim' : ''}`}>
+                    {busy === slot ? '處理中…' : r ? '重拍' : next ? '📷 接著拍照片二' : `📷 拍${slot === 1 ? '照片一' : '照片二'}`}
                     <input
                       type="file"
                       accept="image/*"
@@ -295,19 +335,28 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
                       }}
                     />
                   </label>
-                  {r ? (
+                  {r && (
                     <DoubleTapButton className="sm" armedText="再按刪除" onConfirm={async () => (await deletePhoto(r.id), bump())}>
                       刪除
                     </DoubleTapButton>
-                  ) : (
-                    <span />
                   )}
                 </div>
+              )}
+              {slot === 2 && !readOnly && (
+                <input
+                  className="photo-note"
+                  value={note}
+                  placeholder="照片二說明：可辨識細節（如左前臂刺青）"
+                  onChange={(e) => setPersonal(patientId, { photo2Note: e.target.value.slice(0, 40) })}
+                />
               )}
             </div>
           );
         })}
       </div>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        照片二可不拍；只拍照片一也會合成，版面較大。拍完自動合成。
+      </p>
       {previews[0] && (
         <>
           <div className="tr-sub" style={{ marginTop: 8 }}>合成照片（拍完自動合成）</div>

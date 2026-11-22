@@ -103,6 +103,8 @@ export interface Personal {
   phone?: string;
   /** 拍拍尺號碼 */
   patNo?: string;
+  /** 照片二說明：可辨識之細節（如左前臂刺青），會標在合成照片 */
+  photo2Note?: string;
 }
 
 /** 人形圖傷口（格式同「外傷人形圖傷口紀錄」模組） */
@@ -252,6 +254,8 @@ export interface Settings {
   /** 新增車輛的預設人力 */
   defaultEmt2: number;
   defaultEmtp: number;
+  /** 按「出發」時直接開分享選單（文字＋合成照片） */
+  autoShare: boolean;
 }
 
 export interface LogEntry {
@@ -310,6 +314,7 @@ export const DEFAULT_SETTINGS: Settings = {
   triageSystem: 'START',
   defaultEmt2: 2,
   defaultEmtp: 0,
+  autoShare: true,
 };
 
 export const COLOR_NAME: Record<Color, string> = { R: '紅', Y: '黃', G: '綠', K: '黑' };

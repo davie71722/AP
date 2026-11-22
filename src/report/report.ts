@@ -205,6 +205,7 @@ export function photoPanel(p: Patient, vehicles: Vehicle[]): PhotoPanel {
   if (sent && v) rows.push(['車輛', v]);
   const inj = briefInjury(p);
   if (inj) rows.push(['傷勢', inj]);
+  if (per.photo2Note?.trim()) rows.push(['照片二', per.photo2Note.trim()]);
   return {
     color: p.color,
     badge: `${COLOR_NAME[p.color]}牌 ${p.label}`,

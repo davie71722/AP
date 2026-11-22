@@ -11,10 +11,10 @@ import { dispatchShareText, headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
-import { DoubleTapButton, PhotoActions, SentCounts, ShareButtons, Sheet } from './common';
+import { DoubleTapButton, PhotoActions, SentCounts, ShareButtons, Sheet, systemShare } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
-import { useStoredComposites } from './Photos';
+import { usePreparedComposites, useStoredComposites } from './Photos';
 
 export function SceneTab() {
   const rules = useRules();
@@ -427,6 +427,22 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
     const m = standbyMin(v, now);
     return m !== null ? `待命 ${m}′` : '';
   };
+  // 出發時直接分享：預先準備好文字與合成照片（含醫院、出發時間、ETA）
+  const minute = Math.floor(now / 60000) * 60000;
+  const goMin = ranking.find((r) => r.hospitalId === hid)?.goMin ?? 0;
+  const predicted: Patient[] =
+    hid && (otherKind || vid)
+      ? chosen.map((p) => ({
+          ...p,
+          status: 'sent' as const,
+          hospitalId: hid,
+          sentAt: minute,
+          arriveAt: minute + (settings.loadMin + goMin) * 60000,
+          ...(otherKind ? { byDuty: true, byKind: otherKind, vehicleId: undefined } : { vehicleId: vid! }),
+        }))
+      : [];
+  const shareFiles = usePreparedComposites(settings.autoShare ? predicted : [], vehicles);
+  const shareText = predicted.length ? dispatchShareText(predicted, vehicles) : '';
   const top = ranking.slice(0, 3);
   // 其他醫院：依當下預估車程由短至長
   const rest = ranking.slice(3).sort((a, b) => a.goMin - b.goMin);
@@ -536,6 +552,8 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
         onClick={() => {
           if (otherKind) otherTransport(ids, hid!, otherKind);
           else dispatch(ids, vid!, hid!);
+          // 同一下開分享選單（選 LINE 一次送出文字＋合成照片）；不想分享按取消即可
+          if (settings.autoShare && shareText) void systemShare(shareText, shareFiles);
           setVehicleId(null);
           setHospitalId(null);
           setOther(null);
@@ -545,6 +563,11 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
         出發
         {hid && (otherKind || vid) ? `：${otherKind ?? vehicles.find((v) => v.id === vid)?.name} ➔ ${HOSPITAL_BY_ID[hid].short}` : ''}
       </button>
+      {settings.autoShare && shareText && (
+        <p className="muted small" style={{ margin: '6px 0 0', textAlign: 'center' }}>
+          出發後直接開分享（選 LINE）{shareFiles.length ? `：文字＋${shareFiles.length} 張合成照片` : '：文字'}
+        </p>
+      )}
       {edit && <PatientSheet id={edit} onClose={() => setEdit(null)} />}
     </section>
   );
