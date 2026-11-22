@@ -1,7 +1,7 @@
 // 現場：加救護車、加病人、選病人＋註解＋選車 → 建議醫院 → 出發
 import { useMemo, useState } from 'react';
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
-import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
+import { brigadeOrder, FIRE_UNITS, SUPPORT_SOURCES, unitsOf } from '../data/places';
 import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
@@ -235,10 +235,10 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
         </>
       )}
       {!unit &&
-        BRIGADES.map((b) => (
+        brigadeOrder(loc?.unit).map((b) => (
           <div key={b}>
             <h3>{b}</h3>
-            <div className="grid g4">{FIRE_UNITS.filter((u) => u.brigade === b).map((u) => unitBtn(u.name))}</div>
+            <div className="grid g4">{unitsOf(b, loc?.unit).map((u) => unitBtn(u.name))}</div>
           </div>
         ))}
       {!unit && (

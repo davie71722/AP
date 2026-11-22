@@ -26,6 +26,8 @@
 
 8. **其他車輛（限綠牌）**：派車面板選的病人全為綠牌時出現「勤務車／民間救護車／巴士」，有紅黃就不出現（`OTHER_VEHICLES`、store `otherTransport`，一筆撤銷）。病人記錄 `byKind`；回報、總結、傷情初步報告、送醫進度顯示車種。
 
+9. **選車大隊順序**：救護車到場／新增車輛視窗，事發轄區所屬大隊排最上方（轄區分隊排第一），其餘依大隊順序（`brigadeOrder`、`unitsOf`）。芎林改為第三大隊。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -40,7 +42,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 113 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 115 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

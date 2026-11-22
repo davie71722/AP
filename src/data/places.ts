@@ -73,6 +73,18 @@ export const FIRE_HQ = { name: '新竹縣政府消防局', address: '新竹縣�
 
 export const BRIGADES = ['第一大隊', '第二大隊', '第三大隊', '第四大隊'] as const;
 
+/** 選車時的大隊順序：事發轄區所屬大隊排最上方，其餘依大隊順序 */
+export function brigadeOrder(unit?: string | null): string[] {
+  const own = FIRE_UNITS.find((u) => u.name === unit)?.brigade;
+  return own ? [own, ...BRIGADES.filter((b) => b !== own)] : [...BRIGADES];
+}
+
+/** 某大隊的分隊：轄區分隊排第一 */
+export function unitsOf(brigade: string, unit?: string | null) {
+  const us = FIRE_UNITS.filter((u) => u.brigade === brigade);
+  return [...us.filter((u) => u.name === unit), ...us.filter((u) => u.name !== unit)];
+}
+
 /** 各大隊部 */
 export const BRIGADE_HQS: { name: string; address: string }[] = [
   { name: '第一大隊', address: '竹北市福興路757號' },
@@ -89,7 +101,6 @@ export const FIRE_UNITS: Unit[] = [
   { name: '新豐', brigade: '第一大隊', township: '新豐', address: '新豐鄉建興路二段788之1號', phone: '03-5593340', lat: 24.9008, lng: 120.9871 },
   { name: '山崎', brigade: '第一大隊', township: '新豐', address: '新豐鄉松林街10號', phone: '03-5576811', lat: 24.8684, lng: 120.9932, area: '山崎' },
   { name: '竹東', brigade: '第二大隊', township: '竹東', address: '竹東鎮中正路206號', phone: '03-5962066', lat: 24.7354, lng: 121.0933 },
-  { name: '芎林', brigade: '第二大隊', township: '芎林', address: '芎林鄉光明路1號', phone: '03-5921978', lat: 24.778, lng: 121.0765 },
   { name: '橫山', brigade: '第二大隊', township: '橫山', address: '橫山鄉新興街120號', phone: '03-5932475', lat: 24.717, lng: 121.1414 },
   { name: '五峰', brigade: '第二大隊', township: '五峰', address: '五峰鄉桃山村2鄰21號', phone: '03-5856320', lat: 24.5674, lng: 121.0943 },
   { name: '花園', brigade: '第二大隊', township: '五峰', address: '五峰鄉花園村1鄰6之1號', phone: '03-5851803', lat: 24.6461, lng: 121.1514 },
@@ -98,6 +109,7 @@ export const FIRE_UNITS: Unit[] = [
   { name: '新埔', brigade: '第三大隊', township: '新埔', address: '新埔鎮田新路660號', phone: '03-5882187', lat: 24.8259, lng: 121.0731 },
   { name: '湖口', brigade: '第三大隊', township: '湖口', address: '湖口鄉成功路109號', phone: '03-5992454', lat: 24.9048, lng: 121.0435 },
   { name: '新工', brigade: '第三大隊', township: '湖口', address: '湖口鄉文化路188號', phone: '03-5981674', lat: 24.8719, lng: 121.0174, area: '新工' },
+  { name: '芎林', brigade: '第三大隊', township: '芎林', address: '芎林鄉光明路1號', phone: '03-5921978', lat: 24.778, lng: 121.0765 },
   { name: '關西', brigade: '第三大隊', township: '關西', address: '關西鎮正義路146號', phone: '03-5872790', lat: 24.7951, lng: 121.1756 },
   { name: '二重', brigade: '第四大隊', township: '竹東', address: '竹東鎮中興路四段99號', phone: '03-5829233', lat: 24.7729, lng: 121.0489, area: '二重' },
   { name: '寶山', brigade: '第四大隊', township: '寶山', address: '寶山鄉雙園路二段288號', phone: '03-5204755', lat: 24.766, lng: 120.9911, area: '寶山' },

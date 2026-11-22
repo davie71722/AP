@@ -3,7 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 const BodyMap = lazy(() => import('./BodyMap').then((m) => ({ default: m.BodyMap })));
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { effectiveCap, effectiveTravel } from '../engine/plan';
-import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
+import { brigadeOrder, FIRE_UNITS, SUPPORT_SOURCES, unitsOf } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
 import { holdUnlocked, otherVehicleName, PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
@@ -400,11 +400,11 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
           </div>
         </>
       )}
-      {BRIGADES.map((b) => (
+      {brigadeOrder(loc?.unit).map((b) => (
         <div key={b}>
           <h3>{b}</h3>
           <div className="grid g4">
-            {FIRE_UNITS.filter((u) => u.brigade === b).map((u) => (
+            {unitsOf(b, loc?.unit).map((u) => (
               <button key={u.name} className="btn sm" onClick={() => addUnit(u.name)}>
                 {u.name}
               </button>
