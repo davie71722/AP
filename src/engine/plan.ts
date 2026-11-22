@@ -147,7 +147,10 @@ export function specialBonus(
   if (tags.includes('burn') && h.tags.includes('burn')) maxPool = Math.max(maxPool, WEIGHTS.burnTag);
   let extra = 0;
   if (tags.includes('peds')) {
-    if (h.tags.includes('peds')) extra += WEIGHTS.pedsTag;
+    if (rules.trauma) {
+      // 兒童創傷送創傷醫院（外傷重度級），不因兒科標籤加分；兒科醫院只看兒童內科
+      if (h.traumaLevel === 'heavy') extra += WEIGHTS.pedsTrauma;
+    } else if (h.tags.includes('peds')) extra += WEIGHTS.pedsTag;
     else if (h.level === 'heavy') extra += WEIGHTS.pedsHeavyNoTag;
   }
   if (tags.includes('pregnant')) {

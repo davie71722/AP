@@ -109,7 +109,10 @@ export const WEIGHTS = {
   /** 長程懲罰 */
   longHaul: { R: 5, Y: 15, G: 15 } as Record<TransportColor, number>,
   /** 病人標籤加分 */
+  /** 非創傷（兒童內科）：兒科醫院加分 */
   pedsTag: 35,
+  /** 兒童創傷：外傷重度級醫院加分 */
+  pedsTrauma: 35,
   pedsHeavyNoTag: 10,
   burnTag: 45,
   pregnantHeavy: 15,

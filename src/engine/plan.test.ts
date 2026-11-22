@@ -4,7 +4,7 @@ import { FIRE_UNITS, TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
 import { DEFAULT_SETTINGS, patientLabel, type Color, type IncidentLocation, type Patient, type Settings, type Vehicle } from '../types';
 import { confirmDispatch, dutyTransport, hazmatNotifyList, setLeft, setVehicleStatus, type DomainState } from './actions';
-import { computePlan, type PlanInput } from './plan';
+import { computePlan, specialBonus, type PlanInput } from './plan';
 import { combineRules } from './rules';
 
 const NOW = 1_700_000_000_000;
@@ -464,8 +464,14 @@ describe('醫院關閉與綠傷', () => {
 });
 
 describe('特殊族群', () => {
-  it('兒童紅傷偏好具兒科標籤醫院', () => {
+  it('兒童紅傷送外傷重度級醫院', () => {
     const plan = computePlan(input({ at: '寶山', patients: patients({ R: 1 }, ['peds']) }));
-    expect(short(plan.suggestions[0].hospitalId)).toBe('新竹馬偕');
+    expect(HOSPITAL_BY_ID[plan.suggestions[0].hospitalId].traumaLevel).toBe('heavy');
+  });
+  it('兒童創傷不因兒科標籤加分；非創傷（兒童內科）才加', () => {
+    const peds = HOSPITALS.find((h) => h.tags.includes('peds'))!;
+    const other = HOSPITALS.find((h) => !h.tags.includes('peds') && h.traumaLevel === 'heavy')!;
+    expect(specialBonus(peds, 'Y', ['peds'], combineRules(['traffic']))).toBe(specialBonus(other, 'Y', ['peds'], combineRules(['traffic'])));
+    expect(specialBonus(peds, 'Y', ['peds'], combineRules(['medical']))).toBeGreaterThan(specialBonus(other, 'Y', ['peds'], combineRules(['medical'])));
   });
 });
