@@ -136,6 +136,22 @@ export function buildReport(
   return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
 }
 
+/** 後送病患傷情初步報告：每位已後送病人的醫院、後送時間、由誰後送與傷情（依出發時間） */
+export function buildTransportReport(patients: Patient[], vehicles: Vehicle[]): string {
+  const sent = patients
+    .filter((p) => p.status === 'sent')
+    .sort((a, b) => (a.sentAt ?? 0) - (b.sentAt ?? 0) || a.seq - b.seq);
+  if (!sent.length) return '';
+  const lines = sent.map((p) => {
+    const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
+    const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId) : undefined;
+    const by = v ? v.name : p.byDuty ? '勤務車' : '—';
+    const inj = injuryText(p);
+    return `• ${p.label}｜${h || '未定醫院'}｜${p.sentAt ? fmtClock(p.sentAt) : '—'} ${by}後送${inj ? `｜${inj}` : ''}`;
+  });
+  return ['【後送病患傷情初步報告】', ...lines].join('\n');
+}
+
 /** 案件結束：統整戰況（條列，沒有的不寫），可複製 */
 export function buildSummary(
   incident: Incident,

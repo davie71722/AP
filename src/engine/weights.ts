@@ -13,6 +13,10 @@ export type FitClass = 'heavy' | 'mediumTraumaHeavy' | 'medium' | 'general';
 export interface AreaRule {
   hospitals: string[];
   colors?: TransportColor[];
+  /** 自訂加分（省略＝areaPreferredBonus）；同一轄區可用不同分數排出優先順序 */
+  bonus?: Partial<Record<TransportColor, number>>;
+  /** 列入第一層，不受級別門檻限制（如關西紅傷因車程優先送桃園國軍） */
+  tier1?: boolean;
 }
 
 function AREA_ZHUDONG(): AreaRule[] {
@@ -62,7 +66,11 @@ export const WEIGHTS = {
     山崎: [{ hospitals: ['tungyuan', 'cmuh-hc'] }],
     湖口: [{ hospitals: ['renci', 'tungyuan'] }],
     新工: [{ hospitals: ['tungyuan', 'renci'] }],
-    關西: [{ hospitals: ['af-ty', 'ntu-bio-zb'] }],
+    // 關西：車程考量，桃園國軍優先，其次東元、台大生醫竹北（各色皆同）
+    關西: [
+      { hospitals: ['af-ty'], bonus: { R: 75, Y: 45, G: 45 }, tier1: true },
+      { hospitals: ['tungyuan', 'ntu-bio-zb'], bonus: { R: 15, Y: 20, G: 20 } },
+    ],
     寶山: [{ hospitals: ['mackay-hc'] }],
     二重: [{ hospitals: ['mackay-hc'] }],
     // 竹東與山區：輕症送竹東兩院，重症送東元

@@ -227,7 +227,12 @@ export function computePlan(input: PlanInput): Plan {
   const areaRules = (area && WEIGHTS.areaPreferred[area]) || [];
   /** 在地常送醫院加分 */
   const areaBonus = (hid: string, c: TransportColor) =>
-    areaRules.some((r) => r.hospitals.includes(hid) && (!r.colors || r.colors.includes(c))) ? WEIGHTS.areaPreferredBonus[c] : 0;
+    Math.max(
+      0,
+      ...areaRules
+        .filter((r) => r.hospitals.includes(hid) && (!r.colors || r.colors.includes(c)))
+        .map((r) => r.bonus?.[c] ?? WEIGHTS.areaPreferredBonus[c]),
+    );
   const localBurn = hospitals.some((h) => WEIGHTS.localCounties.includes(h.county) && h.tags.includes('burn') && !runtime[h.id]?.bypass);
   const deconAfter = vehicleNeedsDecon(rules, settings);
 
@@ -359,6 +364,7 @@ export function computePlan(input: PlanInput): Plan {
    * 第一層都無量能時才開放第二層（外縣市與不適合級別）。
    */
   const inTier1 = (h: Hospital, job: Job) => {
+    if (areaRules.some((r) => r.tier1 && r.hospitals.includes(h.id) && (!r.colors || r.colors.includes(job.color)))) return true;
     const local = WEIGHTS.localCounties.includes(h.county) || areaBonus(h.id, job.color) > 0;
     if (local) return fitScore(h, job.color, rules.trauma) >= WEIGHTS.localTierMinFit;
     return job.tags.includes('burn') && h.tags.includes('burn') && !localBurn;

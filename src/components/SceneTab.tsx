@@ -294,6 +294,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const setNote = useStore((s) => s.setPatientNote);
   const dispatch = useStore((s) => s.dispatchManual);
   const setTrapped = useStore((s) => s.setTrapped);
+  const startAt = useStore((s) => s.incident.startAt);
   const rules = useRules();
   const { names } = useTriage();
   const [vehicleId, setVehicleId] = useState<string | null>(null);
@@ -367,7 +368,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
             <div className="wound-text span3">
               <KeyFlags flags={keyFlags(p.trauma)} />
               {injuryText({ trauma: p.trauma, wounds: p.wounds, color: p.color })}
-              <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds)} />
+              <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, startAt, now })} />
             </div>
           ) : null}
         </div>

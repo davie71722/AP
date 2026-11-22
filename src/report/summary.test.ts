@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialRuntimes } from '../data/hospitals';
 import { DEFAULT_SETTINGS, type Incident, type Patient, type Vehicle } from '../types';
-import { buildReport, buildSummary, headcount, headcountText, hospitalNotice } from './report';
+import { buildReport, buildSummary, buildTransportReport, headcount, headcountText, hospitalNotice } from './report';
 
 const T = (h: number, m: number) => new Date(2026, 10, 21, h, m).getTime();
 const P = (id: string, color: Patient['color'], num: number, extra: Partial<Patient> = {}): Patient => ({
@@ -74,5 +74,20 @@ describe('人數核對、受困、通報醫院', () => {
     expect(t).toBe(
       ['【MCI 後送通報｜東元醫院】', '• 車號：竹北91', '• 事件類型：車禍', '• 出發：14:20', '• 預估抵院：14:32', '• 人數：1（紅1）', '• 紅1-A：受困，14:15 脫困。'].join('\n'),
     );
+  });
+});
+
+describe('後送病患傷情初步報告', () => {
+  it('列出醫院、後送時間、由誰後送與傷情', () => {
+    const v = { id: 'v1', name: '竹北91' } as Vehicle;
+    const ps = [
+      P('b', 'G', 1, { status: 'sent', byDuty: true, sentAt: T(14, 30) }),
+      P('a', 'R', 1, { label: '紅1-A', status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), trauma: [{ id: 'r-pelvis', name: '不穩定骨盆骨折', acts: ['骨盆固定帶固定'] }] }),
+      P('c', 'Y', 2),
+    ];
+    expect(buildTransportReport(ps, [v])).toBe(
+      ['【後送病患傷情初步報告】', '• 紅1-A｜東元醫院｜14:20 竹北91後送｜不穩定骨盆骨折；處置予骨盆固定帶固定。', '• 綠1｜未定醫院｜14:30 勤務車後送'].join('\n'),
+    );
+    expect(buildTransportReport([ps[2]], [v])).toBe('');
   });
 });

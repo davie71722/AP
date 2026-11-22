@@ -41,7 +41,7 @@ export const TRAUMA: Record<'R' | 'Y' | 'G', TraumaDef[]> = {
     { id: 'r-flail', region: '胸部', name: '連枷胸/穿刺傷', acts: ['呼吸窘迫', '胸壁反常運動', '血氧<90%', '已貼胸部封閉敷料', '異物固定未拔除', NRM, BVM, '已打大口徑IV', BLOOD] },
     { id: 'r-abd', region: '腹部', name: '腹部嚴重創傷', acts: ['疑內出血/休克', '腹部膨脹/僵硬', '血壓<90', '心跳>120', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
     { id: 'r-evisc', region: '腹部', name: '臟器外露', acts: ['疑內出血/休克', '臟器NS濕紗覆蓋', '異物固定未拔除', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
-    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', FIX_PELVIS, FIX_BOARD, IV2, IO, TXA, BLOOD, NALB] },
+    { id: 'r-pelvis', region: '骨盆', name: '不穩定骨盆骨折', acts: ['疑內出血/休克', '下肢長度不等/外旋', FIX_PELVIS, FIX_BOARD, IV2, IO, TXA, BLOOD] },
     { id: 'r-art', region: '四肢', name: '動脈大出血', acts: ['出血性休克', TQ, '已填塞止血紗布', '已加壓包紮', IV2, IO, TXA, BLOOD, '已保溫防失溫'] },
     { id: 'r-amp', region: '四肢', name: '創傷性截肢', acts: ['出血性休克', TQ, '已加壓包紮', '斷肢低溫保存隨行', IV2, IO, TXA, BLOOD, NALB] },
     { id: 'r-crush', region: '四肢', name: '壓砸傷', acts: ['遠端脈搏消失', TQ, FIX_SPLINT, IV2, NALB, BLOOD] },

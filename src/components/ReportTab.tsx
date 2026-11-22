@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { buildReport, buildSummary, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
-import { copyText, DoubleTapButton } from './common';
+import { buildReport, buildSummary, buildTransportReport, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
+import { copyText, CopyButton, DoubleTapButton } from './common';
 import { fmtClock } from '../engine/actions';
 import { useStore } from '../store/store';
 import { ShareSection } from './ShareSection';
@@ -41,8 +41,9 @@ export function ReportTab() {
           {copied ? '✔ 已複製' : '📋 複製回報文字'}
         </button>
       </section>
-      <EndSection />
+      <TransportReport />
       <ShareSection />
+      <EndSection />
       <section className="section">
         <h2>案件經過（{entries.length}）</h2>
         <div className="log">
@@ -154,5 +155,25 @@ function ArchiveButton() {
     >
       {msg || `💾 存檔案件${archivedAt ? `（上次 ${fmtClock(archivedAt)}）` : ''}`}
     </button>
+  );
+}
+
+/** 後送病患傷情初步報告（回報文字下方） */
+function TransportReport() {
+  const patients = useStore((s) => s.patients);
+  const vehicles = useStore((s) => s.vehicles);
+  const text = buildTransportReport(patients, vehicles);
+  return (
+    <section className="section">
+      <h2>後送病患傷情初步報告</h2>
+      {text ? (
+        <>
+          <div className="report">{text}</div>
+          <CopyButton className="primary full" label="📋 複製傷情初步報告" text={text} />
+        </>
+      ) : (
+        <div className="empty">尚無後送病患</div>
+      )}
+    </section>
   );
 }

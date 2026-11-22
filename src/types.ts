@@ -45,6 +45,7 @@ export interface HospitalRuntime {
 
 export type PatientTag =
   | 'peds'
+  | 'minor'
   | 'pregnant'
   | 'burn'
   | 'inhalation'
@@ -311,6 +312,7 @@ export const LEVEL_NAME: Record<Level, string> = { heavy: '重度', medium: '中
 
 export const PATIENT_TAGS: { id: PatientTag; name: string }[] = [
   { id: 'peds', name: '兒童' },
+  { id: 'minor', name: '未滿18' },
   { id: 'pregnant', name: '孕婦' },
   { id: 'burn', name: '燒傷' },
   { id: 'inhalation', name: '吸入' },

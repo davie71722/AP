@@ -750,3 +750,4 @@ a.btn { color: inherit; text-decoration: none; }
 .archive .report { margin-top: 8px; }
 .trap-btn { padding: 6px 8px; }
 .trap-btn.on { background: var(--purple-bg); border-color: var(--purple); color: var(--purple); }
+.report + .btn { margin-top: 10px; }

@@ -29,6 +29,49 @@ function chestSides(list: TraumaEntry[]): string[] {
   return [...out];
 }
 
+// ---------- 藥物防呆（新竹縣 2026 到院前救護作業流程手冊） ----------
+export const NALB = '已給Nalbuphine';
+export const TXA = '已給Transamin';
+/** 明顯頭部或軀幹鈍挫傷：Nalbuphine 施打條件不符（P3 註2） */
+const HEAD_TRUNK: Record<string, string> = {
+  'r-head': '頭部', 'r-face': '頭部', 'y-head': '頭部',
+  'r-ptx': '軀幹', 'r-flail': '軀幹', 'r-abd': '軀幹', 'r-evisc': '軀幹', 'r-pelvis': '軀幹', 'r-shock': '軀幹',
+};
+/** GCS < 14 */
+const GCS_LOW = ['意識不清', 'GCS≤8', '意識持續下降', '意識改變', '抽搐'];
+/** 出血性休克徵象：收縮壓<90 或 心跳≥120（T0 註6） */
+const TXA_SHOCK = ['出血性休克', '疑內出血/休克', '血壓<90', '心跳>120'];
+const TXA_HOURS = 3;
+
+/** 病人層級的判斷資料 */
+export interface PatientCtx {
+  tags?: string[];
+  /** 事件開始（受傷）時間 */
+  startAt?: number | null;
+  now?: number;
+}
+
+/** 藥物不可給的原因（null＝可給） */
+export function drugBlock(list: TraumaEntry[], act: string, ctx: PatientCtx = {}): string | null {
+  const all = patientActs(list);
+  const tags = ctx.tags ?? [];
+  if (act === NALB) {
+    if (tags.includes('peds') || tags.includes('minor')) return 'Nalbuphine 限 ≥18 歲（P3）';
+    if (tags.includes('pregnant')) return '懷孕為 Nalbuphine 禁忌症（P3）';
+    const g = all.find((a) => GCS_LOW.includes(a));
+    if (g) return `GCS<14（${g}），不可給 Nalbuphine（P3）`;
+    const ht = list.find((t) => HEAD_TRUNK[t.id]);
+    if (ht) return `明顯${HEAD_TRUNK[ht.id]}鈍挫傷（${ht.name}），不可給 Nalbuphine（P3）`;
+  }
+  if (act === TXA) {
+    if (tags.includes('peds') || tags.includes('minor')) return 'Transamin 限成人（T0 註6）';
+    if (!all.some((a) => TXA_SHOCK.includes(a))) return 'Transamin 需出血性休克徵象：收縮壓<90 或心跳≥120（T0 註6）';
+    if (ctx.startAt && ctx.now && ctx.now - ctx.startAt > TXA_HOURS * 3600000) return '受傷已逾 3 小時，不給 Transamin（T0 註6）';
+    if (!all.some((a) => /IV|IO/.test(a) && a !== TXA)) return 'Transamin 需先建立 IV／IO（1g 加入 NS 100mL 滴注 10 分）';
+  }
+  return null;
+}
+
 export interface ActState {
   /** 已選時的實際文字（止血帶含時間） */
   stored?: string;
@@ -38,11 +81,13 @@ export interface ActState {
 }
 
 /** 按鈕狀態 */
-export function actState(list: TraumaEntry[], act: string, traumaId?: string): ActState {
+export function actState(list: TraumaEntry[], act: string, traumaId?: string, ctx?: PatientCtx): ActState {
   const all = patientActs(list);
   // 止血帶每個肢體各自記錄
   const stored = perTrauma(act) && traumaId ? list.find((t) => t.id === traumaId)?.acts.find((x) => actMatches(x, act)) : all.find((x) => actMatches(x, act));
   if (stored) return { stored, disabled: false };
+  const drug = drugBlock(list, act, ctx);
+  if (drug) return { disabled: true, reason: drug };
   const adv = all.find((a) => ADV_AIRWAY.includes(a));
   if (adv && O2_DEVICES.includes(act)) return { disabled: true, reason: `已建立進階呼吸道（${adv.replace(/^已/, '')}），不再選給氧方式` };
   if (adv && BASIC_AIRWAY.includes(act)) return { disabled: true, reason: '已建立進階呼吸道' };
@@ -63,8 +108,8 @@ export function actState(list: TraumaEntry[], act: string, traumaId?: string): A
  * - 大口徑／雙線 IV 取代「已打IV」；已插管時不可放 i-gel
  * - 胸部左右處置：自動補上胸部傷勢側別
  */
-export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: number): TraumaEntry[] {
-  const st = actState(list, act, traumaId);
+export function addAct(list: TraumaEntry[], traumaId: string, act: string, now: number, ctx?: PatientCtx): TraumaEntry[] {
+  const st = actState(list, act, traumaId, ctx);
   if (st.disabled || st.stored) return list;
   const text = actText(act, now);
   const remove = new Set<string>();
@@ -120,7 +165,7 @@ export function toggleSide(list: TraumaEntry[], traumaId: string, side: string):
 }
 
 /** 防呆提醒（不阻擋操作） */
-export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] = []): string[] {
+export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] = [], ctx?: PatientCtx): string[] {
   const l = list ?? [];
   const all = patientActs(l);
   const w: string[] = [];
@@ -159,7 +204,13 @@ export function traumaWarnings(list: TraumaEntry[] | undefined, wounds: Wound[] 
   if (has(NEED_AIRWAY) && !adv) w.push('意識不清／GCS≤8，尚未建立進階呼吸道，請確認呼吸道處置');
   if (all.includes('血氧<90%') && !adv && !all.some((a) => O2_DEVICES.includes(a))) w.push('血氧<90%，尚未記錄給氧');
   // 藥物
-  if (all.includes('已給Nalbuphine') && has([...SHOCK, ...ALOC])) w.push('休克或意識改變時給予 Nalbuphine（鴉片類止痛），請再確認');
+  if (all.includes(NALB) && has([...SHOCK, ...ALOC])) w.push('休克或意識改變時給予 Nalbuphine（鴉片類止痛），請再確認');
+  // 已給藥後才出現的禁忌／不符條件
+  for (const d of [NALB, TXA]) {
+    if (!all.includes(d)) continue;
+    const r = drugBlock(l.map((t) => ({ ...t, acts: t.acts.filter((a) => a !== d) })), d, ctx);
+    if (r) w.push(`已給${d.replace('已給', '')}，但${r.replace(/，?不可給.*$|，不給.*$/, '')}，請確認`);
+  }
   // 休克未建立管路
   if (has(SHOCK) && !all.some((a) => ACCESS.test(a))) w.push('有休克徵象，尚未建立 IV／IO');
   // 燒燙傷面積與分類

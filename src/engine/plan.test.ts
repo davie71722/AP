@@ -405,8 +405,13 @@ describe('各分隊常送醫院', () => {
     expect(['東元醫院', '新竹中醫大', '臺大生醫']).toContain(first('竹北', 'Y'));
     expect(['東元醫院', '新竹中醫大', '臺大生醫']).toContain(first('新埔', 'Y'));
   });
-  it('關西黃傷送國軍桃園或台大生醫竹北', () => {
-    expect(['桃園國軍', '臺大生醫']).toContain(first('關西', 'Y'));
+  it('關西：桃園國軍優先，其次東元、台大生醫竹北', () => {
+    for (const c of ['R', 'Y', 'G'] as Color[]) expect(first('關西', c)).toBe('桃園國軍');
+  });
+  it('關西第 2 位紅傷（桃園國軍已收）改送東元或台大生醫', () => {
+    const plan = computePlan(input({ at: '關西', patients: patients({ R: 2 }) }));
+    expect(short(plan.suggestions[0].hospitalId)).toBe('桃園國軍');
+    expect(['東元醫院', '臺大生醫']).toContain(short(plan.suggestions[1].hospitalId));
   });
   it('竹東與山區：輕症送竹東兩院、重症送東元', () => {
     for (const at of ['竹東', '尖石', '五峰', '橫山']) {

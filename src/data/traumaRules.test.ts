@@ -153,3 +153,32 @@ describe('牌色與人形圖', () => {
     expect(traumaWarnings([], wounds).join()).toContain('請考慮紅牌');
   });
 });
+
+describe('藥物防呆（2026 救護手冊 P3、T0 註6）', () => {
+  const NOW = new Date(2026, 10, 22, 14, 0).getTime();
+  it('Nalbuphine：未滿 18、懷孕、GCS<14、頭部或軀幹鈍挫傷不可選', () => {
+    const fx = [T('y-fx', '單一肢體骨折/脫臼', [], ['右上肢'])];
+    expect(actState(fx, '已給Nalbuphine').disabled).toBe(false);
+    expect(actState(fx, '已給Nalbuphine', 'y-fx', { tags: ['peds'] }).reason).toContain('≥18');
+    expect(actState(fx, '已給Nalbuphine', 'y-fx', { tags: ['pregnant'] }).reason).toContain('懷孕');
+    const head = [...fx, T('y-head', '頭部撞擊(意識清楚)')];
+    expect(actState(head, '已給Nalbuphine').reason).toContain('頭部鈍挫傷');
+    const aloc = [T('r-amp', '創傷性截肢', ['意識改變'], ['右下肢'])];
+    expect(actState(aloc, '已給Nalbuphine').reason).toContain('GCS<14');
+    expect(TRAUMA_BY_ID['r-pelvis'].acts).not.toContain('已給Nalbuphine');
+  });
+  it('Transamin：需休克徵象、IV／IO、3 小時內、成人', () => {
+    const noShock = [T('r-art', '動脈大出血', ['已打雙線IV'], ['右下肢'])];
+    expect(actState(noShock, '已給Transamin').reason).toContain('收縮壓<90');
+    const noIv = [T('r-art', '動脈大出血', ['出血性休克'], ['右下肢'])];
+    expect(actState(noIv, '已給Transamin').reason).toContain('IV／IO');
+    const ok = [T('r-art', '動脈大出血', ['出血性休克', '已打骨針IO'], ['右下肢'])];
+    expect(actState(ok, '已給Transamin', 'r-art', { startAt: NOW - 60 * 60000, now: NOW }).disabled).toBe(false);
+    expect(actState(ok, '已給Transamin', 'r-art', { startAt: NOW - 200 * 60000, now: NOW }).reason).toContain('3 小時');
+    expect(actState(ok, '已給Transamin', 'r-art', { tags: ['peds'] }).reason).toContain('成人');
+  });
+  it('已給藥後出現禁忌時提醒', () => {
+    const l = [T('r-amp', '創傷性截肢', ['已給Nalbuphine', '意識改變'], ['右下肢'])];
+    expect(traumaWarnings(l).join()).toContain('已給Nalbuphine，但GCS<14');
+  });
+});

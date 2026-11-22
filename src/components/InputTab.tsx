@@ -198,13 +198,14 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const retriage = useStore((s) => s.retriage);
   const setRedClass = useStore((s) => s.setRedClass);
   const setLeft = useStore((s) => s.setLeft);
-  const setTrapped = useStore((s) => s.setTrapped);
   const { names } = useTriage();
   const setNote = useStore((s) => s.setPatientNote);
   const setWounds = useStore((s) => s.setWounds);
   const setTrauma = useStore((s) => s.setTrauma);
   const [showMap, setShowMap] = useState(false);
   const del = useStore((s) => s.deletePatient);
+  const startAt = useStore((s) => s.incident.startAt);
+  const now = useStore((s) => s.now);
   const rules = useRules();
   if (!p) return null;
   return (
@@ -231,28 +232,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         </div>
       )}
 
-      {p.status === 'waiting' && p.color !== 'K' && (
-        <div className="trap-row">
-          {p.trapped ? (
-            <button className="btn go full" onClick={() => setTrapped(p.id, false)}>
-              ✔ 已脫困（記錄時間）
-            </button>
-          ) : p.extricatedAt ? (
-            <div className="row" style={{ gap: 8 }}>
-              <span className="trap-done">⛓ 受困，{fmtClock(p.extricatedAt)} 已脫困</span>
-              <span className="spacer" />
-              <button className="btn sm" onClick={() => setTrapped(p.id, true)}>
-                改回受困中
-              </button>
-            </div>
-          ) : (
-            <button className="btn full" onClick={() => setTrapped(p.id, true)}>
-              ⛓ 標記受困中
-            </button>
-          )}
-        </div>
-      )}
-
       {p.color === 'G' && p.status === 'waiting' && !p.trapped && <GreenActions id={p.id} onDone={onClose} />}
 
       {rules.hazmat && (
@@ -264,7 +243,15 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       {p.color !== 'K' && (
         <>
           <h3>創傷與處置</h3>
-          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} />
+          <div className="grid g3 ptag-row">
+            {(['peds', 'minor', 'pregnant'] as const).map((t) => (
+              <button key={t} className={`btn sm ${p.tags.includes(t) ? 'on' : ''}`} onClick={() => toggleTag(p.id, t)}>
+                {p.tags.includes(t) ? '✔ ' : ''}
+                {PATIENT_TAGS.find((x) => x.id === t)?.name}
+              </button>
+            ))}
+          </div>
+          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} tags={p.tags} />
         </>
       )}
 
@@ -280,6 +267,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
             color={p.color}
             trauma={p.trauma ?? []}
             onTrauma={(t) => setTrauma(p.id, t)}
+            tags={p.tags}
           />
         </Suspense>
       )}
@@ -292,7 +280,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       />
       {injuryText(p) && (
         <div className="tr-out">
-          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds)} />
+          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, startAt, now })} />
           <div className="tr-sub">交接註解</div>
           <KeyFlags flags={keyFlags(p.trauma)} />
           {injuryText(p)}

@@ -1,6 +1,6 @@
 // 創傷標籤 → 側別、評估、處置按鈕（含防呆），自動組成交接註解
 import { useEffect, useRef, useState } from 'react';
-import { CHEST_SIDES, entryName, LIMB_SIDES, SIDE_KIND, STATUS, SUBTYPES, TRAUMA_BY_ID, traumaListFor, keepForColor, type TraumaEntry } from '../data/trauma';
+import { ADV_AIRWAY, CHEST_SIDES, entryName, LIMB_SIDES, SIDE_KIND, STATUS, SUBTYPES, TRAUMA_BY_ID, traumaListFor, keepForColor, type TraumaEntry } from '../data/trauma';
 import { actState, addAct, isKeyAct, ownerOf, removeAct, setSubtype, sideLock, toggleSide } from '../data/traumaRules';
 import { useStore } from '../store/store';
 import type { Color } from '../types';
@@ -11,6 +11,7 @@ export function TraumaPicker({
   onChange,
   only,
   ctxSide,
+  tags,
 }: {
   color: Color;
   value: TraumaEntry[];
@@ -19,8 +20,12 @@ export function TraumaPicker({
   only?: string[];
   /** 人形圖點的肢體側別，如「右下肢」：新增四肢傷勢時自動帶入 */
   ctxSide?: string | null;
+  /** 病人標籤（兒童、孕婦）：藥物防呆用 */
+  tags?: string[];
 }) {
   const now = useStore((s) => s.now);
+  const startAt = useStore((s) => s.incident.startAt);
+  const ctx = { tags, startAt, now };
   const [armed, setArmed] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -70,11 +75,11 @@ export function TraumaPicker({
   };
 
   const tapAct = (id: string, act: string) => {
-    const st = actState(value, act, id);
+    const st = actState(value, act, id, ctx);
     if (st.disabled) return flash(st.reason ?? '目前不可選');
     if (!st.stored) {
       setArmed(null);
-      return onChange(addAct(value, id, act, now));
+      return onChange(addAct(value, id, act, now, ctx));
     }
     // 只能在第一次點選的傷勢下取消；其他傷勢的同一按鈕僅顯示已選
     const owner = ownerOf(value, act, id);
@@ -92,6 +97,9 @@ export function TraumaPicker({
     if (lock) return flash(lock);
     onChange(toggleSide(value, id, side));
   };
+
+  const advStored = value.flatMap((t) => t.acts).find((a) => ADV_AIRWAY.includes(a));
+  const advOwner = advStored ? ownerOf(value, advStored) : undefined;
 
   const item = (id: string) => {
     const d = TRAUMA_BY_ID[id];
@@ -141,8 +149,11 @@ export function TraumaPicker({
                 <div key={label}>
                   <div className="tr-sub">{label}</div>
                   <div className="tr-acts">
-                    {acts.map((a) => {
-                      const st = actState(value, a, id);
+                    {acts
+                      // 進階呼吸道（插管、i-gel、環甲切）只選一次：已在其他傷勢記錄時，這裡不再顯示
+                      .filter((a) => !(ADV_AIRWAY.includes(a) && advOwner && advOwner.id !== id))
+                      .map((a) => {
+                      const st = actState(value, a, id, ctx);
                       const shared = !!st.stored && ownerOf(value, a, id)?.id !== id;
                       return (
                         <button
