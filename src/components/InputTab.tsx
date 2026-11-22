@@ -13,6 +13,7 @@ import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
 import { PhotoSection } from './Photos';
+import { decodeQrFromFile, patNoFromQr } from './qr';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -320,6 +321,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         </button>
       )}
 
+      <PatNoField p={p} />
       <PhotoSection patientId={p.id} />
       <PersonalSection p={p} />
 
@@ -559,8 +561,8 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
 function PersonalSection({ p }: { p: Patient }) {
   const setPersonal = useStore((s) => s.setPersonal);
   const v = p.personal ?? {};
-  const [open, setOpen] = useState(Object.values(v).some(Boolean));
-  const field = (k: 'name' | 'age' | 'phone' | 'patNo', label: string, mode: 'text' | 'numeric' | 'tel' = 'text', max = 30) => (
+  const [open, setOpen] = useState(!!(v.name || v.age || v.sex || v.phone));
+  const field = (k: 'name' | 'age' | 'phone', label: string, mode: 'text' | 'numeric' | 'tel' = 'text', max = 30) => (
     <label className="pf">
       <span>{label}</span>
       <input value={v[k] ?? ''} inputMode={mode} onChange={(e) => setPersonal(p.id, { [k]: e.target.value.slice(0, max) })} />
@@ -588,10 +590,59 @@ function PersonalSection({ p }: { p: Patient }) {
             </div>
           </div>
           {field('phone', '電話', 'tel', 20)}
-          {field('patNo', '拍拍尺號碼', 'text', 20)}
           <p className="muted small" style={{ margin: 0 }}>可留白；只存在系統內，不會出現在分享、回報或總結文字。</p>
         </div>
       )}
+    </>
+  );
+}
+
+/** 拍拍尺號碼：可手填或拍 QR Code 帶入；會隨發車分享與通報醫院 */
+function PatNoField({ p }: { p: Patient }) {
+  const setPersonal = useStore((s) => s.setPersonal);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const scan = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const text = await decodeQrFromFile(f);
+      if (!text) return setMsg('讀不到 QR Code，請靠近一點、對準再拍，或直接輸入號碼');
+      setPersonal(p.id, { patNo: patNoFromQr(text) });
+      setMsg(`✔ 已帶入（QR 內容：${text.slice(0, 40)}）`);
+    } catch {
+      setMsg('照片讀取失敗');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <h3>
+        拍拍尺號碼 <span className="muted small">隨發車分享</span>
+      </h3>
+      <div className="patno">
+        <input
+          value={p.personal?.patNo ?? ''}
+          placeholder="輸入或掃描"
+          onChange={(e) => setPersonal(p.id, { patNo: e.target.value.slice(0, 30) })}
+        />
+        <label className={`btn sm ${busy ? 'dim' : ''}`}>
+          {busy ? '讀取中…' : '📷 掃 QR'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={(e) => {
+              void scan(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </label>
+      </div>
+      {msg && <p className="small" style={{ margin: '4px 0 0', color: msg.startsWith('✔') ? 'var(--green)' : 'var(--orange)' }}>{msg}</p>}
     </>
   );
 }

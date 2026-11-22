@@ -112,7 +112,7 @@ describe('發車分享與黑牌區', () => {
 });
 
 describe('個案備註不外流', () => {
-  it('姓名、電話、拍拍尺號碼不出現在任何分享或回報文字', () => {
+  it('姓名、年齡、電話不出現在任何分享或回報文字', () => {
     const inc: Incident = { types: ['traffic'], location: null, startAt: T(14, 0), settings: DEFAULT_SETTINGS, log: [] };
     const v = { id: 'v1', name: '竹北91' } as Vehicle;
     const p = P('a', 'R', 1, {
@@ -126,7 +126,10 @@ describe('個案備註不外流', () => {
       buildReport(inc, [p], [v], initialRuntimes(), T(14, 40)),
       buildSummary(inc, [p], [v], initialRuntimes(), T(14, 40)),
     ].join('\n');
-    for (const x of ['王小明', '0912345678', 'PP-778']) expect(texts).not.toContain(x);
+    for (const x of ['王小明', '0912345678', '35 歲']) expect(texts).not.toContain(x);
     expect(texts).toContain('酒味');
+    // 拍拍尺號碼隨發車分享與通報醫院
+    expect(dispatchShareText([p], [v])).toContain('• 紅1（拍拍尺 PP-778）');
+    expect(hospitalNotice([p], v, inc)).toContain('• 紅1（拍拍尺 PP-778）');
   });
 });

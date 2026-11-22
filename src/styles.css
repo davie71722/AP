@@ -777,3 +777,5 @@ a.btn { color: inherit; text-decoration: none; }
 .pf { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
 .pf input { min-height: 44px; min-width: 0; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--well); color: var(--text); font: inherit; font-size: 17px; }
 .pf-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.patno { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.patno input { min-height: 48px; min-width: 0; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--well); color: var(--text); font: inherit; font-size: 18px; font-weight: 700; }

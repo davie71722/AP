@@ -75,7 +75,7 @@ export function hospitalNotice(ps: Patient[], vehicle: Vehicle | undefined, inci
   const lines = [
     `【MCI 後送通報${h ? `｜${h.short}` : ''}】`,
     ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`),
-    ...ps.map((p) => `• ${p.label}${injuryText(p) ? `：${injuryText(p)}` : ''}`),
+    ...ps.map((p) => `• ${p.label}${patTag(p)}${injuryText(p) ? `：${injuryText(p)}` : ''}`),
   ];
   return lines.join('\n');
 }
@@ -152,6 +152,12 @@ export function buildReport(
   return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
 }
 
+/** 拍拍尺號碼（發車分享、通報醫院用；個案備註其他欄位不分享） */
+export function patTag(p: Patient): string {
+  const n = p.personal?.patNo?.trim();
+  return n ? `（拍拍尺 ${n}）` : '';
+}
+
 /** 精簡傷勢處置：受困、傷勢名稱；關鍵處置（止血帶時間、插管、藥物…）。註解 */
 export function briefInjury(p: Patient): string {
   const parts = [trapText(p), ...(p.trauma ?? []).map(entryName)].filter(Boolean);
@@ -169,7 +175,7 @@ export function dispatchShareText(ps: Patient[], vehicles: Vehicle[]): string {
   const v = p0.vehicleId ? vehicles.find((x) => x.id === p0.vehicleId)?.name : p0.byDuty ? otherVehicleName(p0) : '';
   const h = p0.hospitalId ? HOSPITAL_BY_ID[p0.hospitalId]?.short : '未定醫院';
   const head = `【發車】${v ?? ''} ➔ ${h}${p0.arriveAt ? `｜ETA ${fmtClock(p0.arriveAt)}` : ''}${p0.sentAt ? `（${fmtClock(p0.sentAt)} 出發）` : ''}`;
-  return [head, ...ps.map((p) => `• ${p.label}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
+  return [head, ...ps.map((p) => `• ${p.label}${patTag(p)}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
 }
 
 /** 後送病患傷情初步報告：每位已後送病人的醫院、後送時間、由誰後送與傷情（依出發時間） */

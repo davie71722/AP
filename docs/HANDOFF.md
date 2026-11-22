@@ -34,6 +34,8 @@
 12. **個案照片**：病人視窗「📷 拍照」，上限 2 張（`MAX_PHOTOS`），壓縮為長邊 1024px JPEG 存在本機 Dexie `photos` 表（v3），**不同步**（GAS CacheService 單筆上限 100KB）。發車卡片與每趟通報醫院的「📤 分享」連同照片送出（`navigator.share` files）；LINE 鍵只帶文字。刪除歷史案件時一併刪照片（`src/components/Photos.tsx`）。
 13. **個案備註**：`Patient.personal`（姓名、年齡、性別、電話、拍拍尺號碼，可空白），病人視窗「🔒 個案備註（不分享）」。不出現在任何分享／回報／總結文字（有測試）；只在傷患清單 CSV 與 JSON 匯出。年齡 <18 也會擋 Nalbuphine／Transamin。
 
+14. **拍拍尺號碼**：從個案備註移出，病人視窗獨立欄位（存在 `personal.patNo`），**會**出現在發車分享與通報醫院（`patTag`）。「📷 掃 QR」拍照解碼（`src/components/qr.ts`：BarcodeDetector，否則 jsQR）；網址取最後查詢值或路徑段（`patNoFromQr`）。實際拍拍尺 QR 內容格式未確認，必要時調整 `patNoFromQr`。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -49,7 +51,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 120 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 122 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

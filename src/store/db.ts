@@ -123,7 +123,7 @@ export async function addPhoto(patientId: string, dataUrl: string): Promise<bool
   try {
     const n = await d.photos.where('patientId').equals(patientId).count();
     if (n >= MAX_PHOTOS) return false;
-    await d.photos.put({ id: `${patientId}-${Date.now()}`, patientId, at: Date.now(), dataUrl });
+    await d.photos.put({ id: `${patientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, patientId, at: Date.now(), dataUrl });
     return true;
   } catch (e) {
     console.warn('照片儲存失敗', e);
