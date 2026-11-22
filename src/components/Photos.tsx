@@ -1,11 +1,19 @@
-// 個案照片：拍照後壓縮存在本機（IndexedDB，不同步），上限 2 張；可連同送醫資訊以系統分享傳出
+// 個案照片：拍照後以原始大小存在本機（IndexedDB，不同步），上限 2 張；可連同送醫資訊以系統分享傳出
 import { useEffect, useState } from 'react';
 import { addPhoto, deletePhoto, listPhotos, MAX_PHOTOS, type PhotoRow } from '../store/db';
 import { useStore } from '../store/store';
 import { DoubleTapButton } from './common';
 
-/** 壓縮為長邊 1024px 的 JPEG（約 100KB） */
-export async function compressImage(file: File, max = 1024, quality = 0.7): Promise<string> {
+/** 原始大小保存：JPEG／PNG／WebP 直接存原檔（保留解析度與拍攝方向）；其他格式（如 HEIC）轉成原尺寸 JPEG */
+export async function photoDataUrl(file: File): Promise<string> {
+  if (/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    return new Promise((ok, fail) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result));
+      r.onerror = () => fail(r.error);
+      r.readAsDataURL(file);
+    });
+  }
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((ok, fail) => {
@@ -14,12 +22,11 @@ export async function compressImage(file: File, max = 1024, quality = 0.7): Prom
       i.onerror = fail;
       i.src = url;
     });
-    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas');
-    c.width = Math.round(img.naturalWidth * k);
-    c.height = Math.round(img.naturalHeight * k);
-    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', quality);
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    c.getContext('2d')!.drawImage(img, 0, 0);
+    return c.toDataURL('image/jpeg', 0.92);
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -62,13 +69,14 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
   const bump = useStore((s) => s.bumpPhotos);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<string | null>(null);
   const full = rows.length >= MAX_PHOTOS;
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;
     setBusy(true);
     try {
-      const ok = await addPhoto(patientId, await compressImage(f));
+      const ok = await addPhoto(patientId, await photoDataUrl(f));
       setMsg(ok ? '' : `最多 ${MAX_PHOTOS} 張`);
       bump();
     } catch {
@@ -81,12 +89,12 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
   return (
     <>
       <h3>
-        照片 <span className="muted small">{rows.length}/{MAX_PHOTOS}｜存在本機，可隨送醫資訊分享</span>
+        照片 <span className="muted small">{rows.length}/{MAX_PHOTOS}｜原始大小，存在本機，可隨送醫資訊分享</span>
       </h3>
       <div className="photos">
         {rows.map((r) => (
           <div key={r.id} className="photo">
-            <img src={r.dataUrl} alt="個案照片" />
+            <img src={r.dataUrl} alt="個案照片" onClick={() => setView(r.dataUrl)} />
             {!readOnly && (
               <DoubleTapButton className="sm" armedText="再按刪除" onConfirm={async () => (await deletePhoto(r.id), bump())}>
                 刪除
@@ -111,6 +119,12 @@ export function PhotoSection({ patientId, readOnly = false }: { patientId: strin
         )}
       </div>
       {msg && <p className="small" style={{ color: 'var(--orange)', margin: '4px 0 0' }}>{msg}</p>}
+      {view && (
+        <div className="photo-view" onClick={(e) => (e.stopPropagation(), setView(null))}>
+          <img src={view} alt="個案照片（原始大小）" />
+          <span>點一下關閉｜可雙指放大</span>
+        </div>
+      )}
     </>
   );
 }
