@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { buildReport, buildSummary, buildTransportReport, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
-import { copyText, CopyButton, DoubleTapButton } from './common';
+import { DoubleTapButton, ShareButtons } from './common';
 import { fmtClock } from '../engine/actions';
 import { useStore } from '../store/store';
 import { ShareSection } from './ShareSection';
@@ -11,35 +11,16 @@ export function ReportTab() {
   const vehicles = useStore((s) => s.vehicles);
   const runtime = useStore((s) => s.runtime);
   const now = useStore((s) => s.now);
-  const [copied, setCopied] = useState(false);
   const text = buildReport(incident, patients, vehicles, runtime, now);
   const stamp = new Date(now).toISOString().slice(0, 16).replace(/[:T]/g, '');
   const entries = caseLog(incident);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // 舊瀏覽器退回
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <>
       <section className="section">
         <h2>回報文字</h2>
         <div className="report">{text}</div>
-        <button className="btn primary full" style={{ marginTop: 10 }} onClick={copy}>
-          {copied ? '✔ 已複製' : '📋 複製回報文字'}
-        </button>
+        <ShareButtons className="mt8" copyLabel="📋 複製回報" text={text} />
       </section>
       <TransportReport />
       <ShareSection />
@@ -92,7 +73,6 @@ function EndSection() {
   const now = useStore((s) => s.now);
   const end = useStore((s) => s.endIncident);
   const reopen = useStore((s) => s.reopenIncident);
-  const [copied, setCopied] = useState(false);
   if (!incident.startAt) return null;
   const waiting = patients.filter((p) => p.status === 'waiting' && p.color !== 'K').length;
   const enroute = vehicles.filter((v) => v.status === 'transport').length;
@@ -117,17 +97,7 @@ function EndSection() {
     <section className="section end-sec">
       <h2>案件總結</h2>
       <div className="report">{text}</div>
-      <button
-        className="btn primary full"
-        style={{ marginTop: 10 }}
-        onClick={async () => {
-          await copyText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        }}
-      >
-        {copied ? '✔ 已複製' : '📋 複製案件總結'}
-      </button>
+      <ShareButtons className="mt8" copyLabel="📋 複製總結" text={text} />
       <div style={{ marginTop: 10, textAlign: 'right' }}>
         <DoubleTapButton className="sm del-sm" armedText="再按一次重新開啟" onConfirm={reopen}>
           重新開啟案件
@@ -169,7 +139,7 @@ function TransportReport() {
       {text ? (
         <>
           <div className="report">{text}</div>
-          <CopyButton className="primary full" label="📋 複製傷情初步報告" text={text} />
+          <ShareButtons className="mt8" copyLabel="📋 複製報告" text={text} />
         </>
       ) : (
         <div className="empty">尚無後送病患</div>

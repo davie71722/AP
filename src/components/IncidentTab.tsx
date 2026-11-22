@@ -6,7 +6,7 @@ import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
 import { mapServiceConfigured, resolveShortLink, searchPlaces, type PlaceHit } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
-import { CopyButton, DoubleTapButton, Stepper } from './common';
+import { DoubleTapButton, ShareButtons, Stepper } from './common';
 import { deleteArchive, listArchives, type ArchiveRow } from '../store/db';
 import type { Persisted } from '../store/store';
 import { buildSummary, download } from '../report/report';
@@ -255,8 +255,8 @@ function ArchiveList() {
               {expanded && (
                 <>
                   <div className="report">{summary}</div>
+                  <ShareButtons small className="mt8" copyLabel="📋 複製總結" text={summary} />
                   <div className="grid g2" style={{ marginTop: 8 }}>
-                    <CopyButton className="sm primary" label="📋 複製總結" text={summary} />
                     <button
                       className="btn sm"
                       onClick={() =>

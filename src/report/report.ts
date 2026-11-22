@@ -1,5 +1,6 @@
 // 回報文字與匯出（規格書 9.5）
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { entryName, keyFlags } from '../data/trauma';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
 import { injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
@@ -30,6 +31,20 @@ export function headcountText(patients: Patient[], blackName = '黑'): string {
     h.black ? `${blackName} ${h.black}` : '',
   ].filter(Boolean);
   return `${h.total}＝${parts.join('＋')}${h.ok ? ' ✔' : ' ⚠ 不符'}`;
+}
+
+/** 黑牌區：黑 3（待警察接管 2、已移交警方 1）｜暫置區 X｜看守 Y */
+export function morgueText(incident: Incident, patients: Patient[], blackName = '黑'): string {
+  const ks = patients.filter((p) => p.color === 'K');
+  if (!ks.length) return '';
+  const handed = ks.filter((p) => p.policeAt).length;
+  const wait = ks.length - handed;
+  const m = incident.morgue ?? {};
+  return [
+    `${blackName} ${ks.length}（${[wait ? `待警察接管 ${wait}` : '', handed ? `已移交警方 ${handed}` : ''].filter(Boolean).join('、')}）`,
+    m.location?.trim() ? `暫置區 ${m.location.trim()}` : '暫置區未指定',
+    m.guard?.trim() ? `看守 ${m.guard.trim()}` : '⚠ 無人看守',
+  ].join('｜');
 }
 
 /** 受困名單：紅1-A 受困中、黃2 14:32 脫困 */
@@ -119,6 +134,7 @@ export function buildReport(
     ['大隊抵達', incident.milestones?.['大隊抵達'] ? fmtClock(incident.milestones['大隊抵達']) : ''],
     ['傷患總數', patients.length ? `${patients.length}（${colors(() => true)}）` : ''],
     ['人數核對', headcountText(patients, N.K)],
+    ['黑牌區', morgueText(incident, patients, N.K)],
     ['受困中', join(patients.filter((p) => p.trapped).map((p) => p.label))],
     ['已後送', colors((p) => p.status === 'sent', ['R', 'Y', 'G'])],
     ['待後送', colors((p) => p.status === 'waiting', ['R', 'Y', 'G'])],
@@ -134,6 +150,26 @@ export function buildReport(
     ['自行到院', self.join('；')],
   ];
   return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
+}
+
+/** 精簡傷勢處置：受困、傷勢名稱；關鍵處置（止血帶時間、插管、藥物…）。註解 */
+export function briefInjury(p: Patient): string {
+  const parts = [trapText(p), ...(p.trauma ?? []).map(entryName)].filter(Boolean);
+  const flags = keyFlags(p.trauma);
+  let s = parts.join('、');
+  if (flags.length) s += `${s ? '；' : ''}${flags.join('、')}`;
+  if (p.note?.trim()) s += `${s ? '。' : ''}${p.note.trim()}`;
+  return s;
+}
+
+/** 確認發車後分享（LINE）：車輛、醫院、ETA、每位傷患的檢傷與精簡傷勢 */
+export function dispatchShareText(ps: Patient[], vehicles: Vehicle[]): string {
+  if (!ps.length) return '';
+  const p0 = ps[0];
+  const v = p0.vehicleId ? vehicles.find((x) => x.id === p0.vehicleId)?.name : p0.byDuty ? otherVehicleName(p0) : '';
+  const h = p0.hospitalId ? HOSPITAL_BY_ID[p0.hospitalId]?.short : '未定醫院';
+  const head = `【發車】${v ?? ''} ➔ ${h}${p0.arriveAt ? `｜ETA ${fmtClock(p0.arriveAt)}` : ''}${p0.sentAt ? `（${fmtClock(p0.sentAt)} 出發）` : ''}`;
+  return [head, ...ps.map((p) => `• ${p.label}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
 }
 
 /** 後送病患傷情初步報告：每位已後送病人的醫院、後送時間、由誰後送與傷情（依出發時間） */
@@ -213,7 +249,8 @@ export function buildSummary(
     ['其他車輛', byDuty.length ? `${byDuty.length}（${byDuty.map((p) => `${p.label} ${otherVehicleName(p)}`).join('、')}）` : ''],
     ['自行離開', left.length ? `${left.length}（${left.map((p) => p.label).join('、')}）` : ''],
     ['未後送', waiting.length ? `${waiting.length}（${waiting.map((p) => p.label).join('、')}）` : ''],
-    [N.K, black.length ? `${black.length}（${black.map((p) => p.label).join('、')}）` : ''],
+    [N.K, black.length ? `${black.length}（${black.map((p) => `${p.label}${p.policeAt ? ` ${fmtClock(p.policeAt)} 移交警方` : ' 待警察接管'}`).join('、')}）` : ''],
+    ['黑牌暫置區', black.length ? [incident.morgue?.location?.trim(), incident.morgue?.guard?.trim() && `看守 ${incident.morgue.guard.trim()}`].filter(Boolean).join('｜') : ''],
     ['檢傷升級為紅傷', upgraded.length ? `${upgraded.length} 位（${upgraded.join('、')}）` : ''],
     ['各院收治', perHospital.join('；')],
     ['救護車', trips.length ? `${trips.length} 台、共 ${vehicles.reduce((n, v) => n + v.trips, 0)} 趟（${trips.join('、')}）` : ''],

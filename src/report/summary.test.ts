@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialRuntimes } from '../data/hospitals';
 import { DEFAULT_SETTINGS, type Incident, type Patient, type Vehicle } from '../types';
-import { buildReport, buildSummary, buildTransportReport, headcount, headcountText, hospitalNotice } from './report';
+import { briefInjury, buildReport, buildSummary, buildTransportReport, dispatchShareText, morgueText, headcount, headcountText, hospitalNotice } from './report';
 
 const T = (h: number, m: number) => new Date(2026, 10, 21, h, m).getTime();
 const P = (id: string, color: Patient['color'], num: number, extra: Partial<Patient> = {}): Patient => ({
@@ -89,5 +89,24 @@ describe('後送病患傷情初步報告', () => {
       ['【後送病患傷情初步報告】', '• 紅1-A｜東元醫院｜14:20 竹北91後送｜不穩定骨盆骨折；處置予骨盆固定帶固定。', '• 綠1｜未定醫院｜14:30 勤務車後送'].join('\n'),
     );
     expect(buildTransportReport([ps[2]], [v])).toBe('');
+  });
+});
+
+describe('發車分享與黑牌區', () => {
+  it('發車分享：車輛、醫院、ETA、檢傷與精簡傷勢', () => {
+    const v = { id: 'v1', name: '竹北91' } as Vehicle;
+    const p = P('a', 'R', 1, {
+      label: '紅1-A', status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32),
+      trauma: [{ id: 'r-amp', name: '創傷性截肢', sides: ['右下肢'], acts: ['已上止血帶(14:10)', '已打雙線IV'] }],
+    });
+    expect(briefInjury(p)).toBe('創傷性截肢(右下肢)；止血帶 右下肢 14:10');
+    expect(dispatchShareText([p], [v])).toBe('【發車】竹北91 ➔ 東元醫院｜ETA 14:32（14:20 出發）\n• 紅1-A：創傷性截肢(右下肢)；止血帶 右下肢 14:10');
+  });
+  it('黑牌區：待警察接管／已移交、暫置區、看守', () => {
+    const inc: Incident = { types: [], location: null, startAt: T(14, 0), settings: DEFAULT_SETTINGS, log: [], morgue: { location: '收費站南側' } };
+    const ks = [P('k1', 'K', 1, { policeAt: T(15, 0) }), P('k2', 'K', 2)];
+    expect(morgueText(inc, ks)).toBe('黑 2（待警察接管 1、已移交警方 1）｜暫置區 收費站南側｜⚠ 無人看守');
+    expect(buildSummary(inc, ks, [], initialRuntimes(), T(15, 10))).toContain('• 黑：2（黑1 15:00 移交警方、黑2 待警察接管）');
+    expect(morgueText(inc, [])).toBe('');
   });
 });

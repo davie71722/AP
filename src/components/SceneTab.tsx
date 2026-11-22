@@ -7,11 +7,11 @@ import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
 import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
-import { headcountText } from '../report/report';
+import { dispatchShareText, headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
-import { DoubleTapButton, SentCounts, Sheet } from './common';
+import { DoubleTapButton, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
 
@@ -32,6 +32,7 @@ export function SceneTab() {
     .map((p) => ({ p, min: Math.floor((now - (p.history[0]?.at ?? now)) / 60000) }))
     .filter((x) => x.min >= 10);
   const trapped = waiting.filter((p) => p.trapped);
+  const [justSent, setJustSent] = useState<string[] | null>(null);
 
   return (
     <>
@@ -66,7 +67,17 @@ export function SceneTab() {
           ))}
         </div>
       </section>
-      {sel.length > 0 && !viewOnly && <DispatchPanel ids={sel} onDone={() => setSelected([])} />}
+      {justSent && <JustSent ids={justSent} onClose={() => setJustSent(null)} />}
+      <MorgueSection />
+      {sel.length > 0 && !viewOnly && (
+        <DispatchPanel
+          ids={sel}
+          onDone={(sent) => {
+            setSelected([]);
+            setJustSent(sent);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -283,7 +294,77 @@ function AddVehicleSheet({ onClose }: { onClose: () => void }) {
 }
 
 // ---------- 派車 ----------
-function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
+/** 黑牌（死亡）區：獨立計數、警方接管狀態、暫置區位置與看守人員 */
+function MorgueSection() {
+  const patients = useStore((s) => s.patients);
+  const morgue = useStore((s) => s.incident.morgue ?? {});
+  const setMorgue = useStore((s) => s.setMorgue);
+  const logMorgue = useStore((s) => s.logMorgue);
+  const setPolice = useStore((s) => s.setPolice);
+  const viewOnly = useSync((s) => s.role === 'view');
+  const { names } = useTriage();
+  const ks = patients.filter((p) => p.color === 'K');
+  if (!ks.length) return null;
+  const handed = ks.filter((p) => p.policeAt).length;
+  const noGuard = !morgue.guard?.trim();
+  return (
+    <section className={`section morgue ${noGuard ? 'warn' : ''}`}>
+      <h2>
+        {names.K}牌區 <span className="muted small">{ks.length} 位｜待警察接管 {ks.length - handed}｜已移交 {handed}</span>
+      </h2>
+      {noGuard && <p className="warn-line">⚠ 尚未指定看守人員，避免成為無人管理的死角</p>}
+      {!morgue.location?.trim() && <p className="warn-line">⚠ 尚未記錄暫置區位置</p>}
+      <div className="morgue-inputs">
+        <input
+          value={morgue.location ?? ''}
+          placeholder="暫置區位置（例：收費站南側空地）"
+          disabled={viewOnly}
+          onChange={(e) => setMorgue({ location: e.target.value.slice(0, 60) })}
+          onBlur={logMorgue}
+        />
+        <input
+          value={morgue.guard ?? ''}
+          placeholder="看守人員（例：竹北分隊 王小明）"
+          disabled={viewOnly}
+          onChange={(e) => setMorgue({ guard: e.target.value.slice(0, 40) })}
+          onBlur={logMorgue}
+        />
+      </div>
+      <div className="grid g2" style={{ marginTop: 8 }}>
+        {ks.map((p) => (
+          <button key={p.id} className={`btn sm k-item ${p.policeAt ? 'on' : ''}`} disabled={viewOnly} onClick={() => setPolice(p.id, !p.policeAt)}>
+            <b>{p.label}</b>
+            <span className="small">{p.policeAt ? `✔ 已移交警方 ${fmtClock(p.policeAt)}` : '待警察接管'}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** 剛發車：分享檢傷、精簡傷勢與 ETA 到 LINE */
+function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+  const patients = useStore((s) => s.patients);
+  const vehicles = useStore((s) => s.vehicles);
+  const ps = patients.filter((p) => ids.includes(p.id) && p.status === 'sent');
+  if (!ps.length) return null;
+  const text = dispatchShareText(ps, vehicles);
+  return (
+    <section className="section just-sent">
+      <h2>
+        ✔ 已發車
+        <span className="spacer" />
+        <button className="btn sm" onClick={onClose}>
+          ✕
+        </button>
+      </h2>
+      <div className="report">{text}</div>
+      <ShareButtons className="mt8" copyLabel="📋 複製" text={text} />
+    </section>
+  );
+}
+
+function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]) => void }) {
   const patients = useStore((s) => s.patients);
   const vehicles = useStore((s) => s.vehicles);
   const runtime = useStore((s) => s.runtime);
@@ -445,7 +526,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
           setVehicleId(null);
           setHospitalId(null);
           setOther(null);
-          onDone();
+          onDone(ids);
         }}
       >
         出發

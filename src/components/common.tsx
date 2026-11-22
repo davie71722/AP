@@ -149,23 +149,58 @@ export async function copyText(text: string) {
   }
 }
 
-/** 複製按鈕：按下後顯示「已複製」2 秒 */
-export function CopyButton({ text, label, className = '' }: { text: string; label: string; className?: string }) {
-  const [done, setDone] = useState(false);
+/** LINE 分享連結（手機有 LINE 時直接開啟選擇聊天室） */
+export function lineShareUrl(text: string): string {
+  return `https://line.me/R/share?text=${encodeURIComponent(text)}`;
+}
+
+/** 系統分享（iOS／Android 分享面板）；不支援或被嵌入頁擋下時回傳 false */
+export async function systemShare(text: string): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.share) return false;
+  try {
+    await navigator.share({ text });
+    return true;
+  } catch (e) {
+    // 使用者取消也算處理完成
+    return (e as Error)?.name === 'AbortError';
+  }
+}
+
+/** 複製／分享（系統分享面板，不支援時改為複製）／LINE */
+export function ShareButtons({ text, copyLabel = '📋 複製', small = false, className = '' }: { text: string; copyLabel?: string; small?: boolean; className?: string }) {
+  const [msg, setMsg] = useState('');
   const t = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(t.current), []);
+  const flash = (m: string) => {
+    setMsg(m);
+    clearTimeout(t.current);
+    t.current = setTimeout(() => setMsg(''), 2500);
+  };
+  const sz = small ? 'sm' : '';
   return (
-    <button
-      className={`btn ${className}`}
-      onClick={async (e) => {
-        e.stopPropagation();
-        await copyText(text);
-        setDone(true);
-        clearTimeout(t.current);
-        t.current = setTimeout(() => setDone(false), 2000);
-      }}
-    >
-      {done ? '✔ 已複製' : label}
-    </button>
+    <div className={`share-row ${className}`} onClick={(e) => e.stopPropagation()}>
+      <button
+        className={`btn ${sz} primary`}
+        onClick={async () => {
+          await copyText(text);
+          flash('✔ 已複製');
+        }}
+      >
+        {msg === '✔ 已複製' ? msg : copyLabel}
+      </button>
+      <button
+        className={`btn ${sz}`}
+        onClick={async () => {
+          if (await systemShare(text)) return;
+          await copyText(text);
+          flash('已複製，可貼到 LINE');
+        }}
+      >
+        {msg === '已複製，可貼到 LINE' ? msg : '📤 分享'}
+      </button>
+      <a className={`btn ${sz} line-btn`} href={lineShareUrl(text)} target="_blank" rel="noreferrer">
+        LINE
+      </a>
+    </div>
   );
 }

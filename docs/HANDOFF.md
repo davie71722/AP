@@ -28,6 +28,9 @@
 
 9. **選車大隊順序**：救護車到場／新增車輛視窗，事發轄區所屬大隊排最上方（轄區分隊排第一），其餘依大隊順序（`brigadeOrder`、`unitsOf`）。芎林改為第三大隊。
 
+10. **分享**：所有複製處改為「📋 複製／📤 分享／LINE」（`ShareButtons`）。分享用系統分享面板（`navigator.share`），GAS 嵌入頁可能被擋，擋下時改為複製；LINE 用 `line.me/R/share?text=` 連結。確認發車後現場頁出現「✔ 已發車」卡片（`dispatchShareText`：車輛、醫院、ETA、檢傷、精簡傷勢 `briefInjury`）。
+11. **黑牌區**：`Patient.policeAt`（已移交警方時間；未設定＝待警察接管）、`Incident.morgue`（暫置區位置、看守人員，已加入同步欄位）。現場頁「黑牌區」：計數、逐位切換移交、位置與看守輸入（離開輸入框時記入案件經過），未指定看守／位置時警示。回報「黑牌區」、總結列出移交狀態與暫置區。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -42,7 +45,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 115 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 118 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

@@ -8,6 +8,7 @@ import {
   hazmatNotifyList,
   setLeft as setLeftDomain,
   setTrapped as setTrappedDomain,
+  setPolice as setPoliceDomain,
   setVehicleStatus,
   fmtClock,
   type DomainState,
@@ -131,6 +132,12 @@ interface Store extends Persisted {
   setLeft(id: string, left: boolean): void;
   /** 受困中／已脫困 */
   setTrapped(id: string, trapped: boolean): void;
+  /** 黑牌：已移交警方／改回待警察接管 */
+  setPolice(id: string, handed: boolean): void;
+  /** 黑牌暫置區位置、看守人員（輸入中不記錄） */
+  setMorgue(p: { location?: string; guard?: string }): void;
+  /** 黑牌暫置區資料寫入案件經過（輸入完成時） */
+  logMorgue(): void;
   dutyTransport(id: string, hid: string | undefined): void;
   /** 綠牌由其他車輛（勤務車、民間救護車、巴士）後送；一筆撤銷 */
   otherTransport(ids: string[], hid: string | undefined, kind: string): void;
@@ -717,6 +724,15 @@ export const useStore = create<Store>((set, get) => {
     },
     setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
     setTrapped: (id, trapped) => applyDomain(setTrappedDomain(domain(), id, trapped, Date.now())),
+    setPolice: (id, handed) => applyDomain(setPoliceDomain(domain(), id, handed, Date.now())),
+    setMorgue: (p) =>
+      set((s) => ({ incident: { ...s.incident, morgue: { ...(s.incident.morgue ?? {}), ...p } } })),
+    logMorgue: () => {
+      const m = get().incident.morgue ?? {};
+      const text = [m.location?.trim() && `位置 ${m.location.trim()}`, m.guard?.trim() && `看守 ${m.guard.trim()}`].filter(Boolean).join('｜');
+      const last = [...get().incident.log].reverse().find((l) => l.text.startsWith('黑牌暫置區：'));
+      if (text && last?.text !== `黑牌暫置區：${text}`) log(`黑牌暫置區：${text}`);
+    },
     dutyTransport: (id, hid) => {
       const s = get();
       const before = domain();
@@ -919,7 +935,7 @@ export function noteRemote(
     const runtime = { ...snap.runtime };
     for (const hid of Object.keys(next.runtime)) if (prev.runtime[hid] !== next.runtime[hid]) runtime[hid] = next.runtime[hid];
     const incident = { ...snap.incident };
-    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones'] as const) {
+    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue'] as const) {
       if (prev.incident[f] !== next.incident[f]) (incident as unknown as Record<string, unknown>)[f] = next.incident[f];
     }
     incident.log = [...snap.incident.log, ...newLog].sort((a, b) => a.at - b.at);

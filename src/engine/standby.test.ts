@@ -3,7 +3,7 @@ import { HOSPITALS, initialRuntimes } from '../data/hospitals';
 import { TOWNSHIPS } from '../data/places';
 import { offlineTravel } from '../travel';
 import { DEFAULT_SETTINGS, dispatchOrder, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
-import { setTrapped, setVehicleStatus, type DomainState } from './actions';
+import { setPolice, setTrapped, setVehicleStatus, type DomainState } from './actions';
 import { computePlan } from './plan';
 import { combineRules } from './rules';
 
@@ -88,5 +88,16 @@ describe('受困／脫困', () => {
     expect(d.patients[0].extricatedAt).toBe(NOW + 12 * MIN);
     expect(d.log.map((l) => l.text)).toEqual(['紅1-A 受困中', '紅1-A 已脫困 14:12']);
     expect(injuryText(d.patients[0])).toMatch(/^受困，14:12 脫困。壓砸傷/);
+  });
+});
+
+describe('黑牌移交警方', () => {
+  it('記錄移交時間，非黑牌不適用', () => {
+    let d = dom([], [P('k', { color: 'K', label: '黑1' }), P('r')]);
+    d = setPolice(d, 'k', true, NOW);
+    d = setPolice(d, 'r', true, NOW);
+    expect(d.patients[0].policeAt).toBe(NOW);
+    expect(d.patients[1].policeAt).toBeUndefined();
+    expect(d.log.map((l) => l.text)).toEqual(['黑1 已移交警方 14:00']);
   });
 });

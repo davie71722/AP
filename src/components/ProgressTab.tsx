@@ -5,7 +5,7 @@ import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
-import { clockAfter, CopyButton, SentCounts } from './common';
+import { clockAfter, SentCounts, ShareButtons } from './common';
 import { hospitalNotice } from '../report/report';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
@@ -140,7 +140,7 @@ export function ProgressTab() {
                     ))}
                 </div>
               )}
-              <CopyButton className="sm notice-btn" label="📋 複製通報醫院文字" text={hospitalNotice(t.ps, v, incident)} />
+              <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={hospitalNotice(t.ps, v, incident)} />
             </div>
           );
         })}

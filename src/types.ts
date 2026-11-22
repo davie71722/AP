@@ -90,6 +90,8 @@ export interface Patient {
   trapped?: boolean;
   /** 脫困時間 */
   extricatedAt?: number;
+  /** 黑牌：已移交警方的時間（未設定＝待警察接管） */
+  policeAt?: number;
 }
 
 /** 人形圖傷口（格式同「外傷人形圖傷口紀錄」模組） */
@@ -256,6 +258,8 @@ export interface Incident {
   milestones?: Record<string, number>;
   /** 案件結束時間 */
   endAt?: number | null;
+  /** 黑牌暫置區：位置與看守人員 */
+  morgue?: { location?: string; guard?: string };
 }
 
 export interface TravelEntry {

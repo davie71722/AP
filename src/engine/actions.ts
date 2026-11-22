@@ -200,3 +200,17 @@ export function setTrapped(s: DomainState, patientId: string, trapped: boolean, 
     log: [...s.log, { at: now, text: `${p.label} ${text}` }],
   };
 }
+
+/** 黑牌移交警方（記錄時間）／改回待警察接管 */
+export function setPolice(s: DomainState, patientId: string, handed: boolean, now: number): DomainState {
+  const p = s.patients.find((x) => x.id === patientId);
+  if (!p || p.color !== 'K' || !!p.policeAt === handed) return s;
+  const text = handed ? `已移交警方 ${fmtClock(now)}` : '改回待警察接管';
+  return {
+    ...s,
+    patients: s.patients.map((x) =>
+      x.id === patientId ? { ...x, policeAt: handed ? now : undefined, history: [...x.history, { at: now, action: text }] } : x,
+    ),
+    log: [...s.log, { at: now, text: `${p.label} ${text}` }],
+  };
+}
