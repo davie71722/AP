@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialRuntimes } from '../data/hospitals';
 import { DEFAULT_SETTINGS, type Incident, type Patient, type Vehicle } from '../types';
-import { briefInjury, buildReport, buildSummary, buildTransportReport, dispatchShareText, morgueText, headcount, headcountText, hospitalNotice } from './report';
+import { photoCaption, briefInjury, buildReport, buildSummary, buildTransportReport, dispatchShareText, morgueText, headcount, headcountText, hospitalNotice } from './report';
 
 const T = (h: number, m: number) => new Date(2026, 10, 21, h, m).getTime();
 const P = (id: string, color: Patient['color'], num: number, extra: Partial<Patient> = {}): Patient => ({
@@ -131,5 +131,17 @@ describe('個案備註不外流', () => {
     // 拍拍尺號碼隨發車分享與通報醫院
     expect(dispatchShareText([p], [v])).toContain('• 紅1（拍拍尺 PP-778）');
     expect(hospitalNotice([p], v, inc)).toContain('• 紅1（拍拍尺 PP-778）');
+  });
+});
+
+describe('照片資訊欄', () => {
+  it('代碼、拍拍尺、車輛醫院、出發與 ETA、傷勢；不含姓名', () => {
+    const v = { id: 'v1', name: '竹北91' } as Vehicle;
+    const p = P('a', 'R', 1, {
+      label: '紅1-A', status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32), note: '酒味',
+      trauma: [{ id: 'r-amp', name: '創傷性截肢', sides: ['右下肢'], acts: ['已上止血帶(14:10)'] }],
+      personal: { name: '王小明', patNo: 'PP-0778' },
+    });
+    expect(photoCaption(p, [v])).toEqual(['紅1-A（拍拍尺 PP-0778）', '竹北91 ➔ 東元醫院', '出發 14:20｜ETA 14:32', '創傷性截肢(右下肢)；止血帶 右下肢 14:10。酒味']);
   });
 });

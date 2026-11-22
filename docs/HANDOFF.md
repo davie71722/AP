@@ -36,6 +36,8 @@
 
 14. **拍拍尺號碼**：從個案備註移出，病人視窗獨立欄位（存在 `personal.patNo`），**會**出現在發車分享與通報醫院（`patTag`）。「📷 掃 QR」拍照解碼（`src/components/qr.ts`：BarcodeDetector，否則 jsQR）；網址取最後查詢值或路徑段（`patNoFromQr`）。實際拍拍尺 QR 內容格式未確認，必要時調整 `patNoFromQr`。
 
+15. **照片加工**：分享時照片下方加資訊欄（不遮住照片，原解析度）：代碼（拍拍尺）、車輛 ➔ 醫院、出發｜ETA、精簡傷勢與註解（`photoCaption`、`annotatePhoto`、`useAnnotatedFiles`）。不含姓名等個案備註。發車卡片顯示加工後預覽；每趟通報醫院同樣附加工照片。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -51,7 +53,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 121 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 122 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

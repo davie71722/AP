@@ -7,14 +7,14 @@ import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
 import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
-import { dispatchShareText, headcountText } from '../report/report';
+import { dispatchShareText, headcountText, photoCaption } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
 import { DoubleTapButton, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
-import { photoFiles, usePhotos } from './Photos';
+import { useAnnotatedFiles, usePhotos } from './Photos';
 
 export function SceneTab() {
   const rules = useRules();
@@ -349,9 +349,10 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const vehicles = useStore((s) => s.vehicles);
   const ps = patients.filter((p) => ids.includes(p.id) && p.status === 'sent');
   const photos = usePhotos(ids);
-  if (!ps.length) return null;
   const text = dispatchShareText(ps, vehicles);
-  const files = photoFiles(photos, (pid) => patients.find((x) => x.id === pid)?.label ?? 'photo');
+  const label = (pid: string) => patients.find((x) => x.id === pid)?.label ?? 'photo';
+  const { files, previews } = useAnnotatedFiles(photos, (pid) => { const p = patients.find((x) => x.id === pid); return p ? photoCaption(p, vehicles) : []; }, label);
+  if (!ps.length) return null;
   return (
     <section className="section just-sent">
       <h2>
@@ -362,11 +363,11 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
         </button>
       </h2>
       <div className="report">{text}</div>
-      {photos.length > 0 && (
+      {previews.length > 0 && (
         <div className="photos" style={{ marginTop: 8 }}>
-          {photos.map((r) => (
-            <div key={r.id} className="photo">
-              <img src={r.dataUrl} alt="個案照片" />
+          {previews.map((u, i) => (
+            <div key={i} className="photo">
+              <img src={u} alt="個案照片（已加上送醫資訊）" className="annotated" />
             </div>
           ))}
         </div>

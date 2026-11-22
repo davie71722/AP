@@ -42,6 +42,83 @@ export function dataUrlToFile(dataUrl: string, name: string): File {
   return new File([buf], name, { type: mime });
 }
 
+/** 照片下方加上資訊欄（不遮住照片）：代碼、拍拍尺、送醫車輛與醫院、出發與 ETA、精簡傷勢與註解 */
+export async function annotatePhoto(dataUrl: string, lines: string[]): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((ok, fail) => {
+    const i = new Image();
+    i.onload = () => ok(i);
+    i.onerror = fail;
+    i.src = dataUrl;
+  });
+  const w = img.naturalWidth;
+  const font = Math.max(18, Math.round(w / 28));
+  const pad = Math.round(font * 0.7);
+  const lh = Math.round(font * 1.35);
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d')!;
+  const family = '"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+  // 逐字換行（中文）
+  const wrap = (text: string, bold: boolean): string[] => {
+    ctx.font = `${bold ? 700 : 400} ${font}px ${family}`;
+    const out: string[] = [];
+    let cur = '';
+    for (const ch of text) {
+      if (ctx.measureText(cur + ch).width > w - pad * 2 && cur) {
+        out.push(cur);
+        cur = ch;
+      } else cur += ch;
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+  const rows = lines.flatMap((l, i) => wrap(l, i === 0).map((t) => ({ t, bold: i === 0 })));
+  const band = pad * 2 + rows.length * lh;
+  c.width = w;
+  c.height = img.naturalHeight + band;
+  ctx.drawImage(img, 0, 0);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, img.naturalHeight, w, band);
+  ctx.fillStyle = '#ff9f1a';
+  ctx.fillRect(0, img.naturalHeight, w, Math.max(3, Math.round(font / 6)));
+  ctx.textBaseline = 'top';
+  rows.forEach((r, i) => {
+    ctx.font = `${r.bold ? 700 : 400} ${font}px ${family}`;
+    ctx.fillStyle = r.bold ? '#fff' : '#ddd';
+    ctx.fillText(r.t, pad, img.naturalHeight + pad + i * lh + (lh - font) / 2);
+  });
+  return c.toDataURL('image/jpeg', 0.92);
+}
+
+/** 分享用：照片加上資訊欄後轉為檔案（預先處理，按分享時立即送出） */
+export function useAnnotatedFiles(rows: PhotoRow[], linesOf: (patientId: string) => string[], nameOf: (patientId: string) => string) {
+  const [out, setOut] = useState<{ files: File[]; previews: string[] }>({ files: [], previews: [] });
+  const key = rows.map((r) => r.id).join(',') + '|' + rows.map((r) => linesOf(r.patientId).join('/')).join('|');
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const n: Record<string, number> = {};
+      const previews: string[] = [];
+      const files: File[] = [];
+      for (const r of rows) {
+        let url = r.dataUrl;
+        try {
+          url = await annotatePhoto(r.dataUrl, linesOf(r.patientId));
+        } catch {
+          /* 加工失敗就用原圖 */
+        }
+        previews.push(url);
+        files.push(dataUrlToFile(url, `${nameOf(r.patientId)}-${(n[r.patientId] = (n[r.patientId] ?? 0) + 1)}.jpg`));
+      }
+      if (alive) setOut({ files, previews });
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return out;
+}
+
 /** 讀取多位病人的照片（照片變動時自動重讀） */
 export function usePhotos(patientIds: string[]): PhotoRow[] {
   const rev = useStore((s) => s.photoRev);
@@ -56,12 +133,6 @@ export function usePhotos(patientIds: string[]): PhotoRow[] {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, rev]);
   return rows;
-}
-
-/** 分享用檔案：代碼-1.jpg */
-export function photoFiles(rows: PhotoRow[], labelOf: (patientId: string) => string): File[] {
-  const n: Record<string, number> = {};
-  return rows.map((r) => dataUrlToFile(r.dataUrl, `${labelOf(r.patientId)}-${(n[r.patientId] = (n[r.patientId] ?? 0) + 1)}.jpg`));
 }
 
 export function PhotoSection({ patientId, readOnly = false }: { patientId: string; readOnly?: boolean }) {

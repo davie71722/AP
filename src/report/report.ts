@@ -178,6 +178,20 @@ export function dispatchShareText(ps: Patient[], vehicles: Vehicle[]): string {
   return [head, ...ps.map((p) => `• ${p.label}${patTag(p)}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
 }
 
+/** 照片資訊欄文字：代碼（拍拍尺）／車輛 ➔ 醫院／出發、ETA／傷勢與註解（不含姓名等個案備註） */
+export function photoCaption(p: Patient, vehicles: Vehicle[]): string[] {
+  const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? otherVehicleName(p) : '';
+  const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
+  const lines = [`${p.label}${patTag(p)}`];
+  if (p.status === 'sent') {
+    lines.push(`${v ? `${v} ➔ ` : '➔ '}${h || '未定醫院'}`);
+    lines.push([p.sentAt && `出發 ${fmtClock(p.sentAt)}`, p.arriveAt && `ETA ${fmtClock(p.arriveAt)}`].filter(Boolean).join('｜'));
+  }
+  const inj = briefInjury(p);
+  if (inj) lines.push(inj);
+  return lines.filter(Boolean);
+}
+
 /** 後送病患傷情初步報告：每位已後送病人的醫院、後送時間、由誰後送與傷情（依出發時間） */
 export function buildTransportReport(patients: Patient[], vehicles: Vehicle[]): string {
   const sent = patients
