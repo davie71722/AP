@@ -51,7 +51,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 122 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 121 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 
