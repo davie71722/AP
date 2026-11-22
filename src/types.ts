@@ -83,6 +83,10 @@ export interface Patient {
   /** 創傷標籤與院前處置 */
   trauma?: TraumaEntry[];
   history: { at: number; action: string }[];
+  /** 受困中（脫困前不可派車） */
+  trapped?: boolean;
+  /** 脫困時間 */
+  extricatedAt?: number;
 }
 
 /** 人形圖傷口（格式同「外傷人形圖傷口紀錄」模組） */
@@ -113,9 +117,28 @@ export function woundText(w: Wound): string {
   return `${w.region} ${w.type}`;
 }
 
-/** 病人的交接註解：傷勢併評估、人形圖傷口；處置予…。其他註解 */
-export function injuryText(p: { wounds?: Wound[]; note?: string; trauma?: TraumaEntry[]; color?: Color }): string {
-  return narrative(p.trauma, p.wounds, p.note, p.color);
+/** 受困／脫困文字：「受困中」「受困，14:32 脫困」 */
+export function trapText(p: { trapped?: boolean; extricatedAt?: number }): string {
+  if (p.trapped) return '受困中';
+  if (p.extricatedAt) {
+    const d = new Date(p.extricatedAt);
+    return `受困，${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} 脫困`;
+  }
+  return '';
+}
+
+/** 病人的交接註解：（受困脫困。）傷勢併評估、人形圖傷口；處置予…。其他註解 */
+export function injuryText(p: {
+  wounds?: Wound[];
+  note?: string;
+  trauma?: TraumaEntry[];
+  color?: Color;
+  trapped?: boolean;
+  extricatedAt?: number;
+}): string {
+  const trap = trapText(p);
+  const s = narrative(p.trauma, p.wounds, p.note, p.color);
+  return trap ? `${trap}。${s}` : s;
 }
 
 export type VehicleStatus = 'enroute' | 'standby' | 'transport' | 'decon' | 'offline';
@@ -141,6 +164,24 @@ export interface Vehicle {
   held?: boolean;
   /** 曾被指定為第 1 輛到場車（只指定一次） */
   wasHeld?: boolean;
+  /** 開始現場待命的時間（到場、返場、除污完成、恢復待命），用於「待命最久者先派」 */
+  standbySince?: number;
+}
+
+/** 可派車輛排序：待命（非留守）依待命時間由早到晚 → 趕赴中依到場時間 → 留守車最後 */
+export function dispatchOrder(vehicles: Vehicle[]): Vehicle[] {
+  const rank = (v: Vehicle) => (v.held ? 2 : v.status === 'standby' ? 0 : 1);
+  const key = (v: Vehicle) =>
+    v.status === 'standby' ? (v.standbySince ?? v.addedAt) : v.addedAt + (v.etaToSceneMin ?? 0) * 60000;
+  return vehicles
+    .filter((v) => v.status === 'standby' || v.status === 'enroute')
+    .sort((a, b) => rank(a) - rank(b) || key(a) - key(b) || a.name.localeCompare(b.name));
+}
+
+/** 已待命分鐘數 */
+export function standbyMin(v: Vehicle, now: number): number | null {
+  if (v.status !== 'standby') return null;
+  return Math.max(0, Math.floor((now - (v.standbySince ?? v.addedAt)) / 60000));
 }
 
 export interface IncidentLocation {

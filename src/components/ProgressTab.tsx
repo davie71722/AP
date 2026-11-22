@@ -5,7 +5,8 @@ import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
 import { injuryText, type Hospital, type Patient } from '../types';
-import { clockAfter, SentCounts } from './common';
+import { clockAfter, CopyButton, SentCounts } from './common';
+import { hospitalNotice } from '../report/report';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
 import { KeyFlags } from './TraumaPicker';
@@ -28,6 +29,7 @@ export function ProgressTab() {
   const now = useStore((s) => s.now);
   const undoStack = useStore((s) => s.undoStack);
   const undo = useStore((s) => s.undo);
+  const incident = useStore((s) => s.incident);
 
   const go = (h: Hospital) => effectiveTravel(travel.byHospital[h.id], runtime[h.id], settings)?.go;
   const byGo = (a: Hospital, b: Hospital) => (go(a) ?? 999) - (go(b) ?? 999);
@@ -107,7 +109,7 @@ export function ProgressTab() {
           const elapsed = Math.max(0, Math.floor((now - t.sentAt) / 60000));
           const arrived = t.arriveAt ? now >= t.arriveAt : false;
           return (
-            <button key={t.key} className="trip" onClick={() => v && setOpenV(v.id)}>
+            <div key={t.key} className="trip" role="button" tabIndex={0} onClick={() => v && setOpenV(v.id)}>
               <div className="trip-top">
                 <b>{v ? v.name : t.ps[0].byDuty ? '勤務車' : '—'}</b>
                 <span className="arrow">➔</span>
@@ -138,7 +140,8 @@ export function ProgressTab() {
                     ))}
                 </div>
               )}
-            </button>
+              <CopyButton className="sm notice-btn" label="📋 複製通報醫院文字" text={hospitalNotice(t.ps, v, incident)} />
+            </div>
           );
         })}
         {undoStack.length > 0 && (

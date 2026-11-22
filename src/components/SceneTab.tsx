@@ -6,7 +6,8 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import { injuryText, type Patient, type Vehicle } from '../types';
+import { dispatchOrder, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
+import { headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
@@ -23,6 +24,14 @@ export function SceneTab() {
   const waiting = patients.filter((p) => p.status === 'waiting' && p.color !== 'K');
   const sel = selected.filter((id) => waiting.some((p) => p.id === id));
   const toggle = (id: string) => setSelected((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]));
+  const now = useStore((s) => s.now);
+  const blackName = useTriage().names.K;
+  // 紅傷待送逾 10 分（自檢傷起算）
+  const overdue = waiting
+    .filter((p) => p.color === 'R' && !p.trapped)
+    .map((p) => ({ p, min: Math.floor((now - (p.history[0]?.at ?? now)) / 60000) }))
+    .filter((x) => x.min >= 10);
+  const trapped = waiting.filter((p) => p.trapped);
 
   return (
     <>
@@ -44,7 +53,13 @@ export function SceneTab() {
       <section className="section">
         <h2>
           待送 <span className="muted small">點選病人派車</span>
+          <span className="spacer" />
+          {patients.length > 0 && <span className="muted small headcount">{headcountText(patients, blackName)}</span>}
         </h2>
+        {overdue.length > 0 && (
+          <p className="warn-line">⏱ 紅傷待送逾 10 分：{overdue.map((x) => `${x.p.label} ${x.min}′`).join('、')}</p>
+        )}
+        {trapped.length > 0 && <p className="warn-line trap">⛓ 受困中：{trapped.map((p) => p.label).join('、')}</p>}
         <div className="ptags">
           {waiting.map((p) => (
             <SelectableChip key={p.id} p={p} on={sel.includes(p.id)} onClick={() => toggle(p.id)} />
@@ -110,7 +125,7 @@ function VehicleBar() {
         )}
       </h2>
       <div className="vchips">
-        {vehicles.map((v) => (
+        {vehicleRowOrder(vehicles).map((v) => (
           <VehicleChip key={v.id} v={v} onClick={() => setOpen(v.id)} />
         ))}
       </div>
@@ -118,6 +133,20 @@ function VehicleBar() {
       {open && <VehicleSheet id={open} onClose={() => setOpen(null)} />}
     </section>
   );
+}
+
+/** 車輛列：可派車（待命最久在前）→ 留守 → 運送中（先返場在前）→ 待除污 → 離線 */
+function vehicleRowOrder(vehicles: Vehicle[]): Vehicle[] {
+  const first = dispatchOrder(vehicles);
+  const rest = vehicles
+    .filter((v) => !first.includes(v))
+    .sort(
+      (a, b) =>
+        ['transport', 'decon', 'offline'].indexOf(a.status) - ['transport', 'decon', 'offline'].indexOf(b.status) ||
+        (a.returnAt ?? 0) - (b.returnAt ?? 0),
+    );
+  // 留守車（dispatchOrder 已排在可派車之後）
+  return [...first, ...rest];
 }
 
 function crew(v: Vehicle) {
@@ -133,7 +162,8 @@ function vehicleState(v: Vehicle, now: number): { text: string; cls: string } {
   if (v.status === 'enroute') return { text: '趕赴中', cls: 'enroute' };
   if (v.status === 'decon') return { text: '待除污', cls: 'decon' };
   if (v.status === 'offline') return { text: '離線', cls: 'offline' };
-  return { text: '待命', cls: 'standby' };
+  const m = standbyMin(v, now);
+  return { text: m !== null && m > 0 ? `待命 ${m}′` : '待命', cls: 'standby' };
 }
 
 function VehicleChip({ v, onClick }: { v: Vehicle; onClick: () => void }) {
@@ -263,6 +293,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const now = useStore((s) => s.now);
   const setNote = useStore((s) => s.setPatientNote);
   const dispatch = useStore((s) => s.dispatchManual);
+  const setTrapped = useStore((s) => s.setTrapped);
   const rules = useRules();
   const { names } = useTriage();
   const [vehicleId, setVehicleId] = useState<string | null>(null);
@@ -281,9 +312,18 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   );
   const best = ranking[0]?.hospitalId ?? null;
   const hid = hospitalId ?? best;
-  const ready = vehicles.filter((v) => (v.status === 'standby' || v.status === 'enroute') && !v.held);
-  const held = vehicles.filter((v) => v.held);
+  // 待命最久者先派；留守車排最後、不預設選取
+  const ordered = dispatchOrder(vehicles);
+  const ready = ordered.filter((v) => !v.held);
+  const held = ordered.filter((v) => v.held);
   const vid = vehicleId ?? ready[0]?.id ?? null;
+  const trappedSel = chosen.filter((p) => p.trapped);
+  const vSub = (v: Vehicle) => {
+    if (v.held) return '留守';
+    if (v.status === 'enroute') return '趕赴';
+    const m = standbyMin(v, now);
+    return m !== null ? `待命 ${m}′` : '';
+  };
   const top = ranking.slice(0, 3);
   // 其他醫院：依當下預估車程由短至長
   const rest = ranking.slice(3).sort((a, b) => a.goMin - b.goMin);
@@ -317,6 +357,9 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
             placeholder="註解"
             onChange={(e) => setNote(p.id, e.target.value)}
           />
+          <button className={`btn sm trap-btn ${p.trapped ? 'on' : ''}`} onClick={() => setTrapped(p.id, !p.trapped)}>
+            {p.trapped ? '⛓受困' : '受困?'}
+          </button>
           <button className="btn sm" onClick={() => setEdit(p.id)}>
             傷勢
           </button>
@@ -333,14 +376,10 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       <h3>車輛</h3>
       {ready.length === 0 && held.length === 0 && <p className="muted small">尚無可派車輛，先按「＋救護車」</p>}
       <div className="grid g3">
-        {ready.map((v) => (
-          <button key={v.id} className={`btn sm ${vid === v.id ? 'on' : ''}`} onClick={() => setVehicleId(v.id)}>
+        {[...ready, ...held].map((v) => (
+          <button key={v.id} className={`btn sm vpick ${vid === v.id ? 'on' : ''}`} onClick={() => setVehicleId(v.id)}>
             {v.name}
-          </button>
-        ))}
-        {held.map((v) => (
-          <button key={v.id} className={`btn sm ${vid === v.id ? 'on' : ''}`} onClick={() => setVehicleId(v.id)}>
-            {v.name} <span className="muted">留守</span>
+            {vSub(v) && <span className="muted"> {vSub(v)}</span>}
           </button>
         ))}
       </div>
@@ -356,10 +395,22 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
         </>
       )}
 
+      {trappedSel.length > 0 && (
+        <div className="trap-block">
+          <p>⛓ {trappedSel.map((p) => p.label).join('、')} 受困中，脫困後才能派車</p>
+          <div className="grid g2">
+            {trappedSel.map((p) => (
+              <button key={p.id} className="btn sm go" onClick={() => setTrapped(p.id, false)}>
+                ✔ {p.label} 已脫困
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         className="btn go full"
         style={{ marginTop: 12, minHeight: 64 }}
-        disabled={!vid || !hid}
+        disabled={!vid || !hid || trappedSel.length > 0}
         onClick={() => {
           dispatch(ids, vid!, hid!);
           setVehicleId(null);

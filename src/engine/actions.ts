@@ -55,6 +55,7 @@ export function confirmDispatch(
           returnAt: now + totalMin * 60000,
           trips: v.trips + 1,
           lastHospitalId: h.id,
+          standbySince: undefined,
           contaminated: v.contaminated || contaminate,
         }
       : v,
@@ -106,6 +107,8 @@ export function setVehicleStatus(
           status: next,
           contaminated,
           returnAt: next === 'transport' ? x.returnAt : undefined,
+          // 進入待命（到場、返場、除污完成、恢復）時記下待命起點；已在待命者不重設
+          standbySince: next === 'standby' ? (x.status === 'standby' ? (x.standbySince ?? now) : now) : undefined,
           ...(hold ? { held: true, wasHeld: true } : {}),
         }
       : x,
@@ -170,6 +173,27 @@ export function setLeft(s: DomainState, patientId: string, left: boolean, now: n
     patients: s.patients.map((x) =>
       x.id === patientId
         ? { ...x, status: left ? ('left' as const) : ('waiting' as const), history: [...x.history, { at: now, action: text }] }
+        : x,
+    ),
+    log: [...s.log, { at: now, text: `${p.label} ${text}` }],
+  };
+}
+
+/** 受困／脫困：受困中不可派車；脫困時記錄時間 */
+export function setTrapped(s: DomainState, patientId: string, trapped: boolean, now: number): DomainState {
+  const p = s.patients.find((x) => x.id === patientId);
+  if (!p || !!p.trapped === trapped) return s;
+  const text = trapped ? '受困中' : `已脫困 ${fmtClock(now)}`;
+  return {
+    ...s,
+    patients: s.patients.map((x) =>
+      x.id === patientId
+        ? {
+            ...x,
+            trapped,
+            extricatedAt: trapped ? undefined : now,
+            history: [...x.history, { at: now, action: text }],
+          }
         : x,
     ),
     log: [...s.log, { at: now, text: `${p.label} ${text}` }],

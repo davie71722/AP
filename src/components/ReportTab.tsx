@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { buildReport, buildSummary, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
-import { DoubleTapButton } from './common';
+import { copyText, DoubleTapButton } from './common';
 import { fmtClock } from '../engine/actions';
 import { useStore } from '../store/store';
 import { ShareSection } from './ShareSection';
@@ -57,6 +57,7 @@ export function ReportTab() {
       <section className="section">
         <h2>匯出（事後檢討）</h2>
         <div className="grid">
+          <ArchiveButton />
           <button className="btn" onClick={() => download(`案件經過-${stamp}.csv`, logToCsv(incident), 'text/csv')}>
             案件經過 CSV
           </button>
@@ -79,19 +80,6 @@ export function ReportTab() {
       </section>
     </>
   );
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
 }
 
 /** 案件結束與戰況統整 */
@@ -145,5 +133,26 @@ function EndSection() {
         </DoubleTapButton>
       </div>
     </section>
+  );
+}
+
+/** 手動存檔到「歷史案件」（同一案件覆寫） */
+function ArchiveButton() {
+  const startAt = useStore((s) => s.incident.startAt);
+  const archivedAt = useStore((s) => s.archivedAt);
+  const archive = useStore((s) => s.archiveCurrent);
+  const [msg, setMsg] = useState('');
+  if (!startAt) return null;
+  return (
+    <button
+      className="btn primary"
+      onClick={async () => {
+        const ok = await archive();
+        setMsg(ok ? '✔ 已存檔' : '存檔失敗');
+        setTimeout(() => setMsg(''), 2000);
+      }}
+    >
+      {msg || `💾 存檔案件${archivedAt ? `（上次 ${fmtClock(archivedAt)}）` : ''}`}
+    </button>
   );
 }

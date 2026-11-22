@@ -7,6 +7,7 @@ import {
   dutyTransport as dutyTransportDomain,
   hazmatNotifyList,
   setLeft as setLeftDomain,
+  setTrapped as setTrappedDomain,
   setVehicleStatus,
   fmtClock,
   type DomainState,
@@ -39,7 +40,7 @@ import {
   type Wound,
 } from '../types';
 import { keepForColor, type TraumaEntry } from '../data/trauma';
-import { loadSettingsPref, loadSnapshot, saveSettingsPref, saveSnapshot } from './db';
+import { getArchive, loadSettingsPref, loadSnapshot, putArchive, saveSettingsPref, saveSnapshot, type ArchiveRow } from './db';
 
 export type Tab = 'incident' | 'scene' | 'progress' | 'report';
 export type Theme = 'day' | 'night';
@@ -55,7 +56,7 @@ function loadTheme(): Theme {
   return 'night';
 }
 
-interface Persisted {
+export interface Persisted {
   incident: Incident;
   patients: Patient[];
   vehicles: Vehicle[];
@@ -88,6 +89,15 @@ interface Store extends Persisted {
   startIncident(goToInput?: boolean): void;
   updateSettings(p: Partial<Settings>): void;
   clearIncident(): void;
+  /** 存檔目前案件到歷史案件（同一案件覆寫）；回傳是否成功 */
+  archiveCurrent(): Promise<boolean>;
+  /** 最後存檔時間（本次開啟期間） */
+  archivedAt: number | null;
+  /** 歷史案件清單版本（存檔／刪除後遞增，讓清單重新讀取） */
+  archiveRev: number;
+  bumpArchives(): void;
+  /** 載入歷史案件為目前案件（先存檔目前案件） */
+  loadArchive(id: string): Promise<boolean>;
 
   addPatient(c: Color, redClass?: RedClass): void;
   removeLastPatient(c: Color): void;
@@ -118,6 +128,8 @@ interface Store extends Persisted {
   toggleBypass(hid: string): void;
   setStrain(hid: string, level: 0 | 1 | 2): void;
   setLeft(id: string, left: boolean): void;
+  /** 受困中／已脫困 */
+  setTrapped(id: string, trapped: boolean): void;
   dutyTransport(id: string, hid: string | undefined): void;
   adjustTravel(hid: string, delta: number): void;
   toggleDecon(hid: string): void;
@@ -183,6 +195,36 @@ export function sourceEtaMin(
   return null;
 }
 
+/** 目前案件的存檔資料 */
+function persistedOf(st: Persisted): Persisted {
+  return {
+    incident: st.incident,
+    patients: st.patients,
+    vehicles: st.vehicles,
+    runtime: st.runtime,
+    travel: st.travel,
+    counters: st.counters,
+    seq: st.seq,
+    undoStack: [],
+  };
+}
+
+/** 案件存檔列 */
+export function archiveRowOf(st: Persisted, now: number): ArchiveRow | null {
+  const startAt = st.incident.startAt;
+  if (!startAt) return null;
+  const types = st.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).filter(Boolean).join('＋');
+  return {
+    id: `case-${startAt}`,
+    savedAt: now,
+    startAt,
+    endAt: st.incident.endAt ?? null,
+    title: [st.incident.location?.label ?? '未指定地點', types].filter(Boolean).join('｜'),
+    total: st.patients.length,
+    data: persistedOf(st),
+  };
+}
+
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export const useStore = create<Store>((set, get) => {
@@ -241,6 +283,30 @@ export const useStore = create<Store>((set, get) => {
       const at = Date.now();
       set({ incident: { ...s.incident, endAt: at } });
       log(`案件結束 ${fmtClock(at)}`);
+      // 案件結束自動存檔
+      void get().archiveCurrent();
+    },
+    archivedAt: null,
+    archiveRev: 0,
+    bumpArchives: () => set((s) => ({ archiveRev: s.archiveRev + 1 })),
+    archiveCurrent: async () => {
+      const row = archiveRowOf(get(), Date.now());
+      if (!row) return false;
+      const ok = await putArchive(row);
+      if (ok) set((s) => ({ archivedAt: row.savedAt, archiveRev: s.archiveRev + 1 }));
+      return ok;
+    },
+    loadArchive: async (id) => {
+      const row = await getArchive(id);
+      const snap = row?.data as Persisted | undefined;
+      if (!snap?.incident) return false;
+      // 先保存目前案件，避免覆蓋遺失
+      await get().archiveCurrent();
+      await saveSnapshot({ ...snap, undoStack: [] });
+      set({ hydrated: false });
+      await get().hydrate();
+      set({ archivedAt: row!.savedAt });
+      return true;
     },
     reopenIncident: () => {
       const s = get();
@@ -334,7 +400,10 @@ export const useStore = create<Store>((set, get) => {
     },
 
     clearIncident: () => {
-      set({ ...freshPersisted(), tab: 'incident' });
+      // 清除前若有案件則先存檔（同一案件覆寫，不會重複）
+      const row = archiveRowOf(get(), Date.now());
+      if (row) void putArchive(row).then((ok) => ok && get().bumpArchives());
+      set({ ...freshPersisted(), tab: 'incident', archivedAt: null });
     },
 
     // ---------- 傷患 ----------
@@ -470,6 +539,7 @@ export const useStore = create<Store>((set, get) => {
         trips: 0,
         emt2: t2,
         emtp: tp,
+        standbySince: now,
         ...(hold ? { held: true, wasHeld: true } : {}),
       };
       set({ vehicles: [...s.vehicles, v] });
@@ -478,7 +548,8 @@ export const useStore = create<Store>((set, get) => {
 
     dispatchManual: (patientIds, vehicleId, hospitalId) => {
       const s = get();
-      const ps = s.patients.filter((p) => patientIds.includes(p.id) && p.status === 'waiting');
+      // 受困中不可派車（防呆）
+      const ps = s.patients.filter((p) => patientIds.includes(p.id) && p.status === 'waiting' && !p.trapped);
       const v = s.vehicles.find((x) => x.id === vehicleId);
       if (!ps.length || !v) return;
       const tr = effectiveTravel(s.travel.byHospital[hospitalId], s.runtime[hospitalId], s.incident.settings);
@@ -641,6 +712,7 @@ export const useStore = create<Store>((set, get) => {
       log(`${HOSPITAL_BY_ID[hid].short} 負荷：${['正常', '吃緊', '滿載'][level]}`);
     },
     setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
+    setTrapped: (id, trapped) => applyDomain(setTrappedDomain(domain(), id, trapped, Date.now())),
     dutyTransport: (id, hid) => {
       const s = get();
       const before = domain();
@@ -751,22 +823,13 @@ useStore.subscribe((s, prev) => {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     const st = useStore.getState();
-    const data: Persisted = {
-      incident: st.incident,
-      patients: st.patients,
-      vehicles: st.vehicles,
-      runtime: st.runtime,
-      travel: st.travel,
-      counters: st.counters,
-      seq: st.seq,
-      undoStack: st.undoStack,
-    };
+    const data: Persisted = { ...persistedOf(st), undoStack: st.undoStack };
     void saveSnapshot(data);
   }, 300);
 });
 
 // ---------- 唯讀（交接檢視模式） ----------
-const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel']);
+const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel', 'archiveCurrent', 'bumpArchives']);
 let readOnly = false;
 export function setReadOnly(v: boolean) {
   readOnly = v;

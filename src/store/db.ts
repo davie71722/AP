@@ -7,11 +7,26 @@ export interface SnapshotRow {
   data: unknown;
 }
 
+/** 歷史案件：以事件開始時間為鍵，同一案件重複存檔會覆寫 */
+export interface ArchiveRow {
+  id: string;
+  savedAt: number;
+  startAt: number;
+  endAt: number | null;
+  /** 列表顯示：地點、事件類型 */
+  title: string;
+  /** 傷患總數 */
+  total: number;
+  data: unknown;
+}
+
 class MciDB extends Dexie {
   snapshots!: Table<SnapshotRow, string>;
+  archives!: Table<ArchiveRow, string>;
   constructor() {
     super('zhuxian-mci');
     this.version(1).stores({ snapshots: 'key' });
+    this.version(2).stores({ snapshots: 'key', archives: 'id, savedAt, startAt' });
   }
 }
 
@@ -37,6 +52,44 @@ export async function saveSnapshot(data: unknown, key = 'current'): Promise<void
     await getDb()?.snapshots.put({ key, savedAt: Date.now(), data });
   } catch (e) {
     console.warn('寫入 IndexedDB 失敗', e);
+  }
+}
+
+export async function putArchive(row: ArchiveRow): Promise<boolean> {
+  try {
+    const d = getDb();
+    if (!d) return false;
+    await d.archives.put(row);
+    return true;
+  } catch (e) {
+    console.warn('案件存檔失敗', e);
+    return false;
+  }
+}
+
+/** 歷史案件（新到舊） */
+export async function listArchives(): Promise<ArchiveRow[]> {
+  try {
+    return (await getDb()?.archives.orderBy('startAt').reverse().toArray()) ?? [];
+  } catch (e) {
+    console.warn('讀取歷史案件失敗', e);
+    return [];
+  }
+}
+
+export async function getArchive(id: string): Promise<ArchiveRow | null> {
+  try {
+    return (await getDb()?.archives.get(id)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteArchive(id: string): Promise<void> {
+  try {
+    await getDb()?.archives.delete(id);
+  } catch (e) {
+    console.warn('刪除歷史案件失敗', e);
   }
 }
 

@@ -72,7 +72,7 @@ export interface Suggestion {
   warnings: Warning[];
 }
 
-export type UnassignedReason = 'noVehicle' | 'noCapacity' | 'needsDecon';
+export type UnassignedReason = 'noVehicle' | 'noCapacity' | 'needsDecon' | 'trapped';
 
 export interface Unassigned {
   patientIds: string[];
@@ -246,6 +246,10 @@ export function computePlan(input: PlanInput): Plan {
   // 2. dispatchRequires 未滿足 → 待處置
   const dispatchable: Patient[] = [];
   for (const p of waiting) {
+    if (p.trapped) {
+      unassigned.push({ patientIds: [p.id], color: p.color as TransportColor, reason: 'trapped', detail: '受困中，脫困後才可派車' });
+      continue;
+    }
     const miss = missingRequirements(p, rules);
     if (miss.length) {
       unassigned.push({
@@ -426,8 +430,14 @@ export function computePlan(input: PlanInput): Plan {
       if (job.color === 'R') needReinforcement = true;
       continue;
     }
-    // 5. 最早可用的車；同時可用時趟次少者優先
-    pool.sort((a, b) => a.avail - b.avail || a.trips + a.simTrips - (b.trips + b.simTrips));
+    // 5. 最早可用的車；同時可用時待命最久者優先，再來趟次少者
+    const since = (s: SimVehicle) => (s.simTrips === 0 && s.v.status === 'standby' ? (s.v.standbySince ?? s.v.addedAt) : Infinity);
+    pool.sort(
+      (a, b) =>
+        a.avail - b.avail ||
+        (since(a) === since(b) ? 0 : since(a) - since(b)) ||
+        a.trips + a.simTrips - (b.trips + b.simTrips),
+    );
     const sv = pool[0];
     // 7. 時間
     const departMin = sv.avail + settings.loadMin;

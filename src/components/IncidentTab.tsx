@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { leave } from '../sync/client';
 import { INCIDENT_TYPES } from '../data/incidentTypes';
 import { googleMapsUrl, mapsShortLink, parseCoords, pinLocation, shareName } from '../data/geo';
@@ -6,7 +6,11 @@ import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
 import { mapServiceConfigured, resolveShortLink, searchPlaces, type PlaceHit } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
-import { DoubleTapButton, Stepper } from './common';
+import { CopyButton, DoubleTapButton, Stepper } from './common';
+import { deleteArchive, listArchives, type ArchiveRow } from '../store/db';
+import type { Persisted } from '../store/store';
+import { buildSummary, download } from '../report/report';
+import { fmtClock } from '../engine/actions';
 
 export function IncidentTab() {
   const incident = useStore((s) => s.incident);
@@ -193,11 +197,107 @@ export function IncidentTab() {
       </section>
 
       <section className="section">
-        <DoubleTapButton className="full" onConfirm={() => (leave(), clear())} armedText="⚠ 再按一次確認清除">
+        <DoubleTapButton className="full" onConfirm={() => (leave(), clear())} armedText="⚠ 再按一次確認清除（會先自動存檔）">
           清除事件
         </DoubleTapButton>
       </section>
+
+      <ArchiveList />
     </>
+  );
+}
+
+function fmtDate(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${fmtClock(ts)}`;
+}
+
+/** 歷史案件：看總結（可複製）、匯出 JSON、刪除、載入為目前案件 */
+function ArchiveList() {
+  const rev = useStore((s) => s.archiveRev);
+  const bump = useStore((s) => s.bumpArchives);
+  const load = useStore((s) => s.loadArchive);
+  const currentStart = useStore((s) => s.incident.startAt);
+  const [rows, setRows] = useState<ArchiveRow[]>([]);
+  const [open, setOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    let alive = true;
+    void listArchives().then((r) => alive && setRows(r));
+    return () => {
+      alive = false;
+    };
+  }, [rev]);
+
+  return (
+    <section className="section">
+      <button className={`btn sm full ${open ? 'on' : ''}`} onClick={() => setOpen(!open)}>
+        歷史案件（{rows.length}）{open ? '▲' : '▼'}
+      </button>
+      {msg && <p className="small" style={{ color: 'var(--orange)', margin: '6px 0 0' }}>{msg}</p>}
+      {open && rows.length === 0 && <div className="empty">尚無存檔；案件結束或清除事件時會自動存檔</div>}
+      {open &&
+        rows.map((r) => {
+          const d = r.data as Persisted;
+          const expanded = openId === r.id;
+          const summary = expanded ? buildSummary(d.incident, d.patients, d.vehicles, d.runtime, r.endAt ?? r.savedAt) : '';
+          return (
+            <div key={r.id} className="archive">
+              <button className="archive-head" onClick={() => setOpenId(expanded ? null : r.id)}>
+                <b>{fmtDate(r.startAt)}</b>
+                {r.startAt === currentStart && <span className="chip G" style={{ fontSize: 12 }}>目前</span>}
+                {!r.endAt && <span className="chip dim" style={{ fontSize: 12 }}>未結束</span>}
+                <span className="spacer" />
+                <span className="muted small">{r.total} 人 {expanded ? '▲' : '▼'}</span>
+                <span className="muted small archive-title">{r.title}</span>
+              </button>
+              {expanded && (
+                <>
+                  <div className="report">{summary}</div>
+                  <div className="grid g2" style={{ marginTop: 8 }}>
+                    <CopyButton className="sm primary" label="📋 複製總結" text={summary} />
+                    <button
+                      className="btn sm"
+                      onClick={() =>
+                        download(
+                          `mci-${new Date(r.startAt).toISOString().slice(0, 16).replace(/[:T]/g, '')}.json`,
+                          JSON.stringify({ exportedAt: Date.now(), ...d }, null, 2),
+                          'application/json',
+                        )
+                      }
+                    >
+                      匯出 JSON
+                    </button>
+                    <DoubleTapButton
+                      className="sm"
+                      armedText="再按一次刪除"
+                      onConfirm={async () => {
+                        await deleteArchive(r.id);
+                        setOpenId(null);
+                        bump();
+                      }}
+                    >
+                      刪除
+                    </DoubleTapButton>
+                    <DoubleTapButton
+                      className="sm"
+                      armedText="再按一次（取代本機資料）"
+                      onConfirm={async () => {
+                        leave();
+                        const ok = await load(r.id);
+                        setMsg(ok ? '' : '載入失敗');
+                      }}
+                    >
+                      載入為目前案件
+                    </DoubleTapButton>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+    </section>
   );
 }
 

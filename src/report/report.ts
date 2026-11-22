@@ -2,10 +2,67 @@
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import { injuryText, RED_CLASSES, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
+import { injuryText, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
+}
+
+/** 人數核對：總數＝已送＋離開＋待送＋黑（每人只歸一類） */
+export function headcount(patients: Patient[]) {
+  const black = patients.filter((p) => p.color === 'K').length;
+  const live = patients.filter((p) => p.color !== 'K');
+  const sent = live.filter((p) => p.status === 'sent').length;
+  const left = live.filter((p) => p.status === 'left').length;
+  const waiting = live.filter((p) => p.status === 'waiting').length;
+  const total = patients.length;
+  return { total, sent, left, waiting, black, ok: total === sent + left + waiting + black };
+}
+
+/** 人數核對文字：12＝已送 7＋離開 1＋待送 3＋黑 1（沒有的不寫） */
+export function headcountText(patients: Patient[], blackName = '黑'): string {
+  const h = headcount(patients);
+  if (!h.total) return '';
+  const parts = [
+    h.sent ? `已送 ${h.sent}` : '',
+    h.left ? `離開 ${h.left}` : '',
+    h.waiting ? `待送 ${h.waiting}` : '',
+    h.black ? `${blackName} ${h.black}` : '',
+  ].filter(Boolean);
+  return `${h.total}＝${parts.join('＋')}${h.ok ? ' ✔' : ' ⚠ 不符'}`;
+}
+
+/** 受困名單：紅1-A 受困中、黃2 14:32 脫困 */
+function trappedList(patients: Patient[]): Patient[] {
+  return patients.filter((p) => p.trapped || p.extricatedAt);
+}
+
+/** 一趟車的「通報醫院」文字（每趟一鍵複製） */
+export function hospitalNotice(ps: Patient[], vehicle: Vehicle | undefined, incident: Incident): string {
+  if (!ps.length) return '';
+  const p0 = ps[0];
+  const h = p0.hospitalId ? HOSPITAL_BY_ID[p0.hospitalId] : undefined;
+  const N = TRIAGE_NAMES[incident.settings.triageSystem ?? 'START'];
+  const counts = (['R', 'Y', 'G'] as const)
+    .map((c) => [c, ps.filter((p) => p.color === c).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([c, n]) => `${N[c]}${/\d$/.test(N[c]) ? ' ' : ''}${n}`)
+    .join(' ');
+  const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).filter(Boolean).join('＋');
+  const items: [string, string][] = [
+    ['車號', vehicle?.name ?? (p0.byDuty ? '勤務車' : '')],
+    ['事件類型', types],
+    ['地點', incident.location?.label ?? ''],
+    ['出發', p0.sentAt ? fmtClock(p0.sentAt) : ''],
+    ['預估抵院', p0.arriveAt ? fmtClock(p0.arriveAt) : ''],
+    ['人數', `${ps.length}（${counts}）`],
+  ];
+  const lines = [
+    `【MCI 後送通報${h ? `｜${h.short}` : ''}】`,
+    ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`),
+    ...ps.map((p) => `• ${p.label}${injuryText(p) ? `：${injuryText(p)}` : ''}`),
+  ];
+  return lines.join('\n');
 }
 
 export function buildReport(
@@ -61,6 +118,8 @@ export function buildReport(
     ['地點', incident.location?.label ?? ''],
     ['大隊抵達', incident.milestones?.['大隊抵達'] ? fmtClock(incident.milestones['大隊抵達']) : ''],
     ['傷患總數', patients.length ? `${patients.length}（${colors(() => true)}）` : ''],
+    ['人數核對', headcountText(patients, N.K)],
+    ['受困中', join(patients.filter((p) => p.trapped).map((p) => p.label))],
     ['已後送', colors((p) => p.status === 'sent', ['R', 'Y', 'G'])],
     ['待後送', colors((p) => p.status === 'waiting', ['R', 'Y', 'G'])],
     [`待送${N.R}分類`, join(RED_CLASSES.map((rc) => { const n = redW.filter((p) => p.redClass === rc.id).length; return n ? `${rc.id}${n}` : ''; }), ' ')],
@@ -127,11 +186,13 @@ export function buildSummary(
   const closed = HOSPITALS.filter((h) => runtime[h.id]?.bypass).map((h) => h.short);
 
   const items: [string, string][] = [
-    ['結束時間', `${date} ${fmtClock(end)}`],
+    [incident.endAt ? '結束時間' : '統計時間', `${date} ${fmtClock(end)}`],
     ['事件類型', incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋')],
     ['地點', incident.location?.label ?? ''],
     ['時間軸', `${timeline.join('、')}${mins ? `（歷時 ${mins} 分）` : ''}`],
     ['傷患總數', patients.length ? `${patients.length}（${colors(patients)}）` : ''],
+    ['人數核對', headcountText(patients, N.K)],
+    ['受困', (() => { const t = trappedList(sorted); return t.length ? `${t.length}（${t.map((p) => `${p.label} ${trapText(p).replace(/^受困，/, '')}`).join('、')}）` : ''; })()],
     ['救護車後送', byAmb.length ? `${byAmb.length}（${colors(byAmb, ['R', 'Y', 'G'])}）` : ''],
     ['勤務車／群送', byDuty.length ? `${byDuty.length}（${byDuty.map((p) => p.label).join('、')}）` : ''],
     ['自行離開', left.length ? `${left.length}（${left.map((p) => p.label).join('、')}）` : ''],

@@ -175,10 +175,16 @@ export function PatientChip({ p, onClick }: { p: Patient; onClick: () => void })
       ? '離開'
       : p.status === 'sent'
         ? `${p.byDuty ? '勤' : ''}➔${p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : ''}`
-      : [p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '', tagNames.join('·')].filter(Boolean).join(' ');
+      : [
+          p.trapped ? '⛓受困' : p.extricatedAt ? `脫困${fmtClock(p.extricatedAt)}` : '',
+          p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '',
+          tagNames.join('·'),
+        ]
+          .filter(Boolean)
+          .join(' ');
   const flagged = keyFlags(p.trauma).length > 0;
   return (
-    <button className={`ptag ${p.color} ${p.status !== 'waiting' ? 'sent' : ''}`} onClick={onClick}>
+    <button className={`ptag ${p.color} ${p.status !== 'waiting' ? 'sent' : ''} ${p.trapped ? 'trapped' : ''}`} onClick={onClick}>
       {flagged && <i className="kf-dot" />}
       {p.label}
       {sub && <small>{sub}</small>}
@@ -192,6 +198,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const retriage = useStore((s) => s.retriage);
   const setRedClass = useStore((s) => s.setRedClass);
   const setLeft = useStore((s) => s.setLeft);
+  const setTrapped = useStore((s) => s.setTrapped);
   const { names } = useTriage();
   const setNote = useStore((s) => s.setPatientNote);
   const setWounds = useStore((s) => s.setWounds);
@@ -224,7 +231,29 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         </div>
       )}
 
-      {p.color === 'G' && p.status === 'waiting' && <GreenActions id={p.id} onDone={onClose} />}
+      {p.status === 'waiting' && p.color !== 'K' && (
+        <div className="trap-row">
+          {p.trapped ? (
+            <button className="btn go full" onClick={() => setTrapped(p.id, false)}>
+              ✔ 已脫困（記錄時間）
+            </button>
+          ) : p.extricatedAt ? (
+            <div className="row" style={{ gap: 8 }}>
+              <span className="trap-done">⛓ 受困，{fmtClock(p.extricatedAt)} 已脫困</span>
+              <span className="spacer" />
+              <button className="btn sm" onClick={() => setTrapped(p.id, true)}>
+                改回受困中
+              </button>
+            </div>
+          ) : (
+            <button className="btn full" onClick={() => setTrapped(p.id, true)}>
+              ⛓ 標記受困中
+            </button>
+          )}
+        </div>
+      )}
+
+      {p.color === 'G' && p.status === 'waiting' && !p.trapped && <GreenActions id={p.id} onDone={onClose} />}
 
       {rules.hazmat && (
         <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginTop: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
@@ -461,6 +490,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
       </h2>
       <p className="muted" style={{ marginTop: 0 }}>
         第 {v.trips} 趟完成
+        {v.status === 'standby' && <>｜待命 {Math.max(0, Math.floor((now - (v.standbySince ?? v.addedAt)) / 60000))} 分</>}
         {vehicleCountdown(v, now) && <>｜{vehicleCountdown(v, now)}</>}
         {v.contaminated && v.status !== 'decon' ? '｜⚠ 已污染，返場後需除污' : ''}
       </p>

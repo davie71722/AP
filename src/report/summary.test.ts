@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialRuntimes } from '../data/hospitals';
 import { DEFAULT_SETTINGS, type Incident, type Patient, type Vehicle } from '../types';
-import { buildSummary } from './report';
+import { buildReport, buildSummary, headcount, headcountText, hospitalNotice } from './report';
 
 const T = (h: number, m: number) => new Date(2026, 10, 21, h, m).getTime();
 const P = (id: string, color: Patient['color'], num: number, extra: Partial<Patient> = {}): Patient => ({
@@ -46,5 +46,33 @@ describe('案件總結', () => {
     expect(s).toContain('紅1-A｜竹北91 14:20 ➔ 東元醫院｜不穩定骨盆骨折；處置予骨盆固定帶固定。');
     expect(s).not.toContain('關閉醫院');
     expect(s).not.toContain('勤務車／群送');
+  });
+});
+
+describe('人數核對、受困、通報醫院', () => {
+  const incident: Incident = { types: ['traffic'], location: null, startAt: T(14, 0), endAt: null, settings: DEFAULT_SETTINGS, log: [] };
+  const v = { id: 'v1', name: '竹北91' } as Vehicle;
+  const ps = [
+    P('a', 'R', 1, { redClass: 'A', label: '紅1-A', status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32), extricatedAt: T(14, 15) }),
+    P('b', 'G', 1, { status: 'left' }),
+    P('c', 'Y', 2, { trapped: true }),
+    P('d', 'K', 1),
+  ];
+  it('總數＝已送＋離開＋待送＋黑', () => {
+    expect(headcountText(ps)).toBe('4＝已送 1＋離開 1＋待送 1＋黑 1 ✔');
+    expect(headcount(ps).ok).toBe(true);
+  });
+  it('回報與總結列出受困', () => {
+    expect(buildReport(incident, ps, [v], initialRuntimes(), T(14, 40))).toContain('• 受困中：黃2');
+    const s = buildSummary(incident, ps, [v], initialRuntimes(), T(14, 40));
+    expect(s).toContain('• 受困：2（紅1-A 14:15 脫困、黃2 受困中）');
+    expect(s).toContain('• 人數核對：4＝已送 1＋離開 1＋待送 1＋黑 1 ✔');
+    expect(s).toContain('紅1-A｜竹北91 14:20 ➔ 東元醫院｜受困，14:15 脫困。');
+  });
+  it('每趟通報醫院文字', () => {
+    const t = hospitalNotice([ps[0]], v, incident);
+    expect(t).toBe(
+      ['【MCI 後送通報｜東元醫院】', '• 車號：竹北91', '• 事件類型：車禍', '• 出發：14:20', '• 預估抵院：14:32', '• 人數：1（紅1）', '• 紅1-A：受困，14:15 脫困。'].join('\n'),
+    );
   });
 });

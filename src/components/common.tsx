@@ -134,3 +134,38 @@ export function SentCounts({ rt, names }: { rt: HospitalRuntime; names: Record<'
     </span>
   );
 }
+
+/** 複製文字（舊瀏覽器退回 execCommand） */
+export async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+}
+
+/** 複製按鈕：按下後顯示「已複製」2 秒 */
+export function CopyButton({ text, label, className = '' }: { text: string; label: string; className?: string }) {
+  const [done, setDone] = useState(false);
+  const t = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(t.current), []);
+  return (
+    <button
+      className={`btn ${className}`}
+      onClick={async (e) => {
+        e.stopPropagation();
+        await copyText(text);
+        setDone(true);
+        clearTimeout(t.current);
+        t.current = setTimeout(() => setDone(false), 2000);
+      }}
+    >
+      {done ? '✔ 已複製' : label}
+    </button>
+  );
+}
