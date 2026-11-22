@@ -5,9 +5,9 @@ import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
-import { clockAfter, LinePhotoButton, SentCounts, ShareButtons } from './common';
-import { hospitalNotice, photoPanel } from '../report/report';
-import { useComposites, usePhotos } from './Photos';
+import { clockAfter, PhotoActions, SentCounts, ShareButtons } from './common';
+import { hospitalNotice } from '../report/report';
+import { useStoredComposites } from './Photos';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
 import { KeyFlags } from './TraumaPicker';
@@ -157,22 +157,16 @@ export function ProgressTab() {
   );
 }
 
-/** 每趟通報醫院：文字＋該趟病人照片 */
+/** 每趟通報醫院：文字＋該趟病人的合成照片 */
 function TripShare({ ps, text }: { ps: Patient[]; text: string }) {
-  const photos = usePhotos(ps.map((p) => p.id));
-  const vehicles = useStore((s) => s.vehicles);
-  const { files } = useComposites(
-    photos,
-    (pid: string) => {
-      const p = ps.find((x) => x.id === pid);
-      return p ? photoPanel(p, vehicles) : null;
-    },
-    (pid: string) => ps.find((x) => x.id === pid)?.label ?? 'photo',
+  const { files } = useStoredComposites(
+    ps.map((p) => p.id),
+    (pid) => ps.find((x) => x.id === pid)?.label ?? 'photo',
   );
   return (
     <>
-      <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} files={files} />
-      <LinePhotoButton files={files} className="sm" />
+      <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} />
+      <PhotoActions files={files} small />
     </>
   );
 }

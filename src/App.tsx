@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Header } from './components/Header';
+import { CompositeKeeper } from './components/Photos';
 import { IncidentTab } from './components/IncidentTab';
 import { ProgressTab } from './components/ProgressTab';
 import { ReportTab } from './components/ReportTab';
@@ -59,6 +60,7 @@ export default function App() {
   return (
     <div className={`app ${role === 'view' ? 'readonly' : ''}`}>
       <Header />
+      <CompositeKeeper />
       <main className="main">
         {ended && tab !== 'report' && <div className="ended-bar">🏁 案件已結束｜總結在「回報」</div>}
         {role === 'view' && <div className="readonly-bar">👁 唯讀模式：即時觀看，無法操作</div>}

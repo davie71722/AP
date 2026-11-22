@@ -787,3 +787,7 @@ a.btn { color: inherit; text-decoration: none; }
 .photo-empty { display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 10px; border: 2px dashed var(--line); color: var(--muted); font-weight: 700; }
 img.composite { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--line); cursor: zoom-in; }
 .composites { display: grid; gap: 8px; margin-top: 8px; }
+.photo-actions { display: grid; grid-template-columns: 1.4fr 1fr; gap: 6px; }
+.photo-actions > p { grid-column: 1 / -1; }
+.thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }

@@ -14,7 +14,6 @@ import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
 import { PhotoSection } from './Photos';
 import { decodeQrFromFile, patNoFromQr } from './qr';
-import { photoPanel } from '../report/report';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -209,7 +208,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deletePatient);
   const startAt = useStore((s) => s.incident.startAt);
   const now = useStore((s) => s.now);
-  const vehicles = useStore((s) => s.vehicles);
   const rules = useRules();
   if (!p) return null;
   return (
@@ -221,6 +219,14 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         {p.prevLabels.length > 0 && <span className="muted small">原：{p.prevLabels.join('→')}</span>}
         {p.status === 'sent' && <span className="muted small">已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}</span>}
       </h2>
+
+      {/* 照片與拍拍尺放最上方：到病人身邊先拍照、掃拍拍尺 */}
+      {p.color !== 'K' && (
+        <>
+          <PhotoSection patientId={p.id} />
+          <PatNoField p={p} />
+        </>
+      )}
 
       {p.status === 'waiting' && p.color !== 'R' && (
         <div className="upgrade-red">
@@ -323,8 +329,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         </button>
       )}
 
-      <PatNoField p={p} />
-      <PhotoSection patientId={p.id} panel={photoPanel(p, vehicles)} />
       <PersonalSection p={p} />
 
       <h3>紀錄</h3>

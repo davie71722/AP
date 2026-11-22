@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { buildReport, buildSummary, buildTransportReport, caseLog, download, logToCsv, patientsToCsv } from '../report/report';
-import { DoubleTapButton, ShareButtons } from './common';
+import { CaseComposites, DoubleTapButton, ShareButtons } from './common';
+import { useStoredComposites } from './Photos';
 import { fmtClock } from '../engine/actions';
 import { useStore } from '../store/store';
 import { ShareSection } from './ShareSection';
@@ -98,6 +99,7 @@ function EndSection() {
       <h2>案件總結</h2>
       <div className="report">{text}</div>
       <ShareButtons className="mt8" copyLabel="📋 複製總結" text={text} />
+      <EndComposites />
       <div style={{ marginTop: 10, textAlign: 'right' }}>
         <DoubleTapButton className="sm del-sm" armedText="再按一次重新開啟" onConfirm={reopen}>
           重新開啟案件
@@ -146,4 +148,14 @@ function TransportReport() {
       )}
     </section>
   );
+}
+
+/** 案件結束：本案所有合成照片（可全部分享或存到手機） */
+function EndComposites() {
+  const patients = useStore((s) => s.patients);
+  const { previews, files } = useStoredComposites(
+    patients.map((p) => p.id),
+    (pid) => patients.find((p) => p.id === pid)?.label ?? 'photo',
+  );
+  return <CaseComposites previews={previews} files={files} />;
 }

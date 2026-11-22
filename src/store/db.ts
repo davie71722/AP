@@ -31,15 +31,26 @@ export interface PhotoRow {
 }
 export const MAX_PHOTOS = 2;
 
+/** 合成照片：每位病人一張，隨案件保存（照片或病人資訊變動時自動重新合成） */
+export interface CompositeRow {
+  patientId: string;
+  at: number;
+  /** 合成依據（照片與資訊欄內容）；相同則不重做 */
+  key: string;
+  dataUrl: string;
+}
+
 class MciDB extends Dexie {
   snapshots!: Table<SnapshotRow, string>;
   archives!: Table<ArchiveRow, string>;
   photos!: Table<PhotoRow, string>;
+  composites!: Table<CompositeRow, string>;
   constructor() {
     super('zhuxian-mci');
     this.version(1).stores({ snapshots: 'key' });
     this.version(2).stores({ snapshots: 'key', archives: 'id, savedAt, startAt' });
     this.version(3).stores({ snapshots: 'key', archives: 'id, savedAt, startAt', photos: 'id, patientId' });
+    this.version(4).stores({ snapshots: 'key', archives: 'id, savedAt, startAt', photos: 'id, patientId', composites: 'patientId' });
   }
 }
 
@@ -104,6 +115,7 @@ export async function deleteArchive(id: string): Promise<void> {
     const row = await getDb()?.archives.get(id);
     const ids = ((row?.data as { patients?: { id: string }[] } | undefined)?.patients ?? []).map((p) => p.id);
     if (ids.length) await getDb()?.photos.where('patientId').anyOf(ids).delete();
+    if (ids.length) await getDb()?.composites.bulkDelete(ids);
     await getDb()?.archives.delete(id);
   } catch (e) {
     console.warn('刪除歷史案件失敗', e);
@@ -140,6 +152,40 @@ export async function addPhoto(patientId: string, dataUrl: string, slot?: number
 export async function deletePhoto(id: string): Promise<void> {
   try {
     await getDb()?.photos.delete(id);
+  } catch {
+    /* 忽略 */
+  }
+}
+
+export async function getComposite(patientId: string): Promise<CompositeRow | null> {
+  try {
+    return (await getDb()?.composites.get(patientId)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 多位病人的合成照片（依傳入順序，沒有的略過） */
+export async function listComposites(patientIds: string[]): Promise<CompositeRow[]> {
+  try {
+    const rows = (await getDb()?.composites.bulkGet(patientIds)) ?? [];
+    return rows.filter((r): r is CompositeRow => !!r);
+  } catch {
+    return [];
+  }
+}
+
+export async function putComposite(row: CompositeRow): Promise<void> {
+  try {
+    await getDb()?.composites.put(row);
+  } catch (e) {
+    console.warn('合成照片儲存失敗', e);
+  }
+}
+
+export async function deleteComposite(patientId: string): Promise<void> {
+  try {
+    await getDb()?.composites.delete(patientId);
   } catch {
     /* 忽略 */
   }

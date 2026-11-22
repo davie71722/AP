@@ -42,6 +42,8 @@
 
 17. **LINE 分享照片**：合成照片下方「LINE 分享照片」（`LinePhotoButton`）：開系統分享面板（選 LINE）；被擋（GAS 嵌入頁）時存到手機（檔名 `MCI-R1-C.jpg`，`asciiName`）並提示從 LINE 傳。出現在病人視窗、發車卡片、每趟通報醫院。拍完照片即自動合成。
 
+18. **合成照片保存與簡化**：背景 `CompositeKeeper`（掛在 App）在照片或病人資訊變動時自動重新合成，存入 Dexie `composites` 表（v4，每位病人一張，key 相同不重做）；各處以 `useStoredComposites` 讀取。合成照片動作統一為 `PhotoActions`（LINE 分享照片＋💾 存到手機）。案件結束區與歷史案件顯示本案全部合成照片，可全部分享或存檔；刪除歷史案件一併刪除。病人視窗照片與拍拍尺移到最上方。文字分享鍵只帶文字、照片鍵只帶照片。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -57,7 +59,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 123 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 124 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

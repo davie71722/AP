@@ -6,7 +6,8 @@ import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
 import { mapServiceConfigured, resolveShortLink, searchPlaces, type PlaceHit } from '../travel/routes';
 import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
-import { DoubleTapButton, ShareButtons, Stepper } from './common';
+import { CaseComposites, DoubleTapButton, ShareButtons, Stepper } from './common';
+import { useStoredComposites } from './Photos';
 import { deleteArchive, listArchives, type ArchiveRow } from '../store/db';
 import type { Persisted } from '../store/store';
 import { buildSummary, download } from '../report/report';
@@ -256,6 +257,7 @@ function ArchiveList() {
                 <>
                   <div className="report">{summary}</div>
                   <ShareButtons small className="mt8" copyLabel="📋 複製總結" text={summary} />
+                  <ArchiveComposites patients={d.patients} />
                   <div className="grid g2" style={{ marginTop: 8 }}>
                     <button
                       className="btn sm"
@@ -433,4 +435,12 @@ function SetRow({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function ArchiveComposites({ patients }: { patients: { id: string; label: string }[] }) {
+  const { previews, files } = useStoredComposites(
+    patients.map((p) => p.id),
+    (pid) => patients.find((p) => p.id === pid)?.label ?? 'photo',
+  );
+  return <CaseComposites previews={previews} files={files} />;
 }

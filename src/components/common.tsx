@@ -240,7 +240,7 @@ export function LinePhotoButton({ files, className = '' }: { files: File[]; clas
   return (
     <>
       <button
-        className={`btn line-btn full ${className}`}
+        className={`btn line-btn ${className}`}
         onClick={async (e) => {
           e.stopPropagation();
           let ok = false;
@@ -263,6 +263,46 @@ export function LinePhotoButton({ files, className = '' }: { files: File[]; clas
         LINE 分享照片{files.length > 1 ? `（${files.length} 張）` : ''}
       </button>
       {msg && <p className="small" style={{ margin: '4px 0 0', color: 'var(--orange)' }}>{msg}</p>}
+    </>
+  );
+}
+
+/** 合成照片動作：LINE 分享照片＋存到手機 */
+export function PhotoActions({ files, small = false }: { files: File[]; small?: boolean }) {
+  const [saved, setSaved] = useState(false);
+  if (!files.length) return null;
+  return (
+    <div className="photo-actions mt8">
+      <LinePhotoButton files={files} className={small ? 'sm' : ''} />
+      <button
+        className={`btn ${small ? 'sm' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          files.forEach(saveFile);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2500);
+        }}
+      >
+        {saved ? '✔ 已存' : `💾 存到手機${files.length > 1 ? `（${files.length}）` : ''}`}
+      </button>
+    </div>
+  );
+}
+
+/** 案件的合成照片：縮圖＋全部 LINE 分享／存到手機 */
+export function CaseComposites({ previews, files, title = '合成照片' }: { previews: string[]; files: File[]; title?: string }) {
+  if (!previews.length) return null;
+  return (
+    <>
+      <div className="tr-sub" style={{ marginTop: 10 }}>
+        {title}（{previews.length} 張，已存在案件中）
+      </div>
+      <div className="thumbs">
+        {previews.map((u, i) => (
+          <img key={i} src={u} alt="合成照片" />
+        ))}
+      </div>
+      <PhotoActions files={files} />
     </>
   );
 }

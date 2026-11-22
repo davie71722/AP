@@ -1,9 +1,19 @@
 // 個案照片：拍照後以原始大小存在本機（IndexedDB，不同步），上限 2 張；可連同送醫資訊以系統分享傳出
 import { useEffect, useState } from 'react';
-import { addPhoto, deletePhoto, listPhotos, type PhotoRow } from '../store/db';
+import {
+  addPhoto,
+  deleteComposite,
+  deletePhoto,
+  getComposite,
+  listComposites,
+  listPhotos,
+  putComposite,
+  type CompositeRow,
+  type PhotoRow,
+} from '../store/db';
 import { useStore } from '../store/store';
-import type { PhotoPanel } from '../report/report';
-import { DoubleTapButton, LinePhotoButton } from './common';
+import { photoPanel, type PhotoPanel } from '../report/report';
+import { DoubleTapButton, PhotoActions } from './common';
 
 /** 原始大小保存：JPEG／PNG／WebP 直接存原檔（保留解析度與拍攝方向）；其他格式（如 HEIC）轉成原尺寸 JPEG */
 export async function photoDataUrl(file: File): Promise<string> {
@@ -150,36 +160,69 @@ export function asciiName(label: string): string {
   return `MCI-${s || 'photo'}`;
 }
 
-/** 每位病人一張合成照片（預先處理，按分享時立即送出） */
-export function useComposites(rows: PhotoRow[], panelOf: (patientId: string) => PhotoPanel | null, nameOf: (patientId: string) => string) {
-  const [out, setOut] = useState<{ files: File[]; previews: string[] }>({ files: [], previews: [] });
-  const pids = [...new Set(rows.map((r) => r.patientId))];
-  const key = rows.map((r) => r.id + r.at).join(',') + '|' + pids.map((p) => JSON.stringify(panelOf(p))).join('|');
+/**
+ * 背景合成：目前案件中有照片的病人，照片或資訊（牌色、性別年齡、拍拍尺、醫院、送醫時間、傷勢）變動時
+ * 自動重新合成並存入案件（composites 表）。拍完照片即合成，不需另外操作。
+ */
+export function CompositeKeeper() {
+  const patients = useStore((s) => s.patients);
+  const vehicles = useStore((s) => s.vehicles);
+  const photoRev = useStore((s) => s.photoRev);
+  const bump = useStore((s) => s.bumpComposites);
   useEffect(() => {
     let alive = true;
-    void (async () => {
-      const previews: string[] = [];
-      const files: File[] = [];
-      for (const pid of pids) {
-        const panel = panelOf(pid);
-        const urls = rows.filter((r) => r.patientId === pid).map((r) => r.dataUrl);
-        if (!panel || !urls.length) continue;
+    const t = setTimeout(async () => {
+      let changed = false;
+      for (const p of patients) {
+        if (!alive) return;
+        const rows = await listPhotos(p.id);
+        const old = await getComposite(p.id);
+        if (!rows.length) {
+          if (old) {
+            await deleteComposite(p.id);
+            changed = true;
+          }
+          continue;
+        }
+        const panel = photoPanel(p, vehicles);
+        const key = rows.map((r) => `${r.id}@${r.at}`).join(',') + '|' + JSON.stringify(panel);
+        if (old?.key === key) continue;
         try {
-          const url = await composePhotos(urls, panel);
-          previews.push(url);
-          files.push(dataUrlToFile(url, `${asciiName(nameOf(pid))}.jpg`));
+          const dataUrl = await composePhotos(rows.map((r) => r.dataUrl), panel);
+          await putComposite({ patientId: p.id, at: Date.now(), key, dataUrl });
+          changed = true;
         } catch {
-          /* 合成失敗則略過 */
+          /* 合成失敗下次再試 */
         }
       }
-      if (alive) setOut({ files, previews });
-    })();
+      if (alive && changed) bump();
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [patients, vehicles, photoRev, bump]);
+  return null;
+}
+
+/** 讀取已存的合成照片（分享與存檔用；依病人順序） */
+export function useStoredComposites(patientIds: string[], labelOf: (patientId: string) => string) {
+  const rev = useStore((s) => s.compositeRev);
+  const photoRev = useStore((s) => s.photoRev);
+  const key = patientIds.join(',');
+  const [rows, setRows] = useState<CompositeRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void listComposites(patientIds).then((r) => alive && setRows(r));
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return out;
+  }, [key, rev, photoRev]);
+  return {
+    previews: rows.map((r) => r.dataUrl),
+    files: rows.map((r) => dataUrlToFile(r.dataUrl, `${asciiName(labelOf(r.patientId))}.jpg`)),
+  };
 }
 
 /** 讀取多位病人的照片（照片變動時自動重讀） */
@@ -198,15 +241,15 @@ export function usePhotos(patientIds: string[]): PhotoRow[] {
   return rows;
 }
 
-export function PhotoSection({ patientId, panel, readOnly = false }: { patientId: string; panel: PhotoPanel; readOnly?: boolean }) {
+export function PhotoSection({ patientId, readOnly = false }: { patientId: string; readOnly?: boolean }) {
   const rows = usePhotos([patientId]);
   const bump = useStore((s) => s.bumpPhotos);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState<number | null>(null);
   const [view, setView] = useState<string | null>(null);
   const label = useStore((s) => s.patients.find((p) => p.id === patientId)?.label ?? 'photo');
-  // 拍完照片即自動合成（照片或病人資訊變動時重新合成）
-  const { previews, files } = useComposites(rows, () => panel, () => label);
+  // 拍完照片即由背景自動合成並存入案件
+  const { previews, files } = useStoredComposites([patientId], () => label);
 
   const onFile = async (slot: number, f: File | undefined) => {
     if (!f) return;
@@ -269,7 +312,7 @@ export function PhotoSection({ patientId, panel, readOnly = false }: { patientId
         <>
           <div className="tr-sub" style={{ marginTop: 8 }}>合成照片（拍完自動合成）</div>
           <img className="composite" src={previews[0]} alt="合成照片" onClick={() => setView(previews[0])} />
-          <LinePhotoButton files={files} className="mt8" />
+          <PhotoActions files={files} />
         </>
       )}
       {msg && <p className="small" style={{ color: 'var(--orange)', margin: '4px 0 0' }}>{msg}</p>}

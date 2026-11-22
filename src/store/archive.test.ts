@@ -82,3 +82,14 @@ describe('個案照片', () => {
     expect(await listPhotos('pp1')).toHaveLength(0);
   });
 });
+
+describe('合成照片保存', () => {
+  it('存入案件，刪除歷史案件時一併刪除', async () => {
+    const { putComposite, listComposites, putArchive, deleteArchive } = await import('./db');
+    await putComposite({ patientId: 'cp1', at: 1, key: 'k', dataUrl: 'data:image/jpeg;base64,AAAA' });
+    expect(await listComposites(['cp1', 'nope'])).toHaveLength(1);
+    await putArchive({ id: 'case-y', savedAt: 1, startAt: 2, endAt: null, title: '', total: 1, data: { patients: [{ id: 'cp1' }] } });
+    await deleteArchive('case-y');
+    expect(await listComposites(['cp1'])).toHaveLength(0);
+  });
+});

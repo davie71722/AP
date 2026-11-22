@@ -113,6 +113,9 @@ interface Store extends Persisted {
   /** 照片變動版本（重新讀取縮圖） */
   photoRev: number;
   bumpPhotos(): void;
+  /** 合成照片版本（背景重新合成後遞增） */
+  compositeRev: number;
+  bumpComposites(): void;
   setPatientNote(id: string, note: string): void;
   setWounds(id: string, wounds: Wound[]): void;
   setTrauma(id: string, trauma: TraumaEntry[]): void;
@@ -600,6 +603,8 @@ export const useStore = create<Store>((set, get) => {
       set((s) => ({ patients: s.patients.map((x) => (x.id === id ? { ...x, personal: { ...(x.personal ?? {}), ...p } } : x)) })),
     photoRev: 0,
     bumpPhotos: () => set((s) => ({ photoRev: s.photoRev + 1 })),
+    compositeRev: 0,
+    bumpComposites: () => set((s) => ({ compositeRev: s.compositeRev + 1 })),
     setTriageTagNo: (id, no) =>
       set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, triageTagNo: no } : p)) })),
 
@@ -871,7 +876,7 @@ useStore.subscribe((s, prev) => {
 });
 
 // ---------- 唯讀（交接檢視模式） ----------
-const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel', 'archiveCurrent', 'bumpArchives', 'bumpPhotos']);
+const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel', 'archiveCurrent', 'bumpArchives', 'bumpPhotos', 'bumpComposites']);
 let readOnly = false;
 export function setReadOnly(v: boolean) {
   readOnly = v;

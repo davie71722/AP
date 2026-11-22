@@ -7,14 +7,14 @@ import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
 import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
-import { dispatchShareText, headcountText, photoPanel } from '../report/report';
+import { dispatchShareText, headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
-import { DoubleTapButton, LinePhotoButton, SentCounts, ShareButtons, Sheet } from './common';
+import { DoubleTapButton, PhotoActions, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
-import { useComposites, usePhotos } from './Photos';
+import { useStoredComposites } from './Photos';
 
 export function SceneTab() {
   const rules = useRules();
@@ -348,17 +348,8 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const patients = useStore((s) => s.patients);
   const vehicles = useStore((s) => s.vehicles);
   const ps = patients.filter((p) => ids.includes(p.id) && p.status === 'sent');
-  const photos = usePhotos(ids);
   const text = dispatchShareText(ps, vehicles);
-  const label = (pid: string) => patients.find((x) => x.id === pid)?.label ?? 'photo';
-  const { files, previews } = useComposites(
-    photos,
-    (pid: string) => {
-      const p = patients.find((x) => x.id === pid);
-      return p ? photoPanel(p, vehicles) : null;
-    },
-    label,
-  );
+  const { files, previews } = useStoredComposites(ids, (pid) => patients.find((x) => x.id === pid)?.label ?? 'photo');
   if (!ps.length) return null;
   return (
     <section className="section just-sent">
@@ -369,17 +360,19 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
           ✕
         </button>
       </h2>
-      <div className="report">{text}</div>
       {previews.length > 0 && (
-        <div className="composites">
-          {previews.map((u: string, i: number) => (
-            <img key={i} src={u} alt="合成照片" className="composite" />
-          ))}
-        </div>
+        <>
+          <div className="composites">
+            {previews.map((u, i) => (
+              <img key={i} src={u} alt="合成照片" className="composite" />
+            ))}
+          </div>
+          <PhotoActions files={files} />
+        </>
       )}
-      <LinePhotoButton files={files} className="mt8" />
-      <ShareButtons className="mt8" copyLabel="📋 複製" text={text} files={files} />
-      {photos.length > 0 && <p className="muted small" style={{ margin: '6px 0 0' }}>文字的 LINE 鍵只帶文字；照片請按「LINE 分享照片」</p>}
+      <div className="tr-sub" style={{ marginTop: 10 }}>發車文字</div>
+      <div className="report">{text}</div>
+      <ShareButtons className="mt8" copyLabel="📋 複製" text={text} />
     </section>
   );
 }
