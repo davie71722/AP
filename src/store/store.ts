@@ -34,6 +34,7 @@ import {
   type Incident,
   type IncidentLocation,
   type Patient,
+  type Personal,
   type Settings,
   type TransportColor,
   type TravelState,
@@ -107,6 +108,11 @@ interface Store extends Persisted {
   retriage(id: string, c: Color, redClass?: RedClass): void;
   setRedClass(id: string, cls: RedClass): void;
   setTriageTagNo(id: string, no: string): void;
+  /** 個案備註（姓名、年齡、性別、電話、拍拍尺號碼） */
+  setPersonal(id: string, p: Partial<Personal>): void;
+  /** 照片變動版本（重新讀取縮圖） */
+  photoRev: number;
+  bumpPhotos(): void;
   setPatientNote(id: string, note: string): void;
   setWounds(id: string, wounds: Wound[]): void;
   setTrauma(id: string, trauma: TraumaEntry[]): void;
@@ -590,6 +596,10 @@ export const useStore = create<Store>((set, get) => {
       get().confirm(sug);
     },
 
+    setPersonal: (id, p) =>
+      set((s) => ({ patients: s.patients.map((x) => (x.id === id ? { ...x, personal: { ...(x.personal ?? {}), ...p } } : x)) })),
+    photoRev: 0,
+    bumpPhotos: () => set((s) => ({ photoRev: s.photoRev + 1 })),
     setTriageTagNo: (id, no) =>
       set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, triageTagNo: no } : p)) })),
 
@@ -861,7 +871,7 @@ useStore.subscribe((s, prev) => {
 });
 
 // ---------- 唯讀（交接檢視模式） ----------
-const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel', 'archiveCurrent', 'bumpArchives']);
+const READ_SAFE = new Set(['setTheme', 'setTab', 'tick', 'hydrate', 'refreshTravel', 'archiveCurrent', 'bumpArchives', 'bumpPhotos']);
 let readOnly = false;
 export function setReadOnly(v: boolean) {
   readOnly = v;

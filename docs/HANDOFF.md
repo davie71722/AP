@@ -31,9 +31,13 @@
 10. **分享**：所有複製處改為「📋 複製／📤 分享／LINE」（`ShareButtons`）。分享用系統分享面板（`navigator.share`），GAS 嵌入頁可能被擋，擋下時改為複製；LINE 用 `line.me/R/share?text=` 連結。確認發車後現場頁出現「✔ 已發車」卡片（`dispatchShareText`：車輛、醫院、ETA、檢傷、精簡傷勢 `briefInjury`）。
 11. **黑牌區**：`Patient.policeAt`（已移交警方時間；未設定＝待警察接管）、`Incident.morgue`（暫置區位置、看守人員，已加入同步欄位）。現場頁「黑牌區」：計數、逐位切換移交、位置與看守輸入（離開輸入框時記入案件經過），未指定看守／位置時警示。回報「黑牌區」、總結列出移交狀態與暫置區。
 
+12. **個案照片**：病人視窗「📷 拍照」，上限 2 張（`MAX_PHOTOS`），壓縮為長邊 1024px JPEG 存在本機 Dexie `photos` 表（v3），**不同步**（GAS CacheService 單筆上限 100KB）。發車卡片與每趟通報醫院的「📤 分享」連同照片送出（`navigator.share` files）；LINE 鍵只帶文字。刪除歷史案件時一併刪照片（`src/components/Photos.tsx`）。
+13. **個案備註**：`Patient.personal`（姓名、年齡、性別、電話、拍拍尺號碼，可空白），病人視窗「🔒 個案備註（不分享）」。不出現在任何分享／回報／總結文字（有測試）；只在傷患清單 CSV 與 JSON 匯出。年齡 <18 也會擋 Nalbuphine／Transamin。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
+- 照片只在拍照的手機上；如需跨裝置，需改存 Google Drive（GAS 端 DriveApp）。
 
 ## 慣例與防呆原則（使用者要求）
 
@@ -45,7 +49,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 118 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 120 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

@@ -12,6 +12,7 @@ import { fmtClock } from '../engine/actions';
 import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
+import { PhotoSection } from './Photos';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -251,7 +252,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
               </button>
             ))}
           </div>
-          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} tags={p.tags} />
+          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} tags={p.tags} age={p.personal?.age} />
         </>
       )}
 
@@ -268,6 +269,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
             trauma={p.trauma ?? []}
             onTrauma={(t) => setTrauma(p.id, t)}
             tags={p.tags}
+            age={p.personal?.age}
           />
         </Suspense>
       )}
@@ -280,7 +282,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       />
       {injuryText(p) && (
         <div className="tr-out">
-          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, startAt, now })} />
+          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, age: p.personal?.age, startAt, now })} />
           <div className="tr-sub">交接註解</div>
           <KeyFlags flags={keyFlags(p.trauma)} />
           {injuryText(p)}
@@ -317,6 +319,9 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           ↶ 恢復待送
         </button>
       )}
+
+      <PhotoSection patientId={p.id} />
+      <PersonalSection p={p} />
 
       <h3>紀錄</h3>
       <div className="log">
@@ -547,5 +552,46 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
         <DoubleTapButton onConfirm={act(() => del(v.id))}>刪除車輛</DoubleTapButton>
       </div>
     </Sheet>
+  );
+}
+
+/** 個案備註：姓名、年齡、性別、電話、拍拍尺號碼（皆可空白；不列入任何分享或回報文字） */
+function PersonalSection({ p }: { p: Patient }) {
+  const setPersonal = useStore((s) => s.setPersonal);
+  const v = p.personal ?? {};
+  const [open, setOpen] = useState(Object.values(v).some(Boolean));
+  const field = (k: 'name' | 'age' | 'phone' | 'patNo', label: string, mode: 'text' | 'numeric' | 'tel' = 'text', max = 30) => (
+    <label className="pf">
+      <span>{label}</span>
+      <input value={v[k] ?? ''} inputMode={mode} onChange={(e) => setPersonal(p.id, { [k]: e.target.value.slice(0, max) })} />
+    </label>
+  );
+  return (
+    <>
+      <button className={`btn sm full ${open ? 'on' : ''}`} style={{ marginTop: 12 }} onClick={() => setOpen(!open)}>
+        🔒 個案備註（不分享）{v.name ? `：${v.name}` : ''} {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className="personal">
+          {field('name', '姓名')}
+          <div className="pf-row">
+            {field('age', '年齡', 'numeric', 3)}
+            <div className="pf">
+              <span>性別</span>
+              <div className="seg">
+                {(['男', '女'] as const).map((x) => (
+                  <button key={x} className={`btn sm ${v.sex === x ? 'on' : ''}`} onClick={() => setPersonal(p.id, { sex: v.sex === x ? undefined : x })}>
+                    {x}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {field('phone', '電話', 'tel', 20)}
+          {field('patNo', '拍拍尺號碼', 'text', 20)}
+          <p className="muted small" style={{ margin: 0 }}>可留白；只存在系統內，不會出現在分享、回報或總結文字。</p>
+        </div>
+      )}
+    </>
   );
 }

@@ -92,6 +92,17 @@ export interface Patient {
   extricatedAt?: number;
   /** 黑牌：已移交警方的時間（未設定＝待警察接管） */
   policeAt?: number;
+  /** 個案備註（皆可空白）：不列入任何分享／回報文字 */
+  personal?: Personal;
+}
+
+export interface Personal {
+  name?: string;
+  age?: string;
+  sex?: '男' | '女';
+  phone?: string;
+  /** 拍拍尺號碼 */
+  patNo?: string;
 }
 
 /** 人形圖傷口（格式同「外傷人形圖傷口紀錄」模組） */

@@ -46,6 +46,8 @@ const TXA_HOURS = 3;
 /** 病人層級的判斷資料 */
 export interface PatientCtx {
   tags?: string[];
+  /** 個案備註的年齡（有填才判斷） */
+  age?: string;
   /** 事件開始（受傷）時間 */
   startAt?: number | null;
   now?: number;
@@ -55,8 +57,10 @@ export interface PatientCtx {
 export function drugBlock(list: TraumaEntry[], act: string, ctx: PatientCtx = {}): string | null {
   const all = patientActs(list);
   const tags = ctx.tags ?? [];
+  const age = Number(ctx.age);
+  const minor = tags.includes('peds') || tags.includes('minor') || (ctx.age?.trim() !== '' && Number.isFinite(age) && age > 0 && age < 18);
   if (act === NALB) {
-    if (tags.includes('peds') || tags.includes('minor')) return 'Nalbuphine 限 ≥18 歲（P3）';
+    if (minor) return 'Nalbuphine 限 ≥18 歲（P3）';
     if (tags.includes('pregnant')) return '懷孕為 Nalbuphine 禁忌症（P3）';
     const g = all.find((a) => GCS_LOW.includes(a));
     if (g) return `GCS<14（${g}），不可給 Nalbuphine（P3）`;
@@ -64,7 +68,7 @@ export function drugBlock(list: TraumaEntry[], act: string, ctx: PatientCtx = {}
     if (ht) return `明顯${HEAD_TRUNK[ht.id]}鈍挫傷（${ht.name}），不可給 Nalbuphine（P3）`;
   }
   if (act === TXA) {
-    if (tags.includes('peds') || tags.includes('minor')) return 'Transamin 限成人（T0 註6）';
+    if (minor) return 'Transamin 限成人（T0 註6）';
     if (!all.some((a) => TXA_SHOCK.includes(a))) return 'Transamin 需出血性休克徵象：收縮壓<90 或心跳≥120（T0 註6）';
     if (ctx.startAt && ctx.now && ctx.now - ctx.startAt > TXA_HOURS * 3600000) return '受傷已逾 3 小時，不給 Transamin（T0 註6）';
     if (!all.some((a) => /IV|IO/.test(a) && a !== TXA)) return 'Transamin 需先建立 IV／IO（1g 加入 NS 100mL 滴注 10 分）';

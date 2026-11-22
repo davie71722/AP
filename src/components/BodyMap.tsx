@@ -65,6 +65,7 @@ export function BodyMap({
   trauma,
   onTrauma,
   tags,
+  age,
 }: {
   wounds: Wound[];
   onChange: (w: Wound[]) => void;
@@ -72,6 +73,7 @@ export function BodyMap({
   trauma?: TraumaEntry[];
   onTrauma?: (t: TraumaEntry[]) => void;
   tags?: string[];
+  age?: string;
 }) {
   const [view, setView] = useState<View>('front');
   const [sel, setSel] = useState<Region | null>(null);
@@ -164,7 +166,7 @@ export function BodyMap({
           <div className="tr-sub">
             {regionName(sel, view)}：相關{color === 'R' ? '紅牌' : color === 'Y' ? '黃牌' : '綠牌'}傷勢與處置
           </div>
-          <TraumaPicker color={color} value={trauma} onChange={onTrauma} only={related.map((d) => d.id)} ctxSide={limbOf(regionName(sel, view))} tags={tags} />
+          <TraumaPicker color={color} value={trauma} onChange={onTrauma} only={related.map((d) => d.id)} ctxSide={limbOf(regionName(sel, view))} tags={tags} age={age} />
         </div>
       )}
       {wounds.length > 0 && (

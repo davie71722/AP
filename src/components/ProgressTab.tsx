@@ -7,6 +7,7 @@ import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
 import { clockAfter, SentCounts, ShareButtons } from './common';
 import { hospitalNotice } from '../report/report';
+import { photoFiles, usePhotos } from './Photos';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
 import { KeyFlags } from './TraumaPicker';
@@ -140,7 +141,7 @@ export function ProgressTab() {
                     ))}
                 </div>
               )}
-              <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={hospitalNotice(t.ps, v, incident)} />
+              <TripShare ps={t.ps} text={hospitalNotice(t.ps, v, incident)} />
             </div>
           );
         })}
@@ -154,4 +155,11 @@ export function ProgressTab() {
       {openV && <VehicleSheet id={openV} onClose={() => setOpenV(null)} />}
     </>
   );
+}
+
+/** 每趟通報醫院：文字＋該趟病人照片 */
+function TripShare({ ps, text }: { ps: Patient[]; text: string }) {
+  const photos = usePhotos(ps.map((p) => p.id));
+  const files = photoFiles(photos, (pid) => ps.find((x) => x.id === pid)?.label ?? 'photo');
+  return <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} files={files} />;
 }

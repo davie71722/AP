@@ -69,3 +69,16 @@ describe('其他車輛（限綠牌）', () => {
     expect(useStore.getState().patients[0].status).toBe('waiting');
   });
 });
+
+describe('個案照片', () => {
+  it('上限 2 張；刪除歷史案件時一併刪除', async () => {
+    const { addPhoto, listPhotos, putArchive, deleteArchive } = await import('./db');
+    expect(await addPhoto('pp1', 'data:image/jpeg;base64,AAAA')).toBe(true);
+    expect(await addPhoto('pp1', 'data:image/jpeg;base64,BBBB')).toBe(true);
+    expect(await addPhoto('pp1', 'data:image/jpeg;base64,CCCC')).toBe(false);
+    expect(await listPhotos('pp1')).toHaveLength(2);
+    await putArchive({ id: 'case-x', savedAt: 1, startAt: 1, endAt: null, title: '', total: 1, data: { patients: [{ id: 'pp1' }] } });
+    await deleteArchive('case-x');
+    expect(await listPhotos('pp1')).toHaveLength(0);
+  });
+});

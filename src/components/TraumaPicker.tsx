@@ -12,6 +12,7 @@ export function TraumaPicker({
   only,
   ctxSide,
   tags,
+  age,
 }: {
   color: Color;
   value: TraumaEntry[];
@@ -22,10 +23,12 @@ export function TraumaPicker({
   ctxSide?: string | null;
   /** 病人標籤（兒童、孕婦）：藥物防呆用 */
   tags?: string[];
+  /** 個案備註的年齡 */
+  age?: string;
 }) {
   const now = useStore((s) => s.now);
   const startAt = useStore((s) => s.incident.startAt);
-  const ctx = { tags, startAt, now };
+  const ctx = { tags, age, startAt, now };
   const [armed, setArmed] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();

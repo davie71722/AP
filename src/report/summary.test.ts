@@ -110,3 +110,23 @@ describe('發車分享與黑牌區', () => {
     expect(morgueText(inc, [])).toBe('');
   });
 });
+
+describe('個案備註不外流', () => {
+  it('姓名、電話、拍拍尺號碼不出現在任何分享或回報文字', () => {
+    const inc: Incident = { types: ['traffic'], location: null, startAt: T(14, 0), settings: DEFAULT_SETTINGS, log: [] };
+    const v = { id: 'v1', name: '竹北91' } as Vehicle;
+    const p = P('a', 'R', 1, {
+      status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32), note: '酒味',
+      personal: { name: '王小明', age: '35', sex: '男', phone: '0912345678', patNo: 'PP-778' },
+    });
+    const texts = [
+      dispatchShareText([p], [v]),
+      hospitalNotice([p], v, inc),
+      buildTransportReport([p], [v]),
+      buildReport(inc, [p], [v], initialRuntimes(), T(14, 40)),
+      buildSummary(inc, [p], [v], initialRuntimes(), T(14, 40)),
+    ].join('\n');
+    for (const x of ['王小明', '0912345678', 'PP-778']) expect(texts).not.toContain(x);
+    expect(texts).toContain('酒味');
+  });
+});

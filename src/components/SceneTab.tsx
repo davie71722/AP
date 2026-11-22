@@ -14,6 +14,7 @@ import { traumaWarnings } from '../data/traumaRules';
 import { DoubleTapButton, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
+import { photoFiles, usePhotos } from './Photos';
 
 export function SceneTab() {
   const rules = useRules();
@@ -347,8 +348,10 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const patients = useStore((s) => s.patients);
   const vehicles = useStore((s) => s.vehicles);
   const ps = patients.filter((p) => ids.includes(p.id) && p.status === 'sent');
+  const photos = usePhotos(ids);
   if (!ps.length) return null;
   const text = dispatchShareText(ps, vehicles);
+  const files = photoFiles(photos, (pid) => patients.find((x) => x.id === pid)?.label ?? 'photo');
   return (
     <section className="section just-sent">
       <h2>
@@ -359,7 +362,17 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
         </button>
       </h2>
       <div className="report">{text}</div>
-      <ShareButtons className="mt8" copyLabel="📋 複製" text={text} />
+      {photos.length > 0 && (
+        <div className="photos" style={{ marginTop: 8 }}>
+          {photos.map((r) => (
+            <div key={r.id} className="photo">
+              <img src={r.dataUrl} alt="個案照片" />
+            </div>
+          ))}
+        </div>
+      )}
+      <ShareButtons className="mt8" copyLabel="📋 複製" text={text} files={files} />
+      {photos.length > 0 && <p className="muted small" style={{ margin: '6px 0 0' }}>照片需用「分享」傳出（LINE 鍵只帶文字）</p>}
     </section>
   );
 }
@@ -457,7 +470,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
             <div className="wound-text span3">
               <KeyFlags flags={keyFlags(p.trauma)} />
               {injuryText({ trauma: p.trauma, wounds: p.wounds, color: p.color })}
-              <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, startAt, now })} />
+              <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, age: p.personal?.age, startAt, now })} />
             </div>
           ) : null}
         </div>

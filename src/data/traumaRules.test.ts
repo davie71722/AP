@@ -166,6 +166,9 @@ describe('藥物防呆（2026 救護手冊 P3、T0 註6）', () => {
     const aloc = [T('r-amp', '創傷性截肢', ['意識改變'], ['右下肢'])];
     expect(actState(aloc, '已給Nalbuphine').reason).toContain('GCS<14');
     expect(TRAUMA_BY_ID['r-pelvis'].acts).not.toContain('已給Nalbuphine');
+    expect(actState(fx, '已給Nalbuphine', 'y-fx', { age: '16' }).reason).toContain('≥18');
+    expect(actState(fx, '已給Nalbuphine', 'y-fx', { age: '45' }).disabled).toBe(false);
+    expect(actState(fx, '已給Nalbuphine', 'y-fx', { age: '' }).disabled).toBe(false);
   });
   it('Transamin：需休克徵象、IV／IO、3 小時內、成人', () => {
     const noShock = [T('r-art', '動脈大出血', ['已打雙線IV'], ['右下肢'])];
