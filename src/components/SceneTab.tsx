@@ -6,7 +6,7 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import { dispatchOrder, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
+import { dispatchOrder, HOLD_RELEASE_AT, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
 import { headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
@@ -317,7 +317,10 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const ordered = dispatchOrder(vehicles);
   const ready = ordered.filter((v) => !v.held);
   const held = ordered.filter((v) => v.held);
-  const vid = vehicleId ?? ready[0]?.id ?? null;
+  // 留守車預設不可派，剩最後 2 位傷患才開放
+  const holdOpen = holdUnlocked(patients);
+  const picked = vehicleId ? vehicles.find((v) => v.id === vehicleId) : undefined;
+  const vid = (picked && !(picked.held && !holdUnlocked(patients)) ? vehicleId : null) ?? ready[0]?.id ?? null;
   const trappedSel = chosen.filter((p) => p.trapped);
   const vSub = (v: Vehicle) => {
     if (v.held) return '留守';
@@ -378,12 +381,19 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       {ready.length === 0 && held.length === 0 && <p className="muted small">尚無可派車輛，先按「＋救護車」</p>}
       <div className="grid g3">
         {[...ready, ...held].map((v) => (
-          <button key={v.id} className={`btn sm vpick ${vid === v.id ? 'on' : ''}`} onClick={() => setVehicleId(v.id)}>
+          <button
+            key={v.id}
+            className={`btn sm vpick ${vid === v.id ? 'on' : ''}`}
+            disabled={v.held && !holdOpen}
+            onClick={() => setVehicleId(v.id)}
+          >
             {v.name}
             {vSub(v) && <span className="muted"> {vSub(v)}</span>}
           </button>
         ))}
       </div>
+
+      {held.length > 0 && !holdOpen && <p className="muted small">留守車剩最後 {HOLD_RELEASE_AT} 位傷患時才開放派車</p>}
 
       <h3>醫院</h3>
       <div className="grid">{top.map(hospBtn)}</div>

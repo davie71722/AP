@@ -179,6 +179,13 @@ export function dispatchOrder(vehicles: Vehicle[]): Vehicle[] {
     .sort((a, b) => rank(a) - rank(b) || key(a) - key(b) || a.name.localeCompare(b.name));
 }
 
+/** 留守車開放派車的門檻：待送（非黑）剩這麼多位以下 */
+export const HOLD_RELEASE_AT = 2;
+/** 留守車是否可派（剩最後 2 位傷患才開放） */
+export function holdUnlocked(patients: { status: string; color: string }[]): boolean {
+  return patients.filter((p) => p.status === 'waiting' && p.color !== 'K').length <= HOLD_RELEASE_AT;
+}
+
 /** 已待命分鐘數 */
 export function standbyMin(v: Vehicle, now: number): number | null {
   if (v.status !== 'standby') return null;

@@ -33,3 +33,23 @@ describe('案件存檔', () => {
     expect(useStore.getState().incident.startAt).toBe(startAt);
   });
 });
+
+describe('留守車', () => {
+  it('剩最後 2 位傷患才可派', () => {
+    const st = useStore.getState();
+    st.clearIncident();
+    st.updateSettings({ firstVehicleHold: true });
+    st.addVehicle('竹北', 91, 1, 1);
+    const held = useStore.getState().vehicles[0];
+    expect(held.held).toBe(true);
+    for (let i = 0; i < 3; i++) useStore.getState().addPatient('Y');
+    const ids = useStore.getState().patients.map((p) => p.id);
+    useStore.getState().dispatchManual([ids[0]], held.id, 'tungyuan');
+    expect(useStore.getState().patients[0].status).toBe('waiting');
+    useStore.getState().releaseHold(held.id);
+    expect(useStore.getState().vehicles[0].held).toBe(true);
+    useStore.getState().deletePatient(ids[2]);
+    useStore.getState().dispatchManual([ids[0]], held.id, 'tungyuan');
+    expect(useStore.getState().patients[0].status).toBe('sent');
+  });
+});

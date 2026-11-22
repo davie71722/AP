@@ -22,6 +22,8 @@
 
 6. **兒童送醫**：創傷事件的兒童送外傷重度級醫院（`pedsTrauma`），不因兒科標籤加分；兒科醫院加分只用於非創傷（兒童內科）。顏面創傷、連枷胸／穿刺傷、骨盆骨折維持排除 Nalbuphine（使用者確認）。
 
+7. **留守車鎖定**：留守車預設不可派、不可解除留守，待送（非黑）剩最後 2 位傷患時才開放（`holdUnlocked`、`HOLD_RELEASE_AT`）。派車面板留守車按鈕停用並顯示說明；store 的 `dispatchManual`、`releaseHold` 也擋下。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -36,7 +38,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 111 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 112 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

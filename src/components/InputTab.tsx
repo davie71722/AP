@@ -6,7 +6,7 @@ import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
-import { PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
+import { holdUnlocked, PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
 import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
@@ -465,6 +465,7 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deleteVehicle);
   const adjustCrew = useStore((s) => s.adjustCrew);
   const releaseHold = useStore((s) => s.releaseHold);
+  const holdOpen = useStore((s) => holdUnlocked(s.patients));
   const setHold = useStore((s) => s.setHold);
   if (!v) return null;
   const act = (fn: () => void) => () => {
@@ -484,8 +485,8 @@ export function VehicleSheet({ id, onClose }: { id: string; onClose: () => void 
       </p>
       <div className="grid">
         {v.held && (
-          <button className="btn go" onClick={act(() => releaseHold(v.id))}>
-            解除留守，重新派車
+          <button className="btn go" disabled={!holdOpen} onClick={act(() => releaseHold(v.id))}>
+            {holdOpen ? '解除留守，重新派車' : '留守中（剩最後 2 位傷患才開放派車）'}
           </button>
         )}
         {!v.held && v.status === 'standby' && (

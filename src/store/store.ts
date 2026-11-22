@@ -22,6 +22,7 @@ import { timeFactor } from '../travel/traffic';
 import { haversineKm } from '../travel/offline';
 import {
   TRIAGE_NAMES,
+  holdUnlocked,
   patientLabel,
   type RedClass,
   type TriageSystem,
@@ -573,7 +574,8 @@ export const useStore = create<Store>((set, get) => {
         needsArrivalMark: false,
         warnings: [],
       };
-      // 留守車由後送官選定出發時，視為解除留守
+      // 留守車：剩最後 2 位傷患才可派；選定出發時視為解除留守
+      if (v.held && !holdUnlocked(s.patients)) return;
       if (v.held) set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === v.id ? { ...x, held: false } : x)) }));
       if (v.status === 'enroute') applyDomain(setVehicleStatus(domain(), v.id, 'standby', Date.now(), false));
       get().confirm(sug);
@@ -649,7 +651,7 @@ export const useStore = create<Store>((set, get) => {
       applyDomain(setVehicleStatus(domain(), id, status, Date.now(), get().incident.settings.firstVehicleHold)),
     releaseHold: (id) => {
       const v = get().vehicles.find((x) => x.id === id);
-      if (!v?.held) return;
+      if (!v?.held || !holdUnlocked(get().patients)) return;
       set((st) => ({ vehicles: st.vehicles.map((x) => (x.id === id ? { ...x, held: false } : x)) }));
       log(`${v.name} 解除留守，可重新派車`);
     },
