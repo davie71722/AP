@@ -69,8 +69,10 @@ export interface Patient {
   tags: string[];
   /** waiting 待送｜sent 已後送（救護車或勤務車）｜left 自行離開 */
   status: 'waiting' | 'sent' | 'left';
-  /** 由勤務車載走（非救護車） */
+  /** 由其他車輛載走（非救護車） */
   byDuty?: boolean;
+  /** 其他車輛種類：勤務車、民間救護車、巴士、群送 */
+  byKind?: string;
   hospitalId?: string;
   vehicleId?: string;
   sentAt?: number;
@@ -177,6 +179,13 @@ export function dispatchOrder(vehicles: Vehicle[]): Vehicle[] {
   return vehicles
     .filter((v) => v.status === 'standby' || v.status === 'enroute')
     .sort((a, b) => rank(a) - rank(b) || key(a) - key(b) || a.name.localeCompare(b.name));
+}
+
+/** 綠牌可用的其他後送車輛 */
+export const OTHER_VEHICLES = ['勤務車', '民間救護車', '巴士'] as const;
+/** 其他車輛名稱（舊資料預設勤務車） */
+export function otherVehicleName(p: { byKind?: string }): string {
+  return p.byKind ?? '勤務車';
 }
 
 /** 留守車開放派車的門檻：待送（非黑）剩這麼多位以下 */

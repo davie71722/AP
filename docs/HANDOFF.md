@@ -24,6 +24,8 @@
 
 7. **留守車鎖定**：留守車預設不可派、不可解除留守，待送（非黑）剩最後 2 位傷患時才開放（`holdUnlocked`、`HOLD_RELEASE_AT`）。派車面板留守車按鈕停用並顯示說明；store 的 `dispatchManual`、`releaseHold` 也擋下。
 
+8. **其他車輛（限綠牌）**：派車面板選的病人全為綠牌時出現「勤務車／民間救護車／巴士」，有紅黃就不出現（`OTHER_VEHICLES`、store `otherTransport`，一筆撤銷）。病人記錄 `byKind`；回報、總結、傷情初步報告、送醫進度顯示車種。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -38,7 +40,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 112 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 113 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

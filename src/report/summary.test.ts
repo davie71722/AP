@@ -45,7 +45,7 @@ describe('案件總結', () => {
     expect(s).toContain('• 救護車：1 台、共 1 趟（竹北91 1趟）');
     expect(s).toContain('紅1-A｜竹北91 14:20 ➔ 東元醫院｜不穩定骨盆骨折；處置予骨盆固定帶固定。');
     expect(s).not.toContain('關閉醫院');
-    expect(s).not.toContain('勤務車／群送');
+    expect(s).not.toContain('其他車輛');
   });
 });
 

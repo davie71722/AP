@@ -4,7 +4,7 @@ import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
-import { injuryText, type Hospital, type Patient } from '../types';
+import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
 import { clockAfter, CopyButton, SentCounts } from './common';
 import { hospitalNotice } from '../report/report';
 import { trafficLabel } from '../travel/traffic';
@@ -40,7 +40,7 @@ export function ProgressTab() {
   const trips = new Map<string, Patient[]>();
   for (const p of patients) {
     if (p.status !== 'sent' || !p.sentAt) continue;
-    const key = `${p.vehicleId ?? 'duty'}@${p.sentAt}`;
+    const key = `${p.vehicleId ?? otherVehicleName(p)}@${p.sentAt}`;
     trips.set(key, [...(trips.get(key) ?? []), p]);
   }
   const tripList = [...trips.entries()].map(([key, ps]) => ({ key, ps, sentAt: ps[0].sentAt!, arriveAt: ps[0].arriveAt })).sort((a, b) => b.sentAt - a.sentAt);
@@ -111,7 +111,7 @@ export function ProgressTab() {
           return (
             <div key={t.key} className="trip" role="button" tabIndex={0} onClick={() => v && setOpenV(v.id)}>
               <div className="trip-top">
-                <b>{v ? v.name : t.ps[0].byDuty ? '勤務車' : '—'}</b>
+                <b>{v ? v.name : t.ps[0].byDuty ? otherVehicleName(t.ps[0]) : '—'}</b>
                 <span className="arrow">➔</span>
                 <b>{h ? h.short : '未定'}</b>
                 <span className="spacer" />

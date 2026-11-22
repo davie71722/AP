@@ -6,7 +6,7 @@ import { effectiveCap, effectiveTravel } from '../engine/plan';
 import { BRIGADES, FIRE_UNITS, SUPPORT_SOURCES } from '../data/places';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { usePlan, useRules, useTriage } from '../store/usePlan';
-import { holdUnlocked, PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
+import { holdUnlocked, otherVehicleName, PATIENT_TAGS, RED_CLASSES, VEHICLE_STATUS_NAME, injuryText, type Color, type Patient, type Vehicle } from '../types';
 import { DoubleTapButton, Sheet, Stepper, clockAfter } from './common';
 import { fmtClock } from '../engine/actions';
 import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
@@ -174,7 +174,7 @@ export function PatientChip({ p, onClick }: { p: Patient; onClick: () => void })
     p.status === 'left'
       ? '離開'
       : p.status === 'sent'
-        ? `${p.byDuty ? '勤' : ''}➔${p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : ''}`
+        ? `${p.byDuty ? otherVehicleName(p)[0] : ''}➔${p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : ''}`
       : [
           p.trapped ? '⛓受困' : p.extricatedAt ? `脫困${fmtClock(p.extricatedAt)}` : '',
           p.prevLabels.length ? `←${p.prevLabels[p.prevLabels.length - 1]}` : '',

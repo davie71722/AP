@@ -53,3 +53,19 @@ describe('留守車', () => {
     expect(useStore.getState().patients[0].status).toBe('sent');
   });
 });
+
+describe('其他車輛（限綠牌）', () => {
+  it('民間救護車載綠牌；紅黃不適用', () => {
+    useStore.getState().clearIncident();
+    useStore.getState().addPatient('G');
+    useStore.getState().addPatient('Y');
+    const [g, y] = useStore.getState().patients;
+    useStore.getState().otherTransport([g.id, y.id], 'tungyuan', '民間救護車');
+    const [g2, y2] = useStore.getState().patients;
+    expect(g2.status).toBe('sent');
+    expect(g2.byKind).toBe('民間救護車');
+    expect(y2.status).toBe('waiting');
+    useStore.getState().undo();
+    expect(useStore.getState().patients[0].status).toBe('waiting');
+  });
+});

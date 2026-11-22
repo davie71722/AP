@@ -6,7 +6,7 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import { dispatchOrder, HOLD_RELEASE_AT, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
+import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
 import { headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
@@ -294,6 +294,8 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const setNote = useStore((s) => s.setPatientNote);
   const dispatch = useStore((s) => s.dispatchManual);
   const setTrapped = useStore((s) => s.setTrapped);
+  const otherTransport = useStore((s) => s.otherTransport);
+  const [other, setOther] = useState<string | null>(null);
   const startAt = useStore((s) => s.incident.startAt);
   const rules = useRules();
   const { names } = useTriage();
@@ -322,6 +324,9 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const picked = vehicleId ? vehicles.find((v) => v.id === vehicleId) : undefined;
   const vid = (picked && !(picked.held && !holdUnlocked(patients)) ? vehicleId : null) ?? ready[0]?.id ?? null;
   const trappedSel = chosen.filter((p) => p.trapped);
+  // 其他車輛（勤務車、民間救護車、巴士）僅限全部為綠牌
+  const allGreen = chosen.length > 0 && chosen.every((p) => p.color === 'G');
+  const otherKind = allGreen ? other : null;
   const vSub = (v: Vehicle) => {
     if (v.held) return '留守';
     if (v.status === 'enroute') return '趕赴';
@@ -383,9 +388,9 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
         {[...ready, ...held].map((v) => (
           <button
             key={v.id}
-            className={`btn sm vpick ${vid === v.id ? 'on' : ''}`}
+            className={`btn sm vpick ${!otherKind && vid === v.id ? 'on' : ''}`}
             disabled={v.held && !holdOpen}
-            onClick={() => setVehicleId(v.id)}
+            onClick={() => (setVehicleId(v.id), setOther(null))}
           >
             {v.name}
             {vSub(v) && <span className="muted"> {vSub(v)}</span>}
@@ -393,6 +398,18 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
         ))}
       </div>
 
+      {allGreen && (
+        <>
+          <h3>其他車輛 <span className="muted small">限綠牌</span></h3>
+          <div className="grid g3">
+            {OTHER_VEHICLES.map((k) => (
+              <button key={k} className={`btn sm ${otherKind === k ? 'on' : ''}`} onClick={() => setOther(otherKind === k ? null : k)}>
+                {k}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {held.length > 0 && !holdOpen && <p className="muted small">留守車剩最後 {HOLD_RELEASE_AT} 位傷患時才開放派車</p>}
 
       <h3>醫院</h3>
@@ -421,15 +438,18 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       <button
         className="btn go full"
         style={{ marginTop: 12, minHeight: 64 }}
-        disabled={!vid || !hid || trappedSel.length > 0}
+        disabled={(!otherKind && !vid) || !hid || trappedSel.length > 0}
         onClick={() => {
-          dispatch(ids, vid!, hid!);
+          if (otherKind) otherTransport(ids, hid!, otherKind);
+          else dispatch(ids, vid!, hid!);
           setVehicleId(null);
           setHospitalId(null);
+          setOther(null);
           onDone();
         }}
       >
-        出發{vid && hid ? `：${vehicles.find((v) => v.id === vid)?.name} ➔ ${HOSPITAL_BY_ID[hid].short}` : ''}
+        出發
+        {hid && (otherKind || vid) ? `：${otherKind ?? vehicles.find((v) => v.id === vid)?.name} ➔ ${HOSPITAL_BY_ID[hid].short}` : ''}
       </button>
       {edit && <PatientSheet id={edit} onClose={() => setEdit(null)} />}
     </section>

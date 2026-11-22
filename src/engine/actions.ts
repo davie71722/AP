@@ -146,6 +146,7 @@ export function dutyTransport(
           ...x,
           status: 'sent' as const,
           byDuty: true,
+          byKind: how,
           hospitalId: h?.id,
           sentAt: now,
           arriveAt: h ? now + goMin * 60000 : undefined,

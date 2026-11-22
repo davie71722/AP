@@ -2,7 +2,7 @@
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import { injuryText, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
+import { injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
@@ -50,7 +50,7 @@ export function hospitalNotice(ps: Patient[], vehicle: Vehicle | undefined, inci
     .join(' ');
   const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).filter(Boolean).join('＋');
   const items: [string, string][] = [
-    ['車號', vehicle?.name ?? (p0.byDuty ? '勤務車' : '')],
+    ['車號', vehicle?.name ?? (p0.byDuty ? otherVehicleName(p0) : '')],
     ['事件類型', types],
     ['地點', incident.location?.label ?? ''],
     ['出發', p0.sentAt ? fmtClock(p0.sentAt) : ''],
@@ -124,7 +124,7 @@ export function buildReport(
     ['待後送', colors((p) => p.status === 'waiting', ['R', 'Y', 'G'])],
     [`待送${N.R}分類`, join(RED_CLASSES.map((rc) => { const n = redW.filter((p) => p.redClass === rc.id).length; return n ? `${rc.id}${n}` : ''; }), ' ')],
     ['檢傷升級為紅傷', upgraded.length ? `${upgraded.length} 位（${upgraded.join('、')}）` : ''],
-    ['勤務車／群送', String(patients.filter((p) => p.byDuty).length || '')],
+    ['其他車輛', String(patients.filter((p) => p.byDuty).length || '')],
     ['自行離開', String(patients.filter((p) => p.status === 'left').length || '')],
     ['車輛', join([vs('standby', '現場待命'), held ? `留守 ${held}` : '', vs('transport', '運送中'), vs('enroute', '趕赴中'), vs('decon', '待除污')])],
     ['人力', join([crew('emtp') ? `EMTP ${crew('emtp')}` : '', crew('emt2') ? `EMT-2 ${crew('emt2')}` : ''])],
@@ -145,7 +145,7 @@ export function buildTransportReport(patients: Patient[], vehicles: Vehicle[]): 
   const lines = sent.map((p) => {
     const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
     const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId) : undefined;
-    const by = v ? v.name : p.byDuty ? '勤務車' : '—';
+    const by = v ? v.name : p.byDuty ? otherVehicleName(p) : '—';
     const inj = injuryText(p);
     return `• ${p.label}｜${h || '未定醫院'}｜${p.sentAt ? fmtClock(p.sentAt) : '—'} ${by}後送${inj ? `｜${inj}` : ''}`;
   });
@@ -210,7 +210,7 @@ export function buildSummary(
     ['人數核對', headcountText(patients, N.K)],
     ['受困', (() => { const t = trappedList(sorted); return t.length ? `${t.length}（${t.map((p) => `${p.label} ${trapText(p).replace(/^受困，/, '')}`).join('、')}）` : ''; })()],
     ['救護車後送', byAmb.length ? `${byAmb.length}（${colors(byAmb, ['R', 'Y', 'G'])}）` : ''],
-    ['勤務車／群送', byDuty.length ? `${byDuty.length}（${byDuty.map((p) => p.label).join('、')}）` : ''],
+    ['其他車輛', byDuty.length ? `${byDuty.length}（${byDuty.map((p) => `${p.label} ${otherVehicleName(p)}`).join('、')}）` : ''],
     ['自行離開', left.length ? `${left.length}（${left.map((p) => p.label).join('、')}）` : ''],
     ['未後送', waiting.length ? `${waiting.length}（${waiting.map((p) => p.label).join('、')}）` : ''],
     [N.K, black.length ? `${black.length}（${black.map((p) => p.label).join('、')}）` : ''],
@@ -226,7 +226,7 @@ export function buildSummary(
   const detail = sorted
     .filter((p) => p.color !== 'K' || injuryText(p))
     .map((p) => {
-      const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? '勤務車' : '';
+      const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? otherVehicleName(p) : '';
       const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
       const where =
         p.status === 'sent' ? `${v ?? ''}${p.sentAt ? ` ${fmtClock(p.sentAt)}` : ''} ➔ ${h || '未定'}` : p.status === 'left' ? '自行離開' : '未後送';
@@ -261,7 +261,7 @@ export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): st
       p.color,
       p.status === 'sent' ? '已送出' : p.status === 'left' ? '自行離開' : '待送',
       p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '',
-      (p.vehicleId && vehicles.find((v) => v.id === p.vehicleId)?.name) || (p.byDuty ? '勤務車' : ''),
+      (p.vehicleId && vehicles.find((v) => v.id === p.vehicleId)?.name) || (p.byDuty ? otherVehicleName(p) : ''),
       p.sentAt ? new Date(p.sentAt).toLocaleString('zh-TW') : '',
       injuryText(p),
     ]),

@@ -132,6 +132,8 @@ interface Store extends Persisted {
   /** 受困中／已脫困 */
   setTrapped(id: string, trapped: boolean): void;
   dutyTransport(id: string, hid: string | undefined): void;
+  /** 綠牌由其他車輛（勤務車、民間救護車、巴士）後送；一筆撤銷 */
+  otherTransport(ids: string[], hid: string | undefined, kind: string): void;
   adjustTravel(hid: string, delta: number): void;
   toggleDecon(hid: string): void;
   adjustCapacity(hid: string, c: TransportColor, delta: number): void;
@@ -723,6 +725,18 @@ export const useStore = create<Store>((set, get) => {
       const p = s.patients.find((x) => x.id === id);
       set({ undoStack: [...s.undoStack.slice(-19), { label: `${p?.label ?? ''} 勤務車`, state: before }] });
       applyDomain(after);
+    },
+    otherTransport: (ids, hid, kind) => {
+      const s = get();
+      const ps = s.patients.filter((p) => ids.includes(p.id) && p.status === 'waiting' && p.color === 'G' && !p.trapped);
+      if (!ps.length) return;
+      const before = domain();
+      const tr = hid ? effectiveTravel(s.travel.byHospital[hid], s.runtime[hid], s.incident.settings) : null;
+      const now = Date.now();
+      let d = before;
+      for (const p of ps) d = dutyTransportDomain(d, p.id, hid, (tr?.go ?? 0) + s.incident.settings.loadMin, now, kind);
+      set({ undoStack: [...s.undoStack.slice(-19), { label: `${ps.map((p) => p.label).join('、')} ${kind}`, state: before }] });
+      applyDomain(d);
     },
     toggleBypass: (hid) => {
       const on = !get().runtime[hid].bypass;
