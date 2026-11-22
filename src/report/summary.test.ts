@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialRuntimes } from '../data/hospitals';
 import { DEFAULT_SETTINGS, type Incident, type Patient, type Vehicle } from '../types';
-import { photoCaption, briefInjury, buildReport, buildSummary, buildTransportReport, dispatchShareText, morgueText, headcount, headcountText, hospitalNotice } from './report';
+import { photoPanel, briefInjury, buildReport, buildSummary, buildTransportReport, dispatchShareText, morgueText, headcount, headcountText, hospitalNotice } from './report';
 
 const T = (h: number, m: number) => new Date(2026, 10, 21, h, m).getTime();
 const P = (id: string, color: Patient['color'], num: number, extra: Partial<Patient> = {}): Patient => ({
@@ -134,14 +134,28 @@ describe('個案備註不外流', () => {
   });
 });
 
-describe('照片資訊欄', () => {
-  it('代碼、拍拍尺、車輛醫院、出發與 ETA、傷勢；不含姓名', () => {
+describe('合成照片資訊欄', () => {
+  it('牌色、性別、年齡、拍拍尺、醫院、送醫時間；不含姓名電話', () => {
     const v = { id: 'v1', name: '竹北91' } as Vehicle;
     const p = P('a', 'R', 1, {
       label: '紅1-A', status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32), note: '酒味',
       trauma: [{ id: 'r-amp', name: '創傷性截肢', sides: ['右下肢'], acts: ['已上止血帶(14:10)'] }],
-      personal: { name: '王小明', patNo: 'PP-0778' },
+      personal: { name: '王小明', phone: '0912', sex: '男', age: '35', patNo: 'PP-0778' },
     });
-    expect(photoCaption(p, [v])).toEqual(['紅1-A（拍拍尺 PP-0778）', '竹北91 ➔ 東元醫院', '出發 14:20｜ETA 14:32', '創傷性截肢(右下肢)；止血帶 右下肢 14:10。酒味']);
+    const panel = photoPanel(p, [v]);
+    expect(panel).toEqual({
+      color: 'R',
+      badge: '紅牌 紅1-A',
+      side: '男｜35 歲',
+      rows: [
+        ['拍拍尺', 'PP-0778'],
+        ['醫院', '東元醫院'],
+        ['送醫時間', '出發 14:20｜ETA 14:32'],
+        ['車輛', '竹北91'],
+        ['傷勢', '創傷性截肢(右下肢)；止血帶 右下肢 14:10。酒味'],
+      ],
+    });
+    expect(JSON.stringify(panel)).not.toMatch(/王小明|0912/);
+    expect(photoPanel(P('b', 'G', 1), [v]).rows[1]).toEqual(['醫院', '尚未送醫']);
   });
 });

@@ -3,7 +3,7 @@ import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
 import { entryName, keyFlags } from '../data/trauma';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import { injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
+import { COLOR_NAME, injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
@@ -178,18 +178,39 @@ export function dispatchShareText(ps: Patient[], vehicles: Vehicle[]): string {
   return [head, ...ps.map((p) => `• ${p.label}${patTag(p)}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
 }
 
-/** 照片資訊欄文字：代碼（拍拍尺）／車輛 ➔ 醫院／出發、ETA／傷勢與註解（不含姓名等個案備註） */
-export function photoCaption(p: Patient, vehicles: Vehicle[]): string[] {
+/** 合成照片下方的病人資訊 */
+export interface PhotoPanel {
+  /** 牌色：R Y G K */
+  color: string;
+  /** 色塊文字，如「紅牌 紅1-C」 */
+  badge: string;
+  /** 色塊右側，如「男｜35 歲」 */
+  side: string;
+  /** 其餘資訊列（標籤、內容） */
+  rows: [string, string][];
+}
+
+/** 合成照片資訊：牌色、性別、年齡、拍拍尺、醫院、送醫時間、車輛、傷勢（不含姓名、電話） */
+export function photoPanel(p: Patient, vehicles: Vehicle[]): PhotoPanel {
+  const per = p.personal ?? {};
   const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? otherVehicleName(p) : '';
   const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
-  const lines = [`${p.label}${patTag(p)}`];
-  if (p.status === 'sent') {
-    lines.push(`${v ? `${v} ➔ ` : '➔ '}${h || '未定醫院'}`);
-    lines.push([p.sentAt && `出發 ${fmtClock(p.sentAt)}`, p.arriveAt && `ETA ${fmtClock(p.arriveAt)}`].filter(Boolean).join('｜'));
-  }
+  const sent = p.status === 'sent';
+  const time = sent ? [p.sentAt && `出發 ${fmtClock(p.sentAt)}`, p.arriveAt && `ETA ${fmtClock(p.arriveAt)}`].filter(Boolean).join('｜') : '';
+  const rows: [string, string][] = [
+    ['拍拍尺', per.patNo?.trim() || '—'],
+    ['醫院', sent ? h || '未定醫院' : '尚未送醫'],
+    ['送醫時間', time || '—'],
+  ];
+  if (sent && v) rows.push(['車輛', v]);
   const inj = briefInjury(p);
-  if (inj) lines.push(inj);
-  return lines.filter(Boolean);
+  if (inj) rows.push(['傷勢', inj]);
+  return {
+    color: p.color,
+    badge: `${COLOR_NAME[p.color]}牌 ${p.label}`,
+    side: [per.sex, per.age?.trim() && `${per.age.trim()} 歲`].filter(Boolean).join('｜') || '性別年齡未填',
+    rows,
+  };
 }
 
 /** 後送病患傷情初步報告：每位已後送病人的醫院、後送時間、由誰後送與傷情（依出發時間） */

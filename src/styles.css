@@ -784,3 +784,6 @@ a.btn { color: inherit; text-decoration: none; }
 .photo-view img { max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 8px; }
 .photo-view span { color: #ccc; font-size: 14px; }
 .photo img.annotated { aspect-ratio: auto; object-fit: contain; }
+.photo-empty { display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 10px; border: 2px dashed var(--line); color: var(--muted); font-weight: 700; }
+img.composite { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--line); cursor: zoom-in; }
+.composites { display: grid; gap: 8px; margin-top: 8px; }

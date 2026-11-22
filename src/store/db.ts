@@ -26,6 +26,8 @@ export interface PhotoRow {
   patientId: string;
   at: number;
   dataUrl: string;
+  /** 照片一／照片二（舊資料依時間排序補上） */
+  slot?: number;
 }
 export const MAX_PHOTOS = 2;
 
@@ -108,22 +110,26 @@ export async function deleteArchive(id: string): Promise<void> {
   }
 }
 
+/** 某病人的照片，依照片一、照片二排序 */
 export async function listPhotos(patientId: string): Promise<PhotoRow[]> {
   try {
-    return ((await getDb()?.photos.where('patientId').equals(patientId).toArray()) ?? []).sort((a, b) => a.at - b.at);
+    const rows = ((await getDb()?.photos.where('patientId').equals(patientId).toArray()) ?? []).sort((a, b) => a.at - b.at);
+    return rows.map((r, i) => ({ ...r, slot: r.slot ?? i + 1 })).sort((a, b) => a.slot! - b.slot!);
   } catch {
     return [];
   }
 }
 
-/** 加入照片；已達上限回傳 false */
-export async function addPhoto(patientId: string, dataUrl: string): Promise<boolean> {
+/** 放入照片一／照片二（同格重拍會取代）；未指定則放第一個空格，已滿回傳 false */
+export async function addPhoto(patientId: string, dataUrl: string, slot?: number): Promise<boolean> {
   const d = getDb();
   if (!d) return false;
   try {
-    const n = await d.photos.where('patientId').equals(patientId).count();
-    if (n >= MAX_PHOTOS) return false;
-    await d.photos.put({ id: `${patientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, patientId, at: Date.now(), dataUrl });
+    const rows = await listPhotos(patientId);
+    const s = slot ?? [1, 2].find((x) => !rows.some((r) => r.slot === x));
+    if (!s || s < 1 || s > MAX_PHOTOS) return false;
+    for (const r of rows.filter((r) => r.slot === s)) await d.photos.delete(r.id);
+    await d.photos.put({ id: `${patientId}-s${s}`, patientId, at: Date.now(), dataUrl, slot: s });
     return true;
   } catch (e) {
     console.warn('照片儲存失敗', e);

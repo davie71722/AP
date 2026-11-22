@@ -14,6 +14,7 @@ import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
 import { PhotoSection } from './Photos';
 import { decodeQrFromFile, patNoFromQr } from './qr';
+import { photoPanel } from '../report/report';
 
 export function InputTab() {
   const patients = useStore((s) => s.patients);
@@ -208,6 +209,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const del = useStore((s) => s.deletePatient);
   const startAt = useStore((s) => s.incident.startAt);
   const now = useStore((s) => s.now);
+  const vehicles = useStore((s) => s.vehicles);
   const rules = useRules();
   if (!p) return null;
   return (
@@ -322,7 +324,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
       )}
 
       <PatNoField p={p} />
-      <PhotoSection patientId={p.id} />
+      <PhotoSection patientId={p.id} panel={photoPanel(p, vehicles)} />
       <PersonalSection p={p} />
 
       <h3>紀錄</h3>
@@ -571,7 +573,7 @@ function PersonalSection({ p }: { p: Patient }) {
   return (
     <>
       <button className={`btn sm full ${open ? 'on' : ''}`} style={{ marginTop: 12 }} onClick={() => setOpen(!open)}>
-        🔒 個案備註（不分享）{v.name ? `：${v.name}` : ''} {open ? '▲' : '▼'}
+        🔒 個案備註（姓名、電話不分享）{v.name ? `：${v.name}` : ''} {open ? '▲' : '▼'}
       </button>
       {open && (
         <div className="personal">
@@ -590,7 +592,7 @@ function PersonalSection({ p }: { p: Patient }) {
             </div>
           </div>
           {field('phone', '電話', 'tel', 20)}
-          <p className="muted small" style={{ margin: 0 }}>可留白；只存在系統內，不會出現在分享、回報或總結文字。</p>
+          <p className="muted small" style={{ margin: 0 }}>可留白。姓名、電話只存在系統內；性別、年齡會標在合成照片上。</p>
         </div>
       )}
     </>

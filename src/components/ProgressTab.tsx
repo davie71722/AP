@@ -6,8 +6,8 @@ import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
 import { clockAfter, SentCounts, ShareButtons } from './common';
-import { hospitalNotice, photoCaption } from '../report/report';
-import { useAnnotatedFiles, usePhotos } from './Photos';
+import { hospitalNotice, photoPanel } from '../report/report';
+import { useComposites, usePhotos } from './Photos';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
 import { KeyFlags } from './TraumaPicker';
@@ -161,13 +161,13 @@ export function ProgressTab() {
 function TripShare({ ps, text }: { ps: Patient[]; text: string }) {
   const photos = usePhotos(ps.map((p) => p.id));
   const vehicles = useStore((s) => s.vehicles);
-  const { files } = useAnnotatedFiles(
+  const { files } = useComposites(
     photos,
-    (pid) => {
+    (pid: string) => {
       const p = ps.find((x) => x.id === pid);
-      return p ? photoCaption(p, vehicles) : [];
+      return p ? photoPanel(p, vehicles) : null;
     },
-    (pid) => ps.find((x) => x.id === pid)?.label ?? 'photo',
+    (pid: string) => ps.find((x) => x.id === pid)?.label ?? 'photo',
   );
   return <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} files={files} />;
 }

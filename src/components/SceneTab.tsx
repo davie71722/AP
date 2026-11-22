@@ -7,14 +7,14 @@ import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
 import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
-import { dispatchShareText, headcountText, photoCaption } from '../report/report';
+import { dispatchShareText, headcountText, photoPanel } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
 import { DoubleTapButton, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
-import { useAnnotatedFiles, usePhotos } from './Photos';
+import { useComposites, usePhotos } from './Photos';
 
 export function SceneTab() {
   const rules = useRules();
@@ -351,7 +351,14 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const photos = usePhotos(ids);
   const text = dispatchShareText(ps, vehicles);
   const label = (pid: string) => patients.find((x) => x.id === pid)?.label ?? 'photo';
-  const { files, previews } = useAnnotatedFiles(photos, (pid) => { const p = patients.find((x) => x.id === pid); return p ? photoCaption(p, vehicles) : []; }, label);
+  const { files, previews } = useComposites(
+    photos,
+    (pid: string) => {
+      const p = patients.find((x) => x.id === pid);
+      return p ? photoPanel(p, vehicles) : null;
+    },
+    label,
+  );
   if (!ps.length) return null;
   return (
     <section className="section just-sent">
@@ -364,11 +371,9 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
       </h2>
       <div className="report">{text}</div>
       {previews.length > 0 && (
-        <div className="photos" style={{ marginTop: 8 }}>
-          {previews.map((u, i) => (
-            <div key={i} className="photo">
-              <img src={u} alt="個案照片（已加上送醫資訊）" className="annotated" />
-            </div>
+        <div className="composites">
+          {previews.map((u: string, i: number) => (
+            <img key={i} src={u} alt="合成照片" className="composite" />
           ))}
         </div>
       )}
