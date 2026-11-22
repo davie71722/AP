@@ -5,7 +5,7 @@ import { effectiveTravel } from '../engine/plan';
 import { useTriage } from '../store/usePlan';
 import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
-import { clockAfter, SentCounts, ShareButtons } from './common';
+import { clockAfter, LinePhotoButton, SentCounts, ShareButtons } from './common';
 import { hospitalNotice, photoPanel } from '../report/report';
 import { useComposites, usePhotos } from './Photos';
 import { trafficLabel } from '../travel/traffic';
@@ -169,5 +169,10 @@ function TripShare({ ps, text }: { ps: Patient[]; text: string }) {
     },
     (pid: string) => ps.find((x) => x.id === pid)?.label ?? 'photo',
   );
-  return <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} files={files} />;
+  return (
+    <>
+      <ShareButtons small className="notice-btn" copyLabel="📋 通報醫院" text={text} files={files} />
+      <LinePhotoButton files={files} className="sm" />
+    </>
+  );
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { addPhoto, deletePhoto, listPhotos, type PhotoRow } from '../store/db';
 import { useStore } from '../store/store';
 import type { PhotoPanel } from '../report/report';
-import { DoubleTapButton } from './common';
+import { DoubleTapButton, LinePhotoButton } from './common';
 
 /** 原始大小保存：JPEG／PNG／WebP 直接存原檔（保留解析度與拍攝方向）；其他格式（如 HEIC）轉成原尺寸 JPEG */
 export async function photoDataUrl(file: File): Promise<string> {
@@ -143,6 +143,13 @@ export async function composePhotos(urls: string[], panel: PhotoPanel): Promise<
   return c.toDataURL('image/jpeg', 0.9);
 }
 
+/** 檔名用英數（部分瀏覽器存檔時會丟掉中文檔名）：紅1-C → MCI-R1-C */
+export function asciiName(label: string): string {
+  const m: Record<string, string> = { 紅: 'R', 黃: 'Y', 綠: 'G', 黑: 'K', 死亡: 'K' };
+  const s = label.replace(/死亡|[紅黃綠黑]/g, (x) => m[x]).replace(/[^A-Za-z0-9-]/g, '');
+  return `MCI-${s || 'photo'}`;
+}
+
 /** 每位病人一張合成照片（預先處理，按分享時立即送出） */
 export function useComposites(rows: PhotoRow[], panelOf: (patientId: string) => PhotoPanel | null, nameOf: (patientId: string) => string) {
   const [out, setOut] = useState<{ files: File[]; previews: string[] }>({ files: [], previews: [] });
@@ -160,7 +167,7 @@ export function useComposites(rows: PhotoRow[], panelOf: (patientId: string) => 
         try {
           const url = await composePhotos(urls, panel);
           previews.push(url);
-          files.push(dataUrlToFile(url, `${nameOf(pid)}.jpg`));
+          files.push(dataUrlToFile(url, `${asciiName(nameOf(pid))}.jpg`));
         } catch {
           /* 合成失敗則略過 */
         }
@@ -198,7 +205,8 @@ export function PhotoSection({ patientId, panel, readOnly = false }: { patientId
   const [busy, setBusy] = useState<number | null>(null);
   const [view, setView] = useState<string | null>(null);
   const label = useStore((s) => s.patients.find((p) => p.id === patientId)?.label ?? 'photo');
-  const { previews } = useComposites(rows, () => panel, () => label);
+  // 拍完照片即自動合成（照片或病人資訊變動時重新合成）
+  const { previews, files } = useComposites(rows, () => panel, () => label);
 
   const onFile = async (slot: number, f: File | undefined) => {
     if (!f) return;
@@ -259,8 +267,9 @@ export function PhotoSection({ patientId, panel, readOnly = false }: { patientId
       </div>
       {previews[0] && (
         <>
-          <div className="tr-sub" style={{ marginTop: 8 }}>合成照片（分享時送出）</div>
+          <div className="tr-sub" style={{ marginTop: 8 }}>合成照片（拍完自動合成）</div>
           <img className="composite" src={previews[0]} alt="合成照片" onClick={() => setView(previews[0])} />
+          <LinePhotoButton files={files} className="mt8" />
         </>
       )}
       {msg && <p className="small" style={{ color: 'var(--orange)', margin: '4px 0 0' }}>{msg}</p>}

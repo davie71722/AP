@@ -218,3 +218,51 @@ export function ShareButtons({
     </div>
   );
 }
+
+/** 存檔到手機（分享面板被擋時的備援） */
+export function saveFile(file: File) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/** 合成照片分享到 LINE：開手機分享面板（選 LINE）；被擋時存到手機再從 LINE 傳 */
+export function LinePhotoButton({ files, className = '' }: { files: File[]; className?: string }) {
+  const [msg, setMsg] = useState('');
+  const t = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(t.current), []);
+  if (!files.length) return null;
+  return (
+    <>
+      <button
+        className={`btn line-btn full ${className}`}
+        onClick={async (e) => {
+          e.stopPropagation();
+          let ok = false;
+          if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files })) {
+            try {
+              await navigator.share({ files });
+              ok = true;
+            } catch (err) {
+              ok = (err as Error)?.name === 'AbortError';
+            }
+          }
+          if (!ok) {
+            files.forEach(saveFile);
+            setMsg('已存到手機，請在 LINE 選照片傳送');
+            clearTimeout(t.current);
+            t.current = setTimeout(() => setMsg(''), 4000);
+          }
+        }}
+      >
+        LINE 分享照片{files.length > 1 ? `（${files.length} 張）` : ''}
+      </button>
+      {msg && <p className="small" style={{ margin: '4px 0 0', color: 'var(--orange)' }}>{msg}</p>}
+    </>
+  );
+}

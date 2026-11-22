@@ -11,7 +11,7 @@ import { dispatchShareText, headcountText, photoPanel } from '../report/report';
 import { keyFlags } from '../data/trauma';
 import { KeyFlags, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
-import { DoubleTapButton, SentCounts, ShareButtons, Sheet } from './common';
+import { DoubleTapButton, LinePhotoButton, SentCounts, ShareButtons, Sheet } from './common';
 import { fmtClock } from '../engine/actions';
 import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
 import { useComposites, usePhotos } from './Photos';
@@ -377,8 +377,9 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
           ))}
         </div>
       )}
+      <LinePhotoButton files={files} className="mt8" />
       <ShareButtons className="mt8" copyLabel="📋 複製" text={text} files={files} />
-      {photos.length > 0 && <p className="muted small" style={{ margin: '6px 0 0' }}>照片需用「分享」傳出（LINE 鍵只帶文字）</p>}
+      {photos.length > 0 && <p className="muted small" style={{ margin: '6px 0 0' }}>文字的 LINE 鍵只帶文字；照片請按「LINE 分享照片」</p>}
     </section>
   );
 }
