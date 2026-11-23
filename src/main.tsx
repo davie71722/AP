@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
+import { ConsentGate } from './components/ConsentGate';
 import './styles.css';
 
 // 離線快取（PWA）。被嵌在其他頁面（iframe）中時瀏覽器不允許，略過。
@@ -21,6 +22,8 @@ if (!embedded && 'serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ConsentGate>
+      <App />
+    </ConsentGate>
   </React.StrictMode>,
 );

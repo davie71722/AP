@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { useStore } from '../store/store';
 import { SyncBadge } from './ShareSection';
@@ -45,6 +46,7 @@ export function Header() {
         <button className="theme-btn" aria-label="切換日間／夜間模式" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}>
           {theme === 'day' ? '☾' : '☀'}
         </button>
+        <EnvBadge />
         <SyncBadge />
         <span className="online">
           <i style={{ background: online ? 'var(--green)' : 'var(--red)' }} />
@@ -58,5 +60,26 @@ export function Header() {
         {chip('K', names.K)}
       </div>
     </header>
+  );
+}
+
+/** 正式勤務／演練測試：連按兩下切換 */
+function EnvBadge() {
+  const drill = useStore((s) => !!s.incident.drill);
+  const setDrill = useStore((s) => s.setDrill);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      className={`env-badge ${drill ? 'drill' : 'real'}`}
+      title="連按兩下切換正式勤務／演練測試"
+      onClick={() => (armed ? (setDrill(!drill), setArmed(false)) : setArmed(true))}
+    >
+      {armed ? `改為${drill ? '正式' : '演練'}？` : drill ? '演練' : '正式'}
+    </button>
   );
 }

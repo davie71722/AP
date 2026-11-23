@@ -33,6 +33,7 @@ import {
   type HospitalRuntime,
   type Incident,
   type IncidentLocation,
+  type LogEntry,
   type Patient,
   type Personal,
   type Settings,
@@ -43,6 +44,7 @@ import {
   type Wound,
 } from '../types';
 import { keepForColor, type TraumaEntry } from '../data/trauma';
+import { audit, operatorName } from '../security/consent';
 import { getArchive, loadSettingsPref, loadSnapshot, putArchive, saveSettingsPref, saveSnapshot, type ArchiveRow } from './db';
 
 export type Tab = 'incident' | 'scene' | 'progress' | 'report';
@@ -141,6 +143,8 @@ interface Store extends Persisted {
   setLeft(id: string, left: boolean): void;
   /** 受困中／已脫困 */
   setTrapped(id: string, trapped: boolean): void;
+  /** 正式勤務／演練測試 */
+  setDrill(drill: boolean): void;
   /** 黑牌：已移交警方／改回待警察接管 */
   setPolice(id: string, handed: boolean): void;
   /** 黑牌暫置區位置、看守人員（輸入中不記錄） */
@@ -247,8 +251,16 @@ export function archiveRowOf(st: Persisted, now: number): ArchiveRow | null {
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export const useStore = create<Store>((set, get) => {
+  /** 新紀錄標上操作者並寫入稽核軌跡 */
+  const stamp = (entries: LogEntry[]): LogEntry[] =>
+    entries.map((e) => {
+      if (e.by !== undefined) return e;
+      const by = operatorName();
+      audit('異動', e.text);
+      return { ...e, by };
+    });
   const log = (text: string) =>
-    set((s) => ({ incident: { ...s.incident, log: [...s.incident.log, { at: Date.now(), text }] } }));
+    set((s) => ({ incident: { ...s.incident, log: [...s.incident.log, ...stamp([{ at: Date.now(), text }])] } }));
 
   const domain = (): DomainState => {
     const s = get();
@@ -259,7 +271,7 @@ export const useStore = create<Store>((set, get) => {
       patients: d.patients,
       vehicles: d.vehicles,
       runtime: d.runtime,
-      incident: { ...s.incident, log: d.log },
+      incident: { ...s.incident, log: d.log.length > s.incident.log.length ? [...d.log.slice(0, s.incident.log.length), ...stamp(d.log.slice(s.incident.log.length))] : d.log },
     }));
 
   const patchRuntime = (hid: string, f: (r: HospitalRuntime) => HospitalRuntime) =>
@@ -295,7 +307,10 @@ export const useStore = create<Store>((set, get) => {
     now: Date.now(),
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
 
-    setTab: (tab) => set({ tab }),
+    setTab: (tab) => {
+      if (tab !== get().tab) audit('查閱', { incident: '事件', scene: '現場', progress: '送醫進度', report: '回報' }[tab]);
+      set({ tab });
+    },
     endIncident: () => {
       const s = get();
       if (!s.incident.startAt || s.incident.endAt) return;
@@ -739,6 +754,11 @@ export const useStore = create<Store>((set, get) => {
     },
     setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
     setTrapped: (id, trapped) => applyDomain(setTrappedDomain(domain(), id, trapped, Date.now())),
+    setDrill: (drill) => {
+      if (!!get().incident.drill === drill) return;
+      set((s) => ({ incident: { ...s.incident, drill } }));
+      log(`環境切換為${drill ? '演練測試' : '正式勤務'}`);
+    },
     setPolice: (id, handed) => applyDomain(setPoliceDomain(domain(), id, handed, Date.now())),
     setMorgue: (p) =>
       set((s) => ({ incident: { ...s.incident, morgue: { ...(s.incident.morgue ?? {}), ...p } } })),
@@ -808,7 +828,7 @@ export const useStore = create<Store>((set, get) => {
       const last = s.undoStack[s.undoStack.length - 1];
       if (!last) return;
       // 保留撤銷後新增的紀錄
-      const log = [...s.incident.log, { at: Date.now(), text: `撤銷派車：${last.label}` }];
+      const log = [...s.incident.log, ...stamp([{ at: Date.now(), text: `撤銷派車：${last.label}` }])];
       set({
         undoStack: s.undoStack.slice(0, -1),
         patients: last.state.patients,
@@ -950,7 +970,7 @@ export function noteRemote(
     const runtime = { ...snap.runtime };
     for (const hid of Object.keys(next.runtime)) if (prev.runtime[hid] !== next.runtime[hid]) runtime[hid] = next.runtime[hid];
     const incident = { ...snap.incident };
-    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue'] as const) {
+    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue', 'drill'] as const) {
       if (prev.incident[f] !== next.incident[f]) (incident as unknown as Record<string, unknown>)[f] = next.incident[f];
     }
     incident.log = [...snap.incident.log, ...newLog].sort((a, b) => a.at - b.at);

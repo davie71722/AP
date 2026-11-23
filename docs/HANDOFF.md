@@ -47,6 +47,9 @@
 19. **出發即分享**：`Settings.autoShare`（預設是，進階設定可關）。派車面板預先合成「假設已出發」的合成照片（醫院、出發、ETA；`usePreparedComposites`），按「出發」同一下呼叫 `systemShare(文字, 合成照片)`，選 LINE 一次送出；取消即不分享。
 20. **照片二**：選用；照片一拍完後「📷 接著拍照片二」橘色閃動提醒。照片二說明（`personal.photo2Note`，可辨識細節）標在合成照片「照片二」列。只拍照片一也會合成。
 
+21. **保密暨資通安全使用聲明**（`src/components/ConsentGate.tsx`、`src/security/consent.ts`）：全螢幕強制同意（使用者提供之聲明全文），必填真實姓名（`validName`）＋勾選同意才可進入；「不同意（離開）」連到 https://www.hcfd.gov.tw/（target=_top）。同一分頁內同意一次，重新開啟需再同意（姓名預填）。進入後全畫面斜向浮水印：姓名＋IP＋時間（演練時加【演練】）。IP 由瀏覽器查 api.ipify.org（GAS 看不到使用者 IP），查不到顯示「IP未取得」。`LogEntry.by` 記錄操作者，案件經過與 CSV 顯示。稽核 `audit()`：同意、查閱分頁、異動（每筆案件經過）、複製、分享、LINE、存到手機、匯出；本機留 500 筆，GAS 版批次送 `{audit}` 到 Code.gs `audit_` 寫入試算表（`setupAudit()` 建立，ID 在指令碼屬性 AUDIT_SHEET_ID）。標頭「正式／演練」連按兩下切換（`Incident.drill`，同步），回報與總結標題加【演練】。
+    - 聲明第 2 條禁止以 LINE 等轉傳系統產出，與既有 LINE 分享功能衝突，待使用者決定（經權責長官核准之通報管道？或關閉分享）。
+
 ## 可再考慮
 
 - 多人同步時，其他裝置收到「案件結束」不會自動存檔（只有按結束的裝置會存）。
@@ -62,7 +65,7 @@
 ## 建置與交付流程
 
 ```bash
-npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 124 項）
+npx tsc --noEmit -p . && npx vitest run      # 型別與測試（目前 125 項）
 npm run build:gas                            # 產生 gas/index.html（GAS 單檔）
 ```
 

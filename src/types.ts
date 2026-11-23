@@ -261,6 +261,8 @@ export interface Settings {
 export interface LogEntry {
   at: number;
   text: string;
+  /** 操作者（同意聲明時填寫的真實姓名） */
+  by?: string;
 }
 
 export interface Incident {
@@ -273,6 +275,8 @@ export interface Incident {
   milestones?: Record<string, number>;
   /** 案件結束時間 */
   endAt?: number | null;
+  /** 演練測試（否＝正式勤務） */
+  drill?: boolean;
   /** 黑牌暫置區：位置與看守人員 */
   morgue?: { location?: string; guard?: string };
 }

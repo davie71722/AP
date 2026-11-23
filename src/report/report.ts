@@ -1,5 +1,6 @@
 // 回報文字與匯出（規格書 9.5）
 import { HOSPITAL_BY_ID, HOSPITALS } from '../data/hospitals';
+import { audit } from '../security/consent';
 import { entryName, keyFlags } from '../data/trauma';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
@@ -149,7 +150,7 @@ export function buildReport(
     ['關閉醫院', closed.join('、')],
     ['自行到院', self.join('；')],
   ];
-  return ['【新竹縣MCI後送回報】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
+  return [`${incident.drill ? '【演練】' : ''}【新竹縣MCI後送回報】`, ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)].join('\n');
 }
 
 /** 拍拍尺號碼（發車分享、通報醫院用；個案備註其他欄位不分享） */
@@ -299,7 +300,7 @@ export function buildSummary(
     ['滿載醫院', full.join('、')],
     ['關閉醫院', closed.join('、')],
   ];
-  const lines = ['【新竹縣MCI案件總結】', ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)];
+  const lines = [`${incident.drill ? '【演練】' : ''}【新竹縣MCI案件總結】`, ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`)];
 
   // 傷患明細：代碼｜車輛 出發時間 ➔ 醫院｜交接註解
   const detail = sorted
@@ -327,7 +328,7 @@ export function caseLog(incident: Incident) {
 }
 
 export function logToCsv(incident: Incident): string {
-  const rows = [['時間', '案件經過'], ...caseLog(incident).map((l) => [new Date(l.at).toLocaleString('zh-TW'), l.text])];
+  const rows = [['時間', '案件經過', '操作者'], ...caseLog(incident).map((l) => [new Date(l.at).toLocaleString('zh-TW'), l.text, l.by ?? ''])];
   return '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n');
 }
 
@@ -354,6 +355,7 @@ export function patientsToCsv(patients: Patient[], vehicles: Vehicle[] = []): st
 }
 
 export function download(filename: string, content: string, type: string) {
+  audit('匯出檔案', filename);
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

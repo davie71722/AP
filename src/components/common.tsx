@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { HospitalRuntime } from '../types';
 import { beginEdit, cancelEdit, commitEdit } from '../store/store';
+import { audit } from '../security/consent';
 
 /** 連按兩次確認（不使用瀏覽器 confirm） */
 export function DoubleTapButton({
@@ -137,6 +138,7 @@ export function SentCounts({ rt, names }: { rt: HospitalRuntime; names: Record<'
 
 /** 複製文字（舊瀏覽器退回 execCommand） */
 export async function copyText(text: string) {
+  audit('複製', text.split('\n')[0]);
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -157,6 +159,7 @@ export function lineShareUrl(text: string): string {
 /** 系統分享（iOS／Android 分享面板）；有照片且支援時一併分享。不支援或被嵌入頁擋下時回傳 false */
 export async function systemShare(text: string, files: File[] = []): Promise<boolean> {
   if (typeof navigator === 'undefined' || !navigator.share) return false;
+  audit('分享（系統分享選單）', `${text.split('\n')[0]}${files.length ? `｜照片 ${files.map((f) => f.name).join('、')}` : ''}`);
   try {
     const withFiles = files.length > 0 && !!navigator.canShare?.({ text, files });
     await navigator.share(withFiles ? { text, files } : { text });
@@ -212,7 +215,7 @@ export function ShareButtons({
       >
         {msg === '已複製，可貼到 LINE' ? msg : `📤 分享${files.length ? `＋${files.length}📷` : ''}`}
       </button>
-      <a className={`btn ${sz} line-btn`} href={lineShareUrl(text)} target="_blank" rel="noreferrer">
+      <a className={`btn ${sz} line-btn`} href={lineShareUrl(text)} target="_blank" rel="noreferrer" onClick={() => audit('LINE 分享文字', text.split('\n')[0])}>
         LINE
       </a>
     </div>
@@ -221,6 +224,7 @@ export function ShareButtons({
 
 /** 存檔到手機（分享面板被擋時的備援） */
 export function saveFile(file: File) {
+  audit('存到手機', file.name);
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
@@ -246,6 +250,7 @@ export function LinePhotoButton({ files, className = '' }: { files: File[]; clas
           let ok = false;
           if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files })) {
             try {
+              audit('LINE 分享照片', files.map((f) => f.name).join('、'));
               await navigator.share({ files });
               ok = true;
             } catch (err) {

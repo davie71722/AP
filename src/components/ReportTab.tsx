@@ -33,6 +33,7 @@ export function ReportTab() {
             <div key={i}>
               <time>{fmtClock(l.at)}</time>
               {l.text}
+              {l.by && <span className="log-by"> — {l.by}</span>}
             </div>
           ))}
         </div>

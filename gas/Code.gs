@@ -8,6 +8,8 @@
  *      { address: "竹北市光明五街295號" }    → { lat, lng, label }
  *      { resolve: "https://maps.app.goo.gl/…" } → { url }
  *      { origins: [{lat,lng}], destinations: [{lat,lng}] } → [{ originIndex, destinationIndex, duration: "123s", condition }]
+ *  - 稽核軌跡：{ audit: [{ at, name, ip, device, action, detail }] } → 寫入 Google 試算表永久保存
+ *      第一次使用請在編輯器執行 setupAudit() 授權並建立試算表（ID 存在指令碼屬性 AUDIT_SHEET_ID）
  *  - 交接／多人同步：{ sync: 'create' | 'get' | 'put', room, key, rev, state }
  *      資料存在 CacheService（每次讀寫自動延長，6 小時無人使用才失效），以版本號避免互相覆蓋，
  *      合併（單一病人／車輛欄位以較新者為準）在 App 端完成。
@@ -63,10 +65,67 @@ function api(reqText) {
     if (typeof req.resolve === 'string') return JSON.stringify({ url: resolve_(req.resolve) });
     if (req.origins && req.destinations) return JSON.stringify(matrix_(req.origins, req.destinations));
     if (typeof req.sync === 'string') return JSON.stringify(sync_(req));
+    if (Array.isArray(req.audit)) return JSON.stringify(audit_(req.audit));
     return JSON.stringify({ error: 'unknown_request' });
   } catch (err) {
     return JSON.stringify({ error: String((err && err.message) || err) });
   }
+}
+
+// ---------- 稽核軌跡（Audit Log） ----------
+var AUDIT_HEADERS = ['操作時間', '伺服器收到時間', '操作者姓名', '連線 IP', '裝置識別碼', '動作', '內容'];
+
+/** 開啟（或第一次建立）稽核試算表 */
+function auditSheet_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('AUDIT_SHEET_ID');
+  var ss = id ? SpreadsheetApp.openById(id) : null;
+  if (!ss) {
+    ss = SpreadsheetApp.create('竹縣大傷後送小幫手｜稽核紀錄');
+    props.setProperty('AUDIT_SHEET_ID', ss.getId());
+    var first = ss.getSheets()[0];
+    first.setName('稽核紀錄');
+    first.appendRow(AUDIT_HEADERS);
+    first.setFrozenRows(1);
+  }
+  return ss.getSheets()[0];
+}
+
+/** 避免內容被試算表當成公式 */
+function cell_(v, max) {
+  var t = String(v == null ? '' : v).slice(0, max);
+  return /^[=+\-@]/.test(t) ? "'" + t : t;
+}
+
+function audit_(rows) {
+  if (!rows.length) return { ok: true };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = auditSheet_();
+    var now = new Date();
+    var values = rows.slice(0, 200).map(function (r) {
+      return [
+        new Date(Number(r.at) || now.getTime()),
+        now,
+        cell_(r.name, 40),
+        cell_(r.ip, 60),
+        cell_(r.device, 40),
+        cell_(r.action, 40),
+        cell_(r.detail, 500),
+      ];
+    });
+    sh.getRange(sh.getLastRow() + 1, 1, values.length, AUDIT_HEADERS.length).setValues(values);
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true };
+}
+
+/** 第一次使用：在編輯器選這個函式按「執行」，授權後建立稽核試算表，網址顯示在執行記錄 */
+function setupAudit() {
+  var sh = auditSheet_();
+  Logger.log('稽核紀錄試算表：' + sh.getParent().getUrl());
 }
 
 /** 地址、店家、地標 → 最多 5 個候選地點 */

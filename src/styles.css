@@ -794,3 +794,26 @@ img.composite { display: block; width: 100%; border-radius: 10px; border: 1px so
 .btn.next-shot { min-height: 64px; font-size: 18px; background: var(--orange); border-color: var(--orange); color: #000; animation: pulse-shot 1.2s ease-in-out infinite; }
 @keyframes pulse-shot { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 159, 26, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(255, 159, 26, 0); } }
 .photo-note { min-height: 40px; min-width: 0; padding: 0 8px; border-radius: 8px; border: 2px solid var(--line); background: var(--well); color: var(--text); font: inherit; font-size: 14px; }
+
+/* 保密暨資通安全使用聲明 */
+.consent-bg { position: fixed; inset: 0; z-index: 10000; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.consent { max-width: var(--appw); margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); display: grid; gap: 12px; }
+.consent h1 { font-size: 20px; line-height: 1.4; margin: 4px 0 0; }
+.consent-body { font-size: 15px; line-height: 1.7; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.consent-body ol { padding-left: 20px; margin: 8px 0 0; }
+.consent-body ul { padding-left: 18px; }
+.consent-body p { margin: 4px 0; }
+.consent-body li { margin-bottom: 8px; }
+.consent-field { display: grid; gap: 6px; font-weight: 700; }
+.consent-field input { min-height: 52px; padding: 0 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--well); color: var(--text); font: inherit; font-size: 18px; }
+.consent-field small { color: var(--orange); font-weight: 600; }
+.consent-check { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; font-size: 15px; line-height: 1.6; }
+.consent-check input { width: 24px; height: 24px; margin-top: 2px; }
+.consent-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.consent-actions .btn { min-height: 56px; text-decoration: none; }
+.consent-actions a.btn { background: var(--panel2); color: var(--muted); }
+.watermark { position: fixed; inset: 0; z-index: 9999; pointer-events: none; background-repeat: repeat; }
+.log-by { color: var(--muted); font-size: 12px; }
+.env-badge { border: 2px solid; border-radius: 8px; padding: 3px 7px; font-size: 13px; font-weight: 800; white-space: nowrap; background: none; }
+.env-badge.real { color: var(--green); border-color: var(--green); }
+.env-badge.drill { color: #000; background: var(--yellow); border-color: var(--yellow); }
