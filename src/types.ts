@@ -275,8 +275,12 @@ export interface Incident {
   milestones?: Record<string, number>;
   /** 案件結束時間 */
   endAt?: number | null;
-  /** 演練測試（否＝正式勤務） */
+  /** 演練測試；false＝真實事件；未設定＝尚未選擇（開始事件前必選） */
   drill?: boolean;
+  /** 案件名稱（開始事件前必填，交接時所有人看到同一場事件） */
+  name?: string;
+  /** 案件日期 YYYY-MM-DD */
+  date?: string;
   /** 黑牌暫置區：位置與看守人員 */
   morgue?: { location?: string; guard?: string };
 }
@@ -369,3 +373,20 @@ export const VEHICLE_STATUS_NAME: Record<VehicleStatus, string> = {
   decon: '待除污',
   offline: '離線',
 };
+
+/** 今天日期 YYYY-MM-DD（本地時間） */
+export function todayStr(now = Date.now()): string {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 案件設定是否完成：名稱、日期、真實／演練 */
+export function caseMissing(inc: { name?: string; date?: string; drill?: boolean }): string[] {
+  return [!inc.name?.trim() && '案件名稱', !inc.date && '日期', inc.drill === undefined && '真實事件／演練'].filter(Boolean) as string[];
+}
+
+/** 案件標題：【演練】名稱（日期） */
+export function caseTitle(inc: { name?: string; date?: string; drill?: boolean }): string {
+  if (!inc.name?.trim()) return '';
+  return `${inc.drill ? '【演練】' : ''}${inc.name.trim()}${inc.date ? `（${inc.date.replace(/-/g, '/')}）` : ''}`;
+}

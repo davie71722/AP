@@ -4,7 +4,7 @@ import { audit } from '../security/consent';
 import { entryName, keyFlags } from '../data/trauma';
 import { INCIDENT_TYPE_BY_ID } from '../data/incidentTypes';
 import { fmtClock } from '../engine/actions';
-import { COLOR_NAME, injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
+import { caseTitle, COLOR_NAME, injuryText, otherVehicleName, RED_CLASSES, trapText, TRIAGE_NAMES, type HospitalRuntime, type Incident, type Patient, type Vehicle } from '../types';
 
 export function elapsedMin(incident: Incident, now: number): number {
   return incident.startAt ? Math.max(0, Math.floor((now - incident.startAt) / 60000)) : 0;
@@ -66,6 +66,7 @@ export function hospitalNotice(ps: Patient[], vehicle: Vehicle | undefined, inci
     .join(' ');
   const types = incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).filter(Boolean).join('＋');
   const items: [string, string][] = [
+    ['案件', caseTitle(incident)],
     ['車號', vehicle?.name ?? (p0.byDuty ? otherVehicleName(p0) : '')],
     ['事件類型', types],
     ['地點', incident.location?.label ?? ''],
@@ -74,7 +75,7 @@ export function hospitalNotice(ps: Patient[], vehicle: Vehicle | undefined, inci
     ['人數', `${ps.length}（${counts}）`],
   ];
   const lines = [
-    `【MCI 後送通報${h ? `｜${h.short}` : ''}】`,
+    `${incident.drill ? '【演練】' : ''}【MCI 後送通報${h ? `｜${h.short}` : ''}】`,
     ...items.filter(([, v]) => v).map(([k, v]) => `• ${k}：${v}`),
     ...ps.map((p) => `• ${p.label}${patTag(p)}${injuryText(p) ? `：${injuryText(p)}` : ''}`),
   ];
@@ -128,6 +129,7 @@ export function buildReport(
   });
 
   const items: [string, string][] = [
+    ['案件', caseTitle(incident)],
     ['回報時間', `${date} ${fmtClock(now)}`],
     ['事件經過', incident.startAt ? `${elapsedMin(incident, now)} 分（${fmtClock(incident.startAt)} 開始）` : ''],
     ['事件類型', types],
@@ -170,12 +172,13 @@ export function briefInjury(p: Patient): string {
 }
 
 /** 確認發車後分享（LINE）：車輛、醫院、ETA、每位傷患的檢傷與精簡傷勢 */
-export function dispatchShareText(ps: Patient[], vehicles: Vehicle[]): string {
+export function dispatchShareText(ps: Patient[], vehicles: Vehicle[], incident?: Pick<Incident, 'name' | 'date' | 'drill'>): string {
   if (!ps.length) return '';
   const p0 = ps[0];
   const v = p0.vehicleId ? vehicles.find((x) => x.id === p0.vehicleId)?.name : p0.byDuty ? otherVehicleName(p0) : '';
   const h = p0.hospitalId ? HOSPITAL_BY_ID[p0.hospitalId]?.short : '未定醫院';
-  const head = `【發車】${v ?? ''} ➔ ${h}${p0.arriveAt ? `｜ETA ${fmtClock(p0.arriveAt)}` : ''}${p0.sentAt ? `（${fmtClock(p0.sentAt)} 出發）` : ''}`;
+  const name = incident?.name?.trim();
+  const head = `${incident?.drill ? '【演練】' : ''}【發車】${name ? `${name}｜` : ''}${v ?? ''} ➔ ${h}${p0.arriveAt ? `｜ETA ${fmtClock(p0.arriveAt)}` : ''}${p0.sentAt ? `（${fmtClock(p0.sentAt)} 出發）` : ''}`;
   return [head, ...ps.map((p) => `• ${p.label}${patTag(p)}${briefInjury(p) ? `：${briefInjury(p)}` : ''}`)].join('\n');
 }
 
@@ -192,13 +195,14 @@ export interface PhotoPanel {
 }
 
 /** 合成照片資訊：牌色、性別、年齡、拍拍尺、醫院、送醫時間、車輛、傷勢（不含姓名、電話） */
-export function photoPanel(p: Patient, vehicles: Vehicle[]): PhotoPanel {
+export function photoPanel(p: Patient, vehicles: Vehicle[], incident?: Pick<Incident, 'name' | 'date' | 'drill'>): PhotoPanel {
   const per = p.personal ?? {};
   const v = p.vehicleId ? vehicles.find((x) => x.id === p.vehicleId)?.name : p.byDuty ? otherVehicleName(p) : '';
   const h = p.hospitalId ? HOSPITAL_BY_ID[p.hospitalId]?.short : '';
   const sent = p.status === 'sent';
   const time = sent ? [p.sentAt && `出發 ${fmtClock(p.sentAt)}`, p.arriveAt && `ETA ${fmtClock(p.arriveAt)}`].filter(Boolean).join('｜') : '';
   const rows: [string, string][] = [
+    ...(incident && caseTitle(incident) ? [['案件', caseTitle(incident)] as [string, string]] : []),
     ['拍拍尺', per.patNo?.trim() || '—'],
     ['醫院', sent ? h || '未定醫院' : '尚未送醫'],
     ['送醫時間', time || '—'],
@@ -209,7 +213,7 @@ export function photoPanel(p: Patient, vehicles: Vehicle[]): PhotoPanel {
   if (per.photo2Note?.trim()) rows.push(['照片二', per.photo2Note.trim()]);
   return {
     color: p.color,
-    badge: `${COLOR_NAME[p.color]}牌 ${p.label}`,
+    badge: `${incident?.drill ? '演練｜' : ''}${COLOR_NAME[p.color]}牌 ${p.label}`,
     side: [per.sex, per.age?.trim() && `${per.age.trim()} 歲`].filter(Boolean).join('｜') || '性別年齡未填',
     rows,
   };
@@ -281,6 +285,7 @@ export function buildSummary(
   const closed = HOSPITALS.filter((h) => runtime[h.id]?.bypass).map((h) => h.short);
 
   const items: [string, string][] = [
+    ['案件', caseTitle(incident)],
     [incident.endAt ? '結束時間' : '統計時間', `${date} ${fmtClock(end)}`],
     ['事件類型', incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋')],
     ['地點', incident.location?.label ?? ''],

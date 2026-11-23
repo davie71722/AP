@@ -23,6 +23,9 @@ import { timeFactor } from '../travel/traffic';
 import { haversineKm } from '../travel/offline';
 import {
   TRIAGE_NAMES,
+  caseMissing,
+  caseTitle,
+  todayStr,
   holdUnlocked,
   patientLabel,
   type RedClass,
@@ -91,7 +94,10 @@ interface Store extends Persisted {
 
   toggleType(id: string): void;
   setLocation(loc: IncidentLocation): void;
-  startIncident(goToInput?: boolean): void;
+  /** 開始事件（案件名稱、日期、真實／演練未設定時不開始，回傳 false） */
+  startIncident(goToInput?: boolean): boolean;
+  /** 案件名稱、日期、真實／演練 */
+  setCaseInfo(p: { name?: string; date?: string; drill?: boolean }): void;
   updateSettings(p: Partial<Settings>): void;
   clearIncident(): void;
   /** 存檔目前案件到歷史案件（同一案件覆寫）；回傳是否成功 */
@@ -177,6 +183,7 @@ function freshIncident(): Incident {
     startAt: null,
     settings: { ...DEFAULT_SETTINGS, ...loadSettingsPref<Settings>() },
     log: [],
+    date: todayStr(),
   };
 }
 
@@ -244,7 +251,7 @@ export function archiveRowOf(st: Persisted, now: number): ArchiveRow | null {
     savedAt: now,
     startAt,
     endAt: st.incident.endAt ?? null,
-    title: [st.incident.location?.label ?? '未指定地點', types].filter(Boolean).join('｜'),
+    title: [caseTitle(st.incident), st.incident.location?.label ?? '未指定地點', types].filter(Boolean).join('｜'),
     total: st.patients.length,
     drill: !!st.incident.drill,
     data: persistedOf(st),
@@ -366,7 +373,7 @@ export const useStore = create<Store>((set, get) => {
       log(`案件重新開啟 ${fmtClock(Date.now())}`);
     },
     markMilestone: (name) => {
-      if (!get().incident.startAt) get().startIncident(false);
+      if (!get().incident.startAt && !get().startIncident(false)) return;
       const at = Date.now();
       set((s) => ({ incident: { ...s.incident, milestones: { ...(s.incident.milestones ?? {}), [name]: at } } }));
       log(`${name} ${fmtClock(at)}`);
@@ -423,9 +430,20 @@ export const useStore = create<Store>((set, get) => {
       void get().refreshTravel(true);
     },
 
+    setCaseInfo: (p) =>
+      set((s) => ({
+        incident: {
+          ...s.incident,
+          ...(p.name !== undefined ? { name: p.name.slice(0, 40) } : {}),
+          ...(p.date !== undefined ? { date: p.date } : {}),
+          ...(p.drill !== undefined ? { drill: p.drill } : {}),
+        },
+      })),
+
     startIncident: (goToInput = true) => {
       const s = get();
-      if (s.incident.startAt) return;
+      if (s.incident.startAt) return true;
+      if (caseMissing(s.incident).length) return false;
       const now = Date.now();
       // 事件發生當下估算車程（時段、路況）
       if (s.incident.location) {
@@ -435,7 +453,8 @@ export const useStore = create<Store>((set, get) => {
       }
       set({ incident: { ...s.incident, startAt: now }, now, ...(goToInput ? { tab: 'scene' as Tab } : {}) });
       const names = s.incident.types.map((t) => INCIDENT_TYPE_BY_ID[t]?.name).join('＋') || '未指定';
-      log(`事件開始：${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
+      log(`事件開始：${caseTitle(s.incident)}｜${s.incident.drill ? '演練' : '真實事件'}｜${names}｜地點：${s.incident.location?.label ?? '未指定'}`);
+      return true;
     },
 
     updateSettings: (p) => {
@@ -459,7 +478,7 @@ export const useStore = create<Store>((set, get) => {
 
     // ---------- 傷患 ----------
     addPatient: (c, redClass) => {
-      if (!get().incident.startAt) get().startIncident(false);
+      if (!get().incident.startAt && !get().startIncident(false)) return;
       const s = get();
       const now = Date.now();
       const num = s.counters[c] + 1;
@@ -566,7 +585,7 @@ export const useStore = create<Store>((set, get) => {
       set((s) => ({ patients: s.patients.map((p) => (p.id === id ? { ...p, note: note.slice(0, 200) } : p)) })),
 
     addVehicle: (unitName, num, tp, t2) => {
-      if (!get().incident.startAt) get().startIncident(false);
+      if (!get().incident.startAt && !get().startIncident(false)) return;
       const s = get();
       const unit = FIRE_UNITS.find((u) => u.name === unitName);
       const src = SUPPORT_SOURCES.find((x) => x.name === unitName);
@@ -650,7 +669,7 @@ export const useStore = create<Store>((set, get) => {
 
     // ---------- 車輛 ----------
     addUnitVehicle: (unitName) => {
-      if (!get().incident.startAt) get().startIncident(false);
+      if (!get().incident.startAt && !get().startIncident(false)) return;
       const s = get();
       const unit = FIRE_UNITS.find((u) => u.name === unitName);
       if (!unit) return;
@@ -677,7 +696,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     addSupportVehicle: (srcName) => {
-      if (!get().incident.startAt) get().startIncident(false);
+      if (!get().incident.startAt && !get().startIncident(false)) return;
       const s = get();
       const src = SUPPORT_SOURCES.find((x) => x.name === srcName);
       if (!src) return;
@@ -772,7 +791,7 @@ export const useStore = create<Store>((set, get) => {
     setLeft: (id, left) => applyDomain(setLeftDomain(domain(), id, left, Date.now())),
     setTrapped: (id, trapped) => applyDomain(setTrappedDomain(domain(), id, trapped, Date.now())),
     setDrill: (drill) => {
-      if (!!get().incident.drill === drill) return;
+      if (get().incident.drill === drill) return;
       set((s) => ({ incident: { ...s.incident, drill } }));
       log(`環境切換為${drill ? '演練測試' : '正式勤務'}`);
     },
@@ -987,7 +1006,7 @@ export function noteRemote(
     const runtime = { ...snap.runtime };
     for (const hid of Object.keys(next.runtime)) if (prev.runtime[hid] !== next.runtime[hid]) runtime[hid] = next.runtime[hid];
     const incident = { ...snap.incident };
-    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue', 'drill'] as const) {
+    for (const f of ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue', 'drill', 'name', 'date'] as const) {
       if (prev.incident[f] !== next.incident[f]) (incident as unknown as Record<string, unknown>)[f] = next.incident[f];
     }
     incident.log = [...snap.incident.log, ...newLog].sort((a, b) => a.at - b.at);

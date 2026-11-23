@@ -4,7 +4,7 @@ import { INCIDENT_TYPES } from '../data/incidentTypes';
 import { googleMapsUrl, mapsShortLink, parseCoords, pinLocation, shareName } from '../data/geo';
 import { FREEWAY_SEGMENTS, TOWNSHIPS } from '../data/places';
 import { mapServiceConfigured, resolveShortLink, searchPlaces, type PlaceHit } from '../travel/routes';
-import type { IncidentLocation } from '../types';
+import { caseMissing, type IncidentLocation } from '../types';
 import { useStore } from '../store/store';
 import { CaseComposites, DoubleTapButton, ShareButtons, Stepper } from './common';
 import { useStoredComposites } from './Photos';
@@ -25,8 +25,10 @@ export function IncidentTab() {
   const st = incident.settings;
   const loc = incident.location;
 
+  const missing = caseMissing(incident);
   return (
     <>
+      <CaseSetup />
       <section className="section">
         <h2>事發地點</h2>
         {loc && (
@@ -89,9 +91,12 @@ export function IncidentTab() {
             開始 <b>{new Date(incident.startAt).toLocaleTimeString('zh-TW', { hour12: false })}</b>
           </p>
         ) : (
-          <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} onClick={() => start()}>
-            確認事件 ➔
-          </button>
+          <>
+            {missing.length > 0 && <p className="warn-line">請先完成案件設定：{missing.join('、')}</p>}
+            <button className="btn go full" style={{ minHeight: 72, fontSize: 22 }} disabled={missing.length > 0} onClick={() => start()}>
+              確認事件 ➔
+            </button>
+          </>
         )}
       </section>
 
@@ -470,4 +475,49 @@ function ArchiveComposites({ patients }: { patients: { id: string; label: string
     (pid) => patients.find((p) => p.id === pid)?.label ?? 'photo',
   );
   return <CaseComposites previews={previews} files={files} />;
+}
+
+/** 案件設定：名稱、日期、真實事件／演練（開始前必填；交接 QR Code 加入者看到同一場事件） */
+function CaseSetup() {
+  const incident = useStore((s) => s.incident);
+  const setCase = useStore((s) => s.setCaseInfo);
+  const started = !!incident.startAt;
+  const mode = incident.drill;
+  return (
+    <section className={`section case-setup ${mode === true ? 'drill' : mode === false ? 'real' : ''}`}>
+      <h2>
+        案件設定 <span className="muted small">{started ? '交接加入者皆看到此案件' : '開始前必填'}</span>
+      </h2>
+      <div className="case-mode">
+        <button
+          className={`btn ${mode === false ? 'on real' : ''}`}
+          disabled={started}
+          onClick={() => setCase({ drill: false })}
+        >
+          🚨 真實事件
+        </button>
+        <button
+          className={`btn ${mode === true ? 'on drill' : ''}`}
+          disabled={started}
+          onClick={() => setCase({ drill: true })}
+        >
+          🧪 演練
+        </button>
+      </div>
+      {started && <p className="muted small" style={{ margin: '4px 0 0' }}>事件開始後如需更正，連按兩下右上角「正式／演練」標籤</p>}
+      <label className="pf" style={{ marginTop: 8 }}>
+        <span>案件名稱</span>
+        <input
+          value={incident.name ?? ''}
+          placeholder="例：國1竹北段多車追撞"
+          maxLength={40}
+          onChange={(e) => setCase({ name: e.target.value })}
+        />
+      </label>
+      <label className="pf" style={{ marginTop: 8 }}>
+        <span>日期</span>
+        <input type="date" value={incident.date ?? ''} onChange={(e) => setCase({ date: e.target.value })} />
+      </label>
+    </section>
+  );
 }

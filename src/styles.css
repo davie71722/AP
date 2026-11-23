@@ -819,3 +819,13 @@ img.composite { display: block; width: 100%; border-radius: 10px; border: 1px so
 .env-badge.drill { color: #000; background: var(--yellow); border-color: var(--yellow); }
 .consent-except { padding: 6px 8px; border-left: 4px solid var(--green); background: var(--green-d); border-radius: 6px; }
 .share-notice { margin: 4px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* 案件設定 */
+.case-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.case-mode .btn { min-height: 60px; font-size: 19px; }
+.case-mode .btn.on.real { background: var(--red-d); border-color: var(--red); color: var(--text); }
+.case-mode .btn.on.drill { background: var(--yellow); border-color: var(--yellow); color: #000; }
+.case-setup.real { border-color: var(--red); }
+.case-setup.drill { border-color: var(--yellow-b); }
+.case-title { font-weight: 800; }
+.env-badge.unset { color: var(--muted); border-color: var(--line); }

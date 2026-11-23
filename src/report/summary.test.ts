@@ -159,3 +159,17 @@ describe('合成照片資訊欄', () => {
     expect(photoPanel(P('b', 'G', 1), [v]).rows[1]).toEqual(['醫院', '尚未送醫']);
   });
 });
+
+describe('案件名稱與演練標示', () => {
+  it('發車分享、合成照片、回報帶案件名稱；演練加標示', () => {
+    const inc: Incident = { types: [], location: null, startAt: T(14, 0), settings: DEFAULT_SETTINGS, log: [], name: '國1竹北段追撞', date: '2026-11-23', drill: true };
+    const v = { id: 'v1', name: '竹北91' } as Vehicle;
+    const p = P('a', 'R', 1, { status: 'sent', hospitalId: 'tungyuan', vehicleId: 'v1', sentAt: T(14, 20), arriveAt: T(14, 32) });
+    expect(dispatchShareText([p], [v], inc).split('\n')[0]).toBe('【演練】【發車】國1竹北段追撞｜竹北91 ➔ 東元醫院｜ETA 14:32（14:20 出發）');
+    const panel = photoPanel(p, [v], inc);
+    expect(panel.badge).toBe('演練｜紅牌 紅1');
+    expect(panel.rows[0]).toEqual(['案件', '【演練】國1竹北段追撞（2026/11/23）']);
+    expect(buildReport(inc, [p], [v], initialRuntimes(), T(14, 40))).toContain('• 案件：【演練】國1竹北段追撞（2026/11/23）');
+    expect(hospitalNotice([p], v, inc).split('\n')[0]).toBe('【演練】【MCI 後送通報｜東元醫院】');
+  });
+});

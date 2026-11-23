@@ -17,6 +17,26 @@ import { PatientChip, PatientSheet, TriagePad, VehicleSheet } from './InputTab';
 import { usePreparedComposites, useStoredComposites } from './Photos';
 
 export function SceneTab() {
+  const started = useStore((s) => !!s.incident.startAt);
+  if (!started) return <NotStarted />;
+  return <SceneMain />;
+}
+
+/** 尚未建立案件：先到事件頁設定案件名稱、日期、真實／演練 */
+function NotStarted() {
+  const setTab = useStore((s) => s.setTab);
+  return (
+    <section className="section">
+      <h2>尚未建立案件</h2>
+      <p>請先到「事件」完成案件設定（案件名稱、日期、真實事件／演練），按「確認事件」後才能開始檢傷與派車。</p>
+      <button className="btn go full" onClick={() => setTab('incident')}>
+        前往案件設定 ➔
+      </button>
+    </section>
+  );
+}
+
+function SceneMain() {
   const rules = useRules();
   const [selected, setSelected] = useState<string[]>([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -345,10 +365,11 @@ function MorgueSection() {
 
 /** 剛發車：分享檢傷、精簡傷勢與 ETA 到 LINE */
 function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+  const incident = useStore((s) => s.incident);
   const patients = useStore((s) => s.patients);
   const vehicles = useStore((s) => s.vehicles);
   const ps = patients.filter((p) => ids.includes(p.id) && p.status === 'sent');
-  const text = dispatchShareText(ps, vehicles);
+  const text = dispatchShareText(ps, vehicles, incident);
   const { files, previews } = useStoredComposites(ids, (pid) => patients.find((x) => x.id === pid)?.label ?? 'photo');
   if (!ps.length) return null;
   return (
@@ -378,6 +399,7 @@ function JustSent({ ids, onClose }: { ids: string[]; onClose: () => void }) {
 }
 
 function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]) => void }) {
+  const incident = useStore((s) => s.incident);
   const patients = useStore((s) => s.patients);
   const vehicles = useStore((s) => s.vehicles);
   const runtime = useStore((s) => s.runtime);
@@ -442,7 +464,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
         }))
       : [];
   const shareFiles = usePreparedComposites(settings.autoShare ? predicted : [], vehicles);
-  const shareText = predicted.length ? dispatchShareText(predicted, vehicles) : '';
+  const shareText = predicted.length ? dispatchShareText(predicted, vehicles, incident) : '';
   const top = ranking.slice(0, 3);
   // 其他醫院：依當下預估車程由短至長
   const rest = ranking.slice(3).sort((a, b) => a.goMin - b.goMin);

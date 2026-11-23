@@ -11,7 +11,7 @@ export interface Stamped<T> {
   v: T | null;
 }
 
-export const INCIDENT_FIELDS = ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue', 'drill'] as const;
+export const INCIDENT_FIELDS = ['types', 'location', 'startAt', 'settings', 'milestones', 'endAt', 'morgue', 'drill', 'name', 'date'] as const;
 export type IncidentField = (typeof INCIDENT_FIELDS)[number];
 
 export interface Wire {

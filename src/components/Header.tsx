@@ -41,7 +41,7 @@ export function Header() {
       <div className="r1">
         <span className="clock">{incident.startAt ? clock : '--:--'}</span>
         <span className="meta">
-          {types || '未選類型'}｜{incident.location?.label ?? '未選地點'}
+          {incident.name?.trim() ? <b className="case-title">{incident.name.trim()}</b> : types || '未設定案件'}｜{incident.location?.label ?? '未選地點'}
         </span>
         <button className="theme-btn" aria-label="切換日間／夜間模式" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}>
           {theme === 'day' ? '☾' : '☀'}
@@ -65,7 +65,9 @@ export function Header() {
 
 /** 正式勤務／演練測試：連按兩下切換 */
 function EnvBadge() {
-  const drill = useStore((s) => !!s.incident.drill);
+  const mode = useStore((s) => s.incident.drill);
+  const drill = !!mode;
+  const started = useStore((s) => !!s.incident.startAt);
   const setDrill = useStore((s) => s.setDrill);
   const [armed, setArmed] = useState(false);
   useEffect(() => {
@@ -73,9 +75,11 @@ function EnvBadge() {
     const t = setTimeout(() => setArmed(false), 3000);
     return () => clearTimeout(t);
   }, [armed]);
+  if (mode === undefined) return <span className="env-badge unset">未設定</span>;
   return (
     <button
       className={`env-badge ${drill ? 'drill' : 'real'}`}
+      disabled={!started}
       title="連按兩下切換正式勤務／演練測試"
       onClick={() => (armed ? (setDrill(!drill), setArmed(false)) : setArmed(true))}
     >

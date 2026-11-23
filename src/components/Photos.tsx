@@ -170,6 +170,9 @@ export function CompositeKeeper() {
   const vehicles = useStore((s) => s.vehicles);
   const photoRev = useStore((s) => s.photoRev);
   const bump = useStore((s) => s.bumpComposites);
+  const name = useStore((s) => s.incident.name);
+  const date = useStore((s) => s.incident.date);
+  const drill = useStore((s) => s.incident.drill);
   useEffect(() => {
     let alive = true;
     const t = setTimeout(async () => {
@@ -185,7 +188,7 @@ export function CompositeKeeper() {
           }
           continue;
         }
-        const panel = photoPanel(p, vehicles);
+        const panel = photoPanel(p, vehicles, { name, date, drill });
         const key = rows.map((r) => `${r.id}@${r.at}`).join(',') + '|' + JSON.stringify(panel);
         if (old?.key === key) continue;
         try {
@@ -202,7 +205,7 @@ export function CompositeKeeper() {
       alive = false;
       clearTimeout(t);
     };
-  }, [patients, vehicles, photoRev, bump]);
+  }, [patients, vehicles, photoRev, bump, name, date, drill]);
   return null;
 }
 
@@ -212,8 +215,11 @@ export function CompositeKeeper() {
  */
 export function usePreparedComposites(predicted: Patient[], vehicles: Vehicle[]): File[] {
   const photoRev = useStore((s) => s.photoRev);
+  const name = useStore((s) => s.incident.name);
+  const date = useStore((s) => s.incident.date);
+  const drill = useStore((s) => s.incident.drill);
   const [files, setFiles] = useState<File[]>([]);
-  const panels = predicted.map((p) => photoPanel(p, vehicles));
+  const panels = predicted.map((p) => photoPanel(p, vehicles, { name, date, drill }));
   const key = predicted.map((p) => p.id).join(',') + '|' + JSON.stringify(panels) + '|' + photoRev;
   useEffect(() => {
     let alive = true;
