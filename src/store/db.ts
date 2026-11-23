@@ -17,6 +17,8 @@ export interface ArchiveRow {
   title: string;
   /** 傷患總數 */
   total: number;
+  /** 演練測試案件 */
+  drill?: boolean;
   data: unknown;
 }
 
@@ -98,6 +100,29 @@ export async function listArchives(): Promise<ArchiveRow[]> {
   } catch (e) {
     console.warn('讀取歷史案件失敗', e);
     return [];
+  }
+}
+
+/** 是否為演練案件（舊存檔從案件資料判斷） */
+export function isDrillArchive(r: ArchiveRow): boolean {
+  return r.drill ?? !!(r.data as { incident?: { drill?: boolean } } | undefined)?.incident?.drill;
+}
+
+/** 刪除所有演練案件（連同照片與合成照片）；回傳刪除的案件 ID */
+export async function deleteDrillArchives(): Promise<string[]> {
+  const rows = (await listArchives()).filter(isDrillArchive);
+  for (const r of rows) await deleteArchive(r.id);
+  return rows.map((r) => r.id);
+}
+
+/** 刪除某些病人的照片與合成照片 */
+export async function deletePatientMedia(patientIds: string[]): Promise<void> {
+  try {
+    if (!patientIds.length) return;
+    await getDb()?.photos.where('patientId').anyOf(patientIds).delete();
+    await getDb()?.composites.bulkDelete(patientIds);
+  } catch {
+    /* 忽略 */
   }
 }
 

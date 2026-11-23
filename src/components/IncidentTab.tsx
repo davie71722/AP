@@ -8,7 +8,7 @@ import type { IncidentLocation } from '../types';
 import { useStore } from '../store/store';
 import { CaseComposites, DoubleTapButton, ShareButtons, Stepper } from './common';
 import { useStoredComposites } from './Photos';
-import { deleteArchive, listArchives, type ArchiveRow } from '../store/db';
+import { deleteArchive, isDrillArchive, listArchives, type ArchiveRow } from '../store/db';
 import type { Persisted } from '../store/store';
 import { buildSummary, download } from '../report/report';
 import { fmtClock } from '../engine/actions';
@@ -229,6 +229,8 @@ function ArchiveList() {
   const bump = useStore((s) => s.bumpArchives);
   const load = useStore((s) => s.loadArchive);
   const currentStart = useStore((s) => s.incident.startAt);
+  const currentDrill = useStore((s) => !!s.incident.drill && !!s.incident.startAt);
+  const deleteAllDrills = useStore((s) => s.deleteAllDrills);
   const [rows, setRows] = useState<ArchiveRow[]>([]);
   const [open, setOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -240,6 +242,7 @@ function ArchiveList() {
       alive = false;
     };
   }, [rev]);
+  const drills = rows.filter(isDrillArchive).length;
 
   return (
     <section className="section">
@@ -248,6 +251,19 @@ function ArchiveList() {
       </button>
       {msg && <p className="small" style={{ color: 'var(--orange)', margin: '6px 0 0' }}>{msg}</p>}
       {open && rows.length === 0 && <div className="empty">尚無存檔；案件結束或清除事件時會自動存檔</div>}
+      {open && (drills > 0 || currentDrill) && (
+        <DoubleTapButton
+          className="full mt8"
+          armedText={`再按一次：刪除 ${drills + (currentDrill && !rows.some((r) => r.startAt === currentStart && isDrillArchive(r)) ? 1 : 0)} 件演練案件（含照片，無法復原）`}
+          onConfirm={async () => {
+            leave();
+            const n = await deleteAllDrills();
+            setMsg(`已刪除 ${n} 件演練案件`);
+          }}
+        >
+          🗑 刪除所有演練案件
+        </DoubleTapButton>
+      )}
       {open &&
         rows.map((r) => {
           const d = r.data as Persisted;
@@ -259,6 +275,7 @@ function ArchiveList() {
                 <b>{fmtDate(r.startAt)}</b>
                 {r.startAt === currentStart && <span className="chip G" style={{ fontSize: 12 }}>目前</span>}
                 {!r.endAt && <span className="chip dim" style={{ fontSize: 12 }}>未結束</span>}
+                {isDrillArchive(r) && <span className="chip Y" style={{ fontSize: 12 }}>演練</span>}
                 <span className="spacer" />
                 <span className="muted small">{r.total} 人 {expanded ? '▲' : '▼'}</span>
                 <span className="muted small archive-title">{r.title}</span>

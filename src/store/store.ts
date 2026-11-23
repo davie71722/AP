@@ -45,7 +45,7 @@ import {
 } from '../types';
 import { keepForColor, type TraumaEntry } from '../data/trauma';
 import { audit, operatorName } from '../security/consent';
-import { getArchive, loadSettingsPref, loadSnapshot, putArchive, saveSettingsPref, saveSnapshot, type ArchiveRow } from './db';
+import { deleteDrillArchives, deletePatientMedia, getArchive, loadSettingsPref, loadSnapshot, putArchive, saveSettingsPref, saveSnapshot, type ArchiveRow } from './db';
 
 export type Tab = 'incident' | 'scene' | 'progress' | 'report';
 export type Theme = 'day' | 'night';
@@ -101,6 +101,8 @@ interface Store extends Persisted {
   /** 歷史案件清單版本（存檔／刪除後遞增，讓清單重新讀取） */
   archiveRev: number;
   bumpArchives(): void;
+  /** 刪除所有演練案件：歷史中的演練案件，及目前案件若為演練則一併清除（不存檔）；回傳刪除件數 */
+  deleteAllDrills(): Promise<number>;
   /** 載入歷史案件為目前案件（先存檔目前案件） */
   loadArchive(id: string): Promise<boolean>;
 
@@ -244,6 +246,7 @@ export function archiveRowOf(st: Persisted, now: number): ArchiveRow | null {
     endAt: st.incident.endAt ?? null,
     title: [st.incident.location?.label ?? '未指定地點', types].filter(Boolean).join('｜'),
     total: st.patients.length,
+    drill: !!st.incident.drill,
     data: persistedOf(st),
   };
 }
@@ -329,6 +332,20 @@ export const useStore = create<Store>((set, get) => {
       const ok = await putArchive(row);
       if (ok) set((s) => ({ archivedAt: row.savedAt, archiveRev: s.archiveRev + 1 }));
       return ok;
+    },
+    deleteAllDrills: async () => {
+      const s = get();
+      const current = s.incident.drill && s.incident.startAt ? `case-${s.incident.startAt}` : null;
+      if (current) {
+        // 目前的演練案件直接清除，不存檔
+        await deletePatientMedia(s.patients.map((p) => p.id));
+        set({ ...freshPersisted(), tab: 'incident', archivedAt: null });
+      }
+      const ids = await deleteDrillArchives();
+      const n = ids.length + (current && !ids.includes(current) ? 1 : 0);
+      audit('刪除所有演練案件', `${n} 件`);
+      set((st) => ({ archiveRev: st.archiveRev + 1, photoRev: st.photoRev + 1 }));
+      return n;
     },
     loadArchive: async (id) => {
       const row = await getArchive(id);

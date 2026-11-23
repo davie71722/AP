@@ -93,3 +93,35 @@ describe('合成照片保存', () => {
     expect(await listComposites(['cp1'])).toHaveLength(0);
   });
 });
+
+describe('刪除所有演練案件', () => {
+  it('刪除歷史中的演練案件與目前演練案件，正式案件保留', async () => {
+    const { listArchives, addPhoto, listPhotos } = await import('./db');
+    const wait = () => new Promise((r) => setTimeout(r, 60));
+    const s = () => useStore.getState();
+    // 先清掉前面測試留下的案件與存檔
+    s().clearIncident(); await wait();
+    for (const a of await listArchives()) await (await import('./db')).deleteArchive(a.id);
+    // 演練案件 1：結束後自動存檔
+    s().addPatient('R', 'A'); s().setDrill(true);
+    const drillPid = s().patients[0].id;
+    await addPhoto(drillPid, 'data:image/jpeg;base64,AAAA');
+    s().endIncident(); await wait();
+    // 正式案件
+    s().clearIncident(); await wait();
+    await new Promise((r) => setTimeout(r, 5));
+    s().addPatient('Y'); s().endIncident(); await wait();
+    // 目前：演練案件 2（未存檔）
+    s().clearIncident(); await wait();
+    await new Promise((r) => setTimeout(r, 5));
+    s().addPatient('G'); s().setDrill(true);
+    expect((await listArchives()).length).toBe(2);
+    const n = await s().deleteAllDrills();
+    expect(n).toBe(2);
+    const left = await listArchives();
+    expect(left).toHaveLength(1);
+    expect(left[0].drill).toBe(false);
+    expect(s().patients).toHaveLength(0);
+    expect(await listPhotos(drillPid)).toHaveLength(0);
+  });
+});
