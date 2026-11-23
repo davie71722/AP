@@ -195,6 +195,7 @@ export function ShareButtons({
   };
   const sz = small ? 'sm' : '';
   return (
+    <>
     <div className={`share-row ${className}`} onClick={(e) => e.stopPropagation()}>
       <button
         className={`btn ${sz} primary`}
@@ -219,7 +220,14 @@ export function ShareButtons({
         LINE
       </a>
     </div>
+    <ShareNotice />
+    </>
   );
+}
+
+/** 分享提醒：經核准之通報管道，僅限指定醫院或指揮群組 */
+export function ShareNotice() {
+  return <p className="share-notice">🔒 僅限傳送指定醫院或指揮群組，嚴禁轉傳</p>;
 }
 
 /** 存檔到手機（分享面板被擋時的備援） */
@@ -277,6 +285,7 @@ export function PhotoActions({ files, small = false }: { files: File[]; small?: 
   const [saved, setSaved] = useState(false);
   if (!files.length) return null;
   return (
+    <>
     <div className="photo-actions mt8">
       <LinePhotoButton files={files} className={small ? 'sm' : ''} />
       <button
@@ -291,6 +300,8 @@ export function PhotoActions({ files, small = false }: { files: File[]; small?: 
         {saved ? '✔ 已存' : `💾 存到手機${files.length > 1 ? `（${files.length}）` : ''}`}
       </button>
     </div>
+    <ShareNotice />
+    </>
   );
 }
 

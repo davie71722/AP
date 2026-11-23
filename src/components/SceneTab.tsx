@@ -565,7 +565,7 @@ function DispatchPanel({ ids, onDone }: { ids: string[]; onDone: (sent: string[]
       </button>
       {settings.autoShare && shareText && (
         <p className="muted small" style={{ margin: '6px 0 0', textAlign: 'center' }}>
-          出發後直接開分享（選 LINE）{shareFiles.length ? `：文字＋${shareFiles.length} 張合成照片` : '：文字'}
+          出發後直接開分享（選 LINE，限指定醫院／指揮群組）{shareFiles.length ? `：文字＋${shareFiles.length} 張合成照片` : '：文字'}
         </p>
       )}
       {edit && <PatientSheet id={edit} onClose={() => setEdit(null)} />}

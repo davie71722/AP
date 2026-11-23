@@ -19,6 +19,11 @@ export function ConsentGate({ children }: { children: ReactNode }) {
 
 function ConsentModal() {
   const agree = useConsent((s) => s.agree);
+  // 同意畫面在 App 之前顯示，需自行套用日間／夜間主題
+  const theme = useStore((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
   const [name, setName] = useState(lastName());
   const [checked, setChecked] = useState(false);
   const [ip, setIp] = useState<string | null>(null);
@@ -45,6 +50,9 @@ function ConsentModal() {
               <p>非經本局權責長官正式核准，嚴禁以任何形式對外揭露本系統之任何內容，尤其嚴禁私自提供、爆料或洩漏予新聞媒體、記者或無關第三人。</p>
               <p>
                 亦嚴禁透過任何第三方即時通訊軟體（包括但不限於 LINE、Messenger、WhatsApp、Telegram、WeChat 等）、電子郵件或社群平台，轉傳、分享本系統所產出之任何文字訊息、統計數據、報表、螢幕截圖、翻拍照片或影音檔案。
+              </p>
+              <p className="consent-except">
+                <b>例外：</b>本系統內建之 LINE 分享功能（發車通報、通報醫院文字、傷病患合成照片等），係經本局權責長官核准之大量傷病患事故通報管道，僅限傳送至指定之收治醫院或本局指揮群組，嚴禁轉傳其他個人、群組或對象，亦不得另行截圖、翻拍或下載後再轉傳。
               </p>
             </li>
             <li>

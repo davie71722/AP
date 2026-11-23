@@ -817,3 +817,5 @@ img.composite { display: block; width: 100%; border-radius: 10px; border: 1px so
 .env-badge { border: 2px solid; border-radius: 8px; padding: 3px 7px; font-size: 13px; font-weight: 800; white-space: nowrap; background: none; }
 .env-badge.real { color: var(--green); border-color: var(--green); }
 .env-badge.drill { color: #000; background: var(--yellow); border-color: var(--yellow); }
+.consent-except { padding: 6px 8px; border-left: 4px solid var(--green); background: var(--green-d); border-radius: 6px; }
+.share-notice { margin: 4px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
