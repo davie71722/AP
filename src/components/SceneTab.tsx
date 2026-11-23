@@ -6,7 +6,7 @@ import { computePlan } from '../engine/plan';
 import { manualFactor, sourceEtaMin, useStore } from '../store/store';
 import { useRules, useTriage } from '../store/usePlan';
 import { useSync } from '../sync/client';
-import { reassessDue, tourniquets } from '../engine/care';
+import { reassessDue } from '../engine/care';
 import { dispatchOrder, HOLD_RELEASE_AT, OTHER_VEHICLES, holdUnlocked, injuryText, standbyMin, type Patient, type Vehicle } from '../types';
 import { dispatchShareText, headcountText } from '../report/report';
 import { keyFlags } from '../data/trauma';
@@ -57,21 +57,59 @@ function SceneMain() {
   const [justSent, setJustSent] = useState<string[] | null>(null);
   const settings = useStore((s) => s.incident.settings);
   const markReassessed = useStore((s) => s.markReassessed);
-  // 止血帶：待送與運送中（未抵院）都要追蹤
-  const tqs = patients
-    .filter((p) => p.status === 'waiting' || (p.status === 'sent' && (!p.arriveAt || p.arriveAt > now)))
-    .flatMap((p) => tourniquets(p, now).map((t) => ({ p, t })))
-    .filter((x) => x.t.level !== 'ok');
   // 再評估逾時（依牌色間隔）
   const dueList = waiting
     .map((p) => ({ p, due: reassessDue(p, settings, now) }))
     .filter((x): x is { p: Patient; due: number } => x.due !== null && x.due <= 0)
     .sort((a, b) => a.due - b.due);
 
+  // 後送官畫面：記錄（車輛、檢傷）與分配（待送、派車）優先；其他放最後
   return (
     <>
+      <VehicleBar />
+      {!viewOnly && <TriagePad />}
+      <section className="section">
+        <h2>
+          待送 <span className="muted small">點選病人派車</span>
+          <span className="spacer" />
+          {patients.length > 0 && <span className="muted small headcount">{headcountText(patients, blackName)}</span>}
+        </h2>
+        {trapped.length > 0 && <p className="warn-line trap">⛓ 受困中：{trapped.map((p) => p.label).join('、')}</p>}
+        {overdue.length > 0 && (
+          <p className="warn-line small-line">⏱ 紅傷待送逾 10 分：{overdue.map((x) => `${x.p.label} ${x.min}′`).join('、')}</p>
+        )}
+        <div className="ptags">
+          {waiting.map((p) => (
+            <SelectableChip key={p.id} p={p} on={sel.includes(p.id)} onClick={() => toggle(p.id)} />
+          ))}
+        </div>
+      </section>
+      {sel.length > 0 && !viewOnly && (
+        <DispatchPanel
+          ids={sel}
+          onDone={(sent) => {
+            setSelected([]);
+            setJustSent(sent);
+          }}
+        />
+      )}
+      {justSent && <JustSent ids={justSent} onClose={() => setJustSent(null)} />}
+      {dueList.length > 0 && (
+        <div className="reassess">
+          <div className="reassess-title">🩺 待再評估（點一下記錄已評估）</div>
+          <div className="reassess-list">
+            {dueList.map(({ p, due }) => (
+              <button key={p.id} className={`btn sm chip-btn ${p.color}`} disabled={viewOnly} onClick={() => markReassessed(p.id)}>
+                {p.label} <span className="small">逾 {-due}′</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <MorgueSection />
+      <Milestones />
       {rules.alerts.length > 0 && (
-        <button className="alert" onClick={() => setAlertsOpen(!alertsOpen)}>
+        <button className="alert alert-bottom" onClick={() => setAlertsOpen(!alertsOpen)}>
           事件提醒 {alertsOpen ? '▲' : `▼ ${rules.alerts.length}`}
           {alertsOpen && (
             <ul>
@@ -81,54 +119,6 @@ function SceneMain() {
             </ul>
           )}
         </button>
-      )}
-      <Milestones />
-      <VehicleBar />
-      {!viewOnly && <TriagePad />}
-      <section className="section">
-        <h2>
-          待送 <span className="muted small">點選病人派車</span>
-          <span className="spacer" />
-          {patients.length > 0 && <span className="muted small headcount">{headcountText(patients, blackName)}</span>}
-        </h2>
-        {overdue.length > 0 && (
-          <p className="warn-line">⏱ 紅傷待送逾 10 分：{overdue.map((x) => `${x.p.label} ${x.min}′`).join('、')}</p>
-        )}
-        {trapped.length > 0 && <p className="warn-line trap">⛓ 受困中：{trapped.map((p) => p.label).join('、')}</p>}
-        {tqs.length > 0 && (
-          <p className={`warn-line ${tqs.some((x) => x.t.level === 'alert') ? 'alert' : ''}`}>
-            ⏱ 止血帶：
-            {tqs.map((x) => `${x.p.label}${x.t.side ? ` ${x.t.side}` : ''} ${x.t.min}′${x.p.status === 'sent' ? '（運送中）' : ''}`).join('、')}
-          </p>
-        )}
-        {dueList.length > 0 && (
-          <div className="reassess">
-            <div className="reassess-title">🩺 待再評估（點一下記錄已評估）</div>
-            <div className="reassess-list">
-              {dueList.map(({ p, due }) => (
-                <button key={p.id} className={`btn sm chip-btn ${p.color}`} disabled={viewOnly} onClick={() => markReassessed(p.id)}>
-                  {p.label} <span className="small">逾 {-due}′</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="ptags">
-          {waiting.map((p) => (
-            <SelectableChip key={p.id} p={p} on={sel.includes(p.id)} onClick={() => toggle(p.id)} />
-          ))}
-        </div>
-      </section>
-      {justSent && <JustSent ids={justSent} onClose={() => setJustSent(null)} />}
-      <MorgueSection />
-      {sel.length > 0 && !viewOnly && (
-        <DispatchPanel
-          ids={sel}
-          onDone={(sent) => {
-            setSelected([]);
-            setJustSent(sent);
-          }}
-        />
       )}
     </>
   );

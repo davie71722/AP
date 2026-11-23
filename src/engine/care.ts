@@ -53,8 +53,8 @@ export function lastAssessed(p: Pick<Patient, 'reassessedAt' | 'history'>): numb
 }
 
 /** 距離下次再評估的分鐘（負數＝已逾時）；不需再評估回傳 null */
-export function reassessDue(p: Patient, settings: Pick<Settings, 'reassessMin'>, now: number): number | null {
-  if (p.status !== 'waiting') return null;
+export function reassessDue(p: Patient, settings: Pick<Settings, 'reassessMin' | 'reassessOn'>, now: number): number | null {
+  if (!settings.reassessOn || p.status !== 'waiting') return null;
   const iv = reassessInterval(p, settings);
   const last = lastAssessed(p);
   if (!iv || last === null) return null;

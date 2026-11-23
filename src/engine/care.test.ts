@@ -27,14 +27,18 @@ describe('止血帶時間警示', () => {
 });
 
 describe('再評估計時', () => {
-  it('紅傷 15 分、自檢傷起算；再評估後重新計時；已送出不需要', () => {
-    expect(reassessDue(P(), DEFAULT_SETTINGS, NOW)).toBe(-5);
-    expect(reassessDue(P({ color: 'Y' }), DEFAULT_SETTINGS, NOW)).toBe(10);
-    expect(reassessDue(P({ color: 'K' }), DEFAULT_SETTINGS, NOW)).toBeNull();
-    expect(reassessDue(P({ status: 'sent' }), DEFAULT_SETTINGS, NOW)).toBeNull();
+  it('預設關閉', () => {
+    expect(reassessDue(P(), DEFAULT_SETTINGS, NOW)).toBeNull();
+  });
+  it('開啟時：紅傷 15 分、自檢傷起算；再評估後重新計時；已送出不需要', () => {
+    const S = { ...DEFAULT_SETTINGS, reassessOn: true };
+    expect(reassessDue(P(), S, NOW)).toBe(-5);
+    expect(reassessDue(P({ color: 'Y' }), S, NOW)).toBe(10);
+    expect(reassessDue(P({ color: 'K' }), S, NOW)).toBeNull();
+    expect(reassessDue(P({ status: 'sent' }), S, NOW)).toBeNull();
     const d = markReassessed({ patients: [P()], vehicles: [], runtime: initialRuntimes(), log: [] }, 'p', NOW);
     expect(d.patients[0].reassessedAt).toBe(NOW);
-    expect(reassessDue(d.patients[0], DEFAULT_SETTINGS, NOW)).toBe(15);
+    expect(reassessDue(d.patients[0], S, NOW)).toBe(15);
     expect(d.log[0].text).toBe('紅1-A 再評估 15:30');
   });
 });

@@ -213,6 +213,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
   const setWounds = useStore((s) => s.setWounds);
   const setTrauma = useStore((s) => s.setTrauma);
   const [showMap, setShowMap] = useState(false);
+  const [showTrauma, setShowTrauma] = useState(false);
   const del = useStore((s) => s.deletePatient);
   const startAt = useStore((s) => s.incident.startAt);
   const now = useStore((s) => s.now);
@@ -228,14 +229,7 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
         {p.status === 'sent' && <span className="muted small">已送出 ➔ {HOSPITAL_BY_ID[p.hospitalId ?? '']?.short}</span>}
       </h2>
 
-      {/* 照片與拍拍尺放最上方：到病人身邊先拍照、掃拍拍尺 */}
-      {p.color !== 'K' && (
-        <>
-          <PhotoSection patientId={p.id} />
-          <PatNoField p={p} />
-        </>
-      )}
-
+      {/* 後送官：記錄與分配優先（檢傷、拍拍尺、照片、註解），創傷處置與計時收在後面 */}
       {p.status === 'waiting' && p.color !== 'R' && (
         <div className="upgrade-red">
           <div className="ur-title">⬆ 升級為{names.R}（危急）</div>
@@ -249,65 +243,6 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           </div>
         </div>
       )}
-
-      <CareTimers p={p} />
-
-      {p.color === 'G' && p.status === 'waiting' && !p.trapped && <GreenActions id={p.id} onDone={onClose} />}
-
-      {rules.hazmat && (
-        <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginTop: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
-          {p.tags.includes('decontaminated') ? '✔ 已除污' : '已除污'}
-        </button>
-      )}
-
-      {p.color !== 'K' && (
-        <>
-          <h3>創傷與處置</h3>
-          <div className="grid g3 ptag-row">
-            {(['peds', 'minor', 'pregnant'] as const).map((t) => (
-              <button key={t} className={`btn sm ${p.tags.includes(t) ? 'on' : ''}`} onClick={() => toggleTag(p.id, t)}>
-                {p.tags.includes(t) ? '✔ ' : ''}
-                {PATIENT_TAGS.find((x) => x.id === t)?.name}
-              </button>
-            ))}
-          </div>
-          <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} tags={p.tags} age={p.personal?.age} />
-        </>
-      )}
-
-      <h3>傷口部位</h3>
-      <button className={`btn full ${showMap ? 'on' : ''}`} onClick={() => setShowMap(!showMap)}>
-        🧍 人形圖{p.wounds?.length ? `（${p.wounds.length} 處）` : '：點部位記錄傷口'} {showMap ? '▲' : '▼'}
-      </button>
-      {showMap && (
-        <Suspense fallback={<div className="empty">載入人形圖…</div>}>
-          <BodyMap
-            wounds={p.wounds ?? []}
-            onChange={(w) => setWounds(p.id, w)}
-            color={p.color}
-            trauma={p.trauma ?? []}
-            onTrauma={(t) => setTrauma(p.id, t)}
-            tags={p.tags}
-            age={p.personal?.age}
-          />
-        </Suspense>
-      )}
-
-      <input
-        className="note-input"
-        value={p.note ?? ''}
-        placeholder="其他註解（例：意識模糊、疑似骨盆骨折）"
-        onChange={(e) => setNote(p.id, e.target.value)}
-      />
-      {injuryText(p) && (
-        <div className="tr-out">
-          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, age: p.personal?.age, startAt, now })} />
-          <div className="tr-sub">交接註解</div>
-          <KeyFlags flags={keyFlags(p.trauma)} />
-          {injuryText(p)}
-        </div>
-      )}
-
       {p.status === 'waiting' && (
         <>
           {p.color === 'R' && (
@@ -332,14 +267,87 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           </div>
         </>
       )}
-
       {p.status === 'left' && (
         <button className="btn full" style={{ marginTop: 12 }} onClick={() => setLeft(p.id, false)}>
           ↶ 恢復待送
         </button>
       )}
 
+      {p.color === 'G' && p.status === 'waiting' && !p.trapped && (
+        <div style={{ marginTop: 8 }}>
+          <GreenActions id={p.id} onDone={onClose} />
+        </div>
+      )}
+      {rules.hazmat && (
+        <button className={`btn full ${p.tags.includes('decontaminated') ? 'on' : ''}`} style={{ marginTop: 8 }} onClick={() => toggleTag(p.id, 'decontaminated')}>
+          {p.tags.includes('decontaminated') ? '✔ 已除污' : '已除污'}
+        </button>
+      )}
+
+      {p.color !== 'K' && (
+        <>
+          <PatNoField p={p} />
+          <PhotoSection patientId={p.id} />
+        </>
+      )}
+
+      <h3>註解</h3>
+      <input
+        className="note-input"
+        value={p.note ?? ''}
+        placeholder="其他註解（例：意識模糊、疑似骨盆骨折）"
+        onChange={(e) => setNote(p.id, e.target.value)}
+      />
+      {injuryText(p) && (
+        <div className="tr-out">
+          <TraumaWarnings items={traumaWarnings(p.trauma, p.wounds, { tags: p.tags, age: p.personal?.age, startAt, now })} />
+          <div className="tr-sub">交接註解</div>
+          <KeyFlags flags={keyFlags(p.trauma)} />
+          {injuryText(p)}
+        </div>
+      )}
+
+      {p.color !== 'K' && (
+        <>
+          <button className={`btn sm full fold-btn ${showTrauma ? 'on' : ''}`} onClick={() => setShowTrauma(!showTrauma)}>
+            🩹 創傷與處置、人形圖（交接用，選填）
+            {(p.trauma?.length ?? 0) + (p.wounds?.length ?? 0) > 0 ? `｜${(p.trauma?.length ?? 0) + (p.wounds?.length ?? 0)} 項` : ''} {showTrauma ? '▲' : '▼'}
+          </button>
+          {showTrauma && (
+            <div className="fold-body">
+              <div className="grid g3 ptag-row">
+                {(['peds', 'minor', 'pregnant'] as const).map((t) => (
+                  <button key={t} className={`btn sm ${p.tags.includes(t) ? 'on' : ''}`} onClick={() => toggleTag(p.id, t)}>
+                    {p.tags.includes(t) ? '✔ ' : ''}
+                    {PATIENT_TAGS.find((x) => x.id === t)?.name}
+                  </button>
+                ))}
+              </div>
+              <TraumaPicker color={p.color} value={p.trauma ?? []} onChange={(t) => setTrauma(p.id, t)} tags={p.tags} age={p.personal?.age} />
+              <h3>傷口部位</h3>
+              <button className={`btn full ${showMap ? 'on' : ''}`} onClick={() => setShowMap(!showMap)}>
+                🧍 人形圖{p.wounds?.length ? `（${p.wounds.length} 處）` : '：點部位記錄傷口'} {showMap ? '▲' : '▼'}
+              </button>
+              {showMap && (
+                <Suspense fallback={<div className="empty">載入人形圖…</div>}>
+                  <BodyMap
+                    wounds={p.wounds ?? []}
+                    onChange={(w) => setWounds(p.id, w)}
+                    color={p.color}
+                    trauma={p.trauma ?? []}
+                    onTrauma={(t) => setTrauma(p.id, t)}
+                    tags={p.tags}
+                    age={p.personal?.age}
+                  />
+                </Suspense>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
       <PersonalSection p={p} />
+      <CareTimers p={p} />
 
       <h3>紀錄</h3>
       <div className="log">

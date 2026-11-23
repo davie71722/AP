@@ -195,7 +195,17 @@ export function IncidentTab() {
             </button>
           </div>
         </SetRow>
-        {(['R', 'Y', 'G'] as const).map((c) => (
+        <SetRow label="再評估提醒">
+          <div className="seg">
+            <button className={`btn sm ${!st.reassessOn ? 'on' : ''}`} onClick={() => update({ reassessOn: false })}>
+              關
+            </button>
+            <button className={`btn sm ${st.reassessOn ? 'on' : ''}`} onClick={() => update({ reassessOn: true })}>
+              開
+            </button>
+          </div>
+        </SetRow>
+        {st.reassessOn && (['R', 'Y', 'G'] as const).map((c) => (
           <SetRow key={c} label={`再評估間隔：${{ R: '紅', Y: '黃', G: '綠' }[c]}傷`}>
             <Stepper
               value={st.reassessMin[c]}

@@ -850,3 +850,7 @@ img.composite { display: block; width: 100%; border-radius: 10px; border: 1px so
 .re-line { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 6px 10px; border-radius: 8px; background: var(--blue-d); color: var(--blue-t); font-weight: 700; }
 .re-line .over { color: var(--orange); }
 :root[data-theme='day'] .re-line, :root[data-theme='day'] .reassess-title { color: var(--text); }
+.small-line { font-size: 13px; padding: 4px 10px; } .alert-bottom { margin-top: 8px; }
+.fold-btn { margin-top: 12px; }
+.fold-body { margin-top: 8px; padding: 8px; border: 1px dashed var(--line); border-radius: 10px; }
+.care-timers .tq-line { font-size: 14px; padding: 4px 8px; }

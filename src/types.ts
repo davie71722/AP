@@ -258,6 +258,8 @@ export interface Settings {
   defaultEmtp: number;
   /** 按「出發」時直接開分享選單（文字＋合成照片） */
   autoShare: boolean;
+  /** 再評估提醒（預設關閉：後送官只負責記錄與分配） */
+  reassessOn: boolean;
   /** 待送病人再評估間隔（分） */
   reassessMin: { R: number; Y: number; G: number };
 }
@@ -327,6 +329,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultEmt2: 2,
   defaultEmtp: 0,
   autoShare: true,
+  reassessOn: false,
   reassessMin: { R: 15, Y: 30, G: 60 },
 };
 
