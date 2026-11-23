@@ -9,6 +9,7 @@ import {
   setLeft as setLeftDomain,
   setTrapped as setTrappedDomain,
   setPolice as setPoliceDomain,
+  markReassessed as markReassessedDomain,
   setVehicleStatus,
   fmtClock,
   type DomainState,
@@ -153,6 +154,8 @@ interface Store extends Persisted {
   setTrapped(id: string, trapped: boolean): void;
   /** 正式勤務／演練測試 */
   setDrill(drill: boolean): void;
+  /** 待送病人再評估（記錄時間） */
+  markReassessed(id: string): void;
   /** 黑牌：已移交警方／改回待警察接管 */
   setPolice(id: string, handed: boolean): void;
   /** 黑牌暫置區位置、看守人員（輸入中不記錄） */
@@ -795,6 +798,7 @@ export const useStore = create<Store>((set, get) => {
       set((s) => ({ incident: { ...s.incident, drill } }));
       log(`環境切換為${drill ? '演練測試' : '正式勤務'}`);
     },
+    markReassessed: (id) => applyDomain(markReassessedDomain(domain(), id, Date.now())),
     setPolice: (id, handed) => applyDomain(setPoliceDomain(domain(), id, handed, Date.now())),
     setMorgue: (p) =>
       set((s) => ({ incident: { ...s.incident, morgue: { ...(s.incident.morgue ?? {}), ...p } } })),

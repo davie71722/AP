@@ -13,6 +13,7 @@ import { KeyFlags, TraumaPicker, TraumaWarnings } from './TraumaPicker';
 import { traumaWarnings } from '../data/traumaRules';
 import { keyFlags } from '../data/trauma';
 import { PhotoSection } from './Photos';
+import { lastAssessed, reassessDue, tourniquets, TQ_ALERT_MIN, TQ_WARN_MIN } from '../engine/care';
 import { decodeQrFromFile, patNoFromQr } from './qr';
 
 export function InputTab() {
@@ -185,10 +186,17 @@ export function PatientChip({ p, onClick }: { p: Patient; onClick: () => void })
           .filter(Boolean)
           .join(' ');
   const flagged = keyFlags(p.trauma).length > 0;
+  const now = useStore((s) => s.now);
+  const settings = useStore((s) => s.incident.settings);
+  const tq = p.status === 'left' ? [] : tourniquets(p, now);
+  const tqMax = tq.reduce((m, t) => Math.max(m, t.min), -1);
+  const due = reassessDue(p, settings, now);
   return (
     <button className={`ptag ${p.color} ${p.status !== 'waiting' ? 'sent' : ''} ${p.trapped ? 'trapped' : ''}`} onClick={onClick}>
       {flagged && <i className="kf-dot" />}
+      {due !== null && due <= 0 && <i className="re-dot" title="待再評估" />}
       {p.label}
+      {tqMax >= 0 && <small className={`tq-badge ${tqMax >= TQ_ALERT_MIN ? 'alert' : tqMax >= TQ_WARN_MIN ? 'warn' : ''}`}>TQ {tqMax}′</small>}
       {sub && <small>{sub}</small>}
     </button>
   );
@@ -241,6 +249,8 @@ export function PatientSheet({ id, onClose }: { id: string; onClose: () => void 
           </div>
         </div>
       )}
+
+      <CareTimers p={p} />
 
       {p.color === 'G' && p.status === 'waiting' && !p.trapped && <GreenActions id={p.id} onDone={onClose} />}
 
@@ -650,5 +660,35 @@ function PatNoField({ p }: { p: Patient }) {
       </div>
       {msg && <p className="small" style={{ margin: '4px 0 0', color: msg.startsWith('✔') ? 'var(--green)' : 'var(--orange)' }}>{msg}</p>}
     </>
+  );
+}
+
+/** 止血帶經過時間與再評估（待送病人） */
+function CareTimers({ p }: { p: Patient }) {
+  const now = useStore((s) => s.now);
+  const settings = useStore((s) => s.incident.settings);
+  const mark = useStore((s) => s.markReassessed);
+  const tq = tourniquets(p, now);
+  const due = reassessDue(p, settings, now);
+  const last = lastAssessed(p);
+  if (!tq.length && due === null) return null;
+  return (
+    <div className="care-timers">
+      {tq.map((t, i) => (
+        <div key={i} className={`tq-line ${t.level}`}>
+          ⏱ 止血帶{t.side ? ` ${t.side}` : ''} {fmtClock(t.at)}｜已 {t.min} 分{t.level === 'alert' ? '（逾 2 小時）' : t.level === 'warn' ? '（逾 1 小時）' : ''}
+        </div>
+      ))}
+      {due !== null && last !== null && (
+        <div className="re-line">
+          <span>
+            🩺 {p.reassessedAt ? '上次再評估' : '檢傷'} {fmtClock(last)}｜{due <= 0 ? <b className="over">已逾 {-due} 分</b> : `${due} 分後再評估`}
+          </span>
+          <button className={`btn sm ${due <= 0 ? 'go' : ''}`} onClick={() => mark(p.id)}>
+            ✔ 已再評估
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

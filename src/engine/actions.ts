@@ -214,3 +214,15 @@ export function setPolice(s: DomainState, patientId: string, handed: boolean, no
     log: [...s.log, { at: now, text: `${p.label} ${text}` }],
   };
 }
+
+/** 再評估：記錄時間（病人紀錄與案件經過） */
+export function markReassessed(s: DomainState, patientId: string, now: number): DomainState {
+  const p = s.patients.find((x) => x.id === patientId);
+  if (!p || p.status !== 'waiting') return s;
+  const text = `再評估 ${fmtClock(now)}`;
+  return {
+    ...s,
+    patients: s.patients.map((x) => (x.id === patientId ? { ...x, reassessedAt: now, history: [...x.history, { at: now, action: text }] } : x)),
+    log: [...s.log, { at: now, text: `${p.label} ${text}` }],
+  };
+}

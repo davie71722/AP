@@ -92,6 +92,8 @@ export interface Patient {
   extricatedAt?: number;
   /** 黑牌：已移交警方的時間（未設定＝待警察接管） */
   policeAt?: number;
+  /** 最後一次再評估時間 */
+  reassessedAt?: number;
   /** 個案備註（皆可空白）：不列入任何分享／回報文字 */
   personal?: Personal;
 }
@@ -256,6 +258,8 @@ export interface Settings {
   defaultEmtp: number;
   /** 按「出發」時直接開分享選單（文字＋合成照片） */
   autoShare: boolean;
+  /** 待送病人再評估間隔（分） */
+  reassessMin: { R: number; Y: number; G: number };
 }
 
 export interface LogEntry {
@@ -323,6 +327,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultEmt2: 2,
   defaultEmtp: 0,
   autoShare: true,
+  reassessMin: { R: 15, Y: 30, G: 60 },
 };
 
 export const COLOR_NAME: Record<Color, string> = { R: '紅', Y: '黃', G: '綠', K: '黑' };

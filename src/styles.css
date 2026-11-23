@@ -829,3 +829,24 @@ img.composite { display: block; width: 100%; border-radius: 10px; border: 1px so
 .case-setup.drill { border-color: var(--yellow-b); }
 .case-title { font-weight: 800; }
 .env-badge.unset { color: var(--muted); border-color: var(--line); }
+
+/* 止血帶時間、再評估 */
+.warn-line.alert { background: var(--red-d); color: var(--red-t); border: 2px solid var(--red); }
+.reassess { margin: 0 0 8px; padding: 6px 10px; border-radius: 10px; background: var(--blue-d); }
+.reassess-title { font-weight: 800; color: var(--blue-t); margin-bottom: 6px; font-size: 15px; }
+.reassess-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { min-height: 44px; font-weight: 800; }
+.chip-btn.R { background: var(--red-d); border-color: var(--red); }
+.chip-btn.Y { background: var(--yellow-d); border-color: var(--yellow-b); }
+.chip-btn.G { background: var(--green-d); border-color: var(--green); }
+.re-dot { position: absolute; top: 4px; left: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 2px var(--bg); }
+.tq-badge { font-weight: 800 !important; }
+.tq-badge.warn { color: var(--orange); opacity: 1 !important; }
+.tq-badge.alert { color: #fff; background: var(--red); border-radius: 4px; padding: 0 3px; opacity: 1 !important; }
+.care-timers { display: grid; gap: 6px; margin: 8px 0; }
+.tq-line { padding: 6px 10px; border-radius: 8px; font-weight: 800; background: var(--panel2); border: 1px solid var(--line); }
+.tq-line.warn { background: var(--warn-bg); color: var(--orange); border-color: var(--orange); }
+.tq-line.alert { background: var(--red-d); color: var(--red-t); border-color: var(--red); }
+.re-line { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 6px 10px; border-radius: 8px; background: var(--blue-d); color: var(--blue-t); font-weight: 700; }
+.re-line .over { color: var(--orange); }
+:root[data-theme='day'] .re-line, :root[data-theme='day'] .reassess-title { color: var(--text); }

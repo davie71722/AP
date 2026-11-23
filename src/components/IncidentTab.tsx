@@ -195,6 +195,18 @@ export function IncidentTab() {
             </button>
           </div>
         </SetRow>
+        {(['R', 'Y', 'G'] as const).map((c) => (
+          <SetRow key={c} label={`再評估間隔：${{ R: '紅', Y: '黃', G: '綠' }[c]}傷`}>
+            <Stepper
+              value={st.reassessMin[c]}
+              min={5}
+              max={120}
+              step={5}
+              onChange={(v) => update({ reassessMin: { ...st.reassessMin, [c]: v } })}
+              format={(v) => `${v}分`}
+            />
+          </SetRow>
+        ))}
         <SetRow label="出發時直接開分享">
           <div className="seg">
             <button className={`btn sm ${!st.autoShare ? 'on' : ''}`} onClick={() => update({ autoShare: false })}>

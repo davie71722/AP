@@ -7,6 +7,7 @@ import { useStore } from '../store/store';
 import { injuryText, otherVehicleName, type Hospital, type Patient } from '../types';
 import { clockAfter, PhotoActions, SentCounts, ShareButtons } from './common';
 import { hospitalNotice } from '../report/report';
+import { tourniquets } from '../engine/care';
 import { useStoredComposites } from './Photos';
 import { trafficLabel } from '../travel/traffic';
 import { HospitalSheet } from './HospitalTab';
@@ -118,6 +119,12 @@ export function ProgressTab() {
                 <span className="spacer" />
                 <span className="elapsed">{elapsed}′</span>
               </div>
+              {!arrived &&
+                t.ps.flatMap((p) => tourniquets(p, now).map((q, i) => (
+                  <div key={`${p.id}-${i}`} className={`tq-line ${q.level}`}>
+                    ⏱ {p.label} 止血帶{q.side ? ` ${q.side}` : ''} {clockAfter(q.at, 0)}｜已 {q.min} 分
+                  </div>
+                )))}
               <div className="trip-sub">
                 {t.ps.map((p) => (
                   <span key={p.id} className={`chip ${p.color}`}>
